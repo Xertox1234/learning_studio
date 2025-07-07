@@ -1,0 +1,439 @@
+INFO 2025-07-06 15:59:48,190 autoreload Watching for file changes with StatReloader
+WARNING 2025-07-06 16:04:35,591 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:04:35,596 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:44:21,211 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:44:21,216 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:45:55,595 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:45:55,599 code_execution Docker not available. Code execution will be limited.
+INFO 2025-07-06 16:47:54,836 autoreload Watching for file changes with StatReloader
+WARNING 2025-07-06 16:47:55,049 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:47:55,066 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:48:16,941 log Not Found: /api/v1/
+WARNING 2025-07-06 16:48:16,942 basehttp "GET /api/v1/ HTTP/1.1" 404 3671
+WARNING 2025-07-06 16:50:39,001 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:50:39,004 code_execution Docker not available. Code execution will be limited.
+ERROR 2025-07-06 16:50:39,115 log Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/utils/deprecation.py", line 119, in __call__
+    response = self.process_request(request)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/middleware/common.py", line 48, in process_request
+    host = request.get_host()
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/http/request.py", line 202, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+WARNING 2025-07-06 16:51:09,339 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:51:09,344 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:51:09,577 log Not Found: /api/v1/
+WARNING 2025-07-06 16:51:27,679 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:51:27,684 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:51:27,879 log Not Found: /api/
+WARNING 2025-07-06 16:51:27,891 log Not Found: /api/v1/
+WARNING 2025-07-06 16:51:27,900 log Not Found: /api/v1/categories/
+WARNING 2025-07-06 16:51:27,909 log Not Found: /api/v1/programming-languages/
+WARNING 2025-07-06 16:52:03,175 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:52:03,179 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:52:03,380 log Unauthorized: /api/v1/
+WARNING 2025-07-06 16:52:23,202 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 16:52:23,207 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 17:03:18,184 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-06 17:03:18,189 code_execution Docker not available. Code execution will be limited.
+INFO 2025-07-06 17:12:55,738 autoreload Watching for file changes with StatReloader
+INFO 2025-07-06 17:14:07,852 autoreload Watching for file changes with StatReloader
+INFO 2025-07-06 17:14:34,595 autoreload Watching for file changes with StatReloader
+WARNING 2025-07-06 17:14:39,790 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:09:34,174 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:18:01,257 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:18:10,113 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:18:28,602 code_execution Docker not available. Code execution will be limited.
+ERROR 2025-07-07 00:18:28,635 docker_executor Failed to initialize Docker client: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+WARNING 2025-07-07 00:19:26,254 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:19:50,245 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:19:50,249 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:20:04,168 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:20:04,172 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:20:30,175 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:20:30,179 code_execution Docker not available. Code execution will be limited.
+INFO 2025-07-07 00:20:41,840 autoreload Watching for file changes with StatReloader
+WARNING 2025-07-07 00:20:41,948 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:20:41,952 code_execution Docker not available. Code execution will be limited.
+INFO 2025-07-07 00:23:41,774 autoreload Watching for file changes with StatReloader
+WARNING 2025-07-07 00:23:41,905 code_execution Docker not available. Code execution will be limited.
+WARNING 2025-07-07 00:23:41,910 code_execution Docker not available. Code execution will be limited.
+INFO 2025-07-07 00:39:25,024 autoreload Watching for file changes with StatReloader
+INFO 2025-07-07 00:39:51,931 autoreload Watching for file changes with StatReloader
+WARNING 2025-07-07 00:44:42,887 services DISCOURSE_SSO_SECRET not configured
+WARNING 2025-07-07 00:44:42,888 services DISCOURSE_BASE_URL not configured
+ERROR 2025-07-07 00:44:42,913 services Error validating SSO payload: Incorrect padding
+ERROR 2025-07-07 00:45:03,660 services Error validating SSO payload: Incorrect padding
+INFO 2025-07-07 00:45:48,298 autoreload Watching for file changes with StatReloader
+ERROR 2025-07-07 00:55:02,391 log Internal Server Error: /
+Traceback (most recent call last):
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/urls/base.py", line 81, in reverse
+    extra, resolver = resolver.namespace_dict[ns]
+                      ~~~~~~~~~~~~~~~~~~~~~~~^^^^
+KeyError: 'djdt'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/debug_toolbar/middleware.py", line 130, in __call__
+    return self._postprocess(request, response, toolbar)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/debug_toolbar/middleware.py", line 172, in _postprocess
+    rendered = toolbar.render_toolbar()
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/debug_toolbar/toolbar.py", line 96, in render_toolbar
+    return render_to_string("debug_toolbar/base.html", context)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/backends/django.py", line 107, in render
+    return self.template.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 171, in render
+    return self._render(context)
+           ~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/test/utils.py", line 114, in instrumented_test_render
+    return self.nodelist.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 977, in render_annotated
+    return self.render(context)
+           ~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/defaulttags.py", line 327, in render
+    return nodelist.render(context)
+           ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 977, in render_annotated
+    return self.render(context)
+           ~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/defaulttags.py", line 480, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/urls/base.py", line 92, in reverse
+    raise NoReverseMatch("%s is not a registered namespace" % key)
+django.urls.exceptions.NoReverseMatch: 'djdt' is not a registered namespace
+ERROR 2025-07-07 00:55:02,396 basehttp "GET / HTTP/1.1" 500 139965
+ERROR 2025-07-07 00:55:03,501 log Internal Server Error: /favicon.ico
+Traceback (most recent call last):
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/urls/base.py", line 81, in reverse
+    extra, resolver = resolver.namespace_dict[ns]
+                      ~~~~~~~~~~~~~~~~~~~~~~~^^^^
+KeyError: 'djdt'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/debug_toolbar/middleware.py", line 130, in __call__
+    return self._postprocess(request, response, toolbar)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/debug_toolbar/middleware.py", line 172, in _postprocess
+    rendered = toolbar.render_toolbar()
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/debug_toolbar/toolbar.py", line 96, in render_toolbar
+    return render_to_string("debug_toolbar/base.html", context)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/backends/django.py", line 107, in render
+    return self.template.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 171, in render
+    return self._render(context)
+           ~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/test/utils.py", line 114, in instrumented_test_render
+    return self.nodelist.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 977, in render_annotated
+    return self.render(context)
+           ~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/defaulttags.py", line 327, in render
+    return nodelist.render(context)
+           ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 977, in render_annotated
+    return self.render(context)
+           ~~~~~~~~~~~^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/defaulttags.py", line 480, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/urls/base.py", line 92, in reverse
+    raise NoReverseMatch("%s is not a registered namespace" % key)
+django.urls.exceptions.NoReverseMatch: 'djdt' is not a registered namespace
+ERROR 2025-07-07 00:55:03,507 basehttp "GET /favicon.ico HTTP/1.1" 500 139932
+INFO 2025-07-07 00:59:02,082 autoreload /Users/willtower/projects/python-learning-studio/learning_community/urls.py changed, reloading.
+INFO 2025-07-07 00:59:07,358 autoreload Watching for file changes with StatReloader
+INFO 2025-07-07 01:02:04,614 autoreload Watching for file changes with StatReloader
+INFO 2025-07-07 01:14:50,681 autoreload Watching for file changes with StatReloader
+INFO 2025-07-07 01:16:57,354 autoreload Watching for file changes with StatReloader
+INFO 2025-07-07 01:17:04,649 basehttp "GET / HTTP/1.1" 200 30982
+INFO 2025-07-07 01:17:47,739 basehttp "GET / HTTP/1.1" 200 30982
+INFO 2025-07-07 01:17:48,354 basehttp "GET /static/css/main.css HTTP/1.1" 200 10252
+INFO 2025-07-07 01:17:48,358 basehttp "GET /static/js/main.js HTTP/1.1" 200 17013
+WARNING 2025-07-07 01:17:49,407 log Unauthorized: /api/v1/notifications/
+WARNING 2025-07-07 01:17:49,407 basehttp "GET /api/v1/notifications/ HTTP/1.1" 401 58
+WARNING 2025-07-07 01:17:49,687 basehttp "GET /static/images/favicon.ico HTTP/1.1" 404 1981
+INFO 2025-07-07 01:18:35,849 basehttp "GET /accounts/signup/ HTTP/1.1" 200 2718
+WARNING 2025-07-07 01:18:35,957 log Not Found: /favicon.ico
+WARNING 2025-07-07 01:18:35,958 basehttp "GET /favicon.ico HTTP/1.1" 404 5225
+INFO 2025-07-07 01:20:15,891 basehttp "GET /admin/ HTTP/1.1" 302 0
+INFO 2025-07-07 01:20:15,925 basehttp "GET /admin/login/?next=/admin/ HTTP/1.1" 200 4173
+INFO 2025-07-07 01:20:16,015 basehttp "GET /static/admin/css/base.css HTTP/1.1" 200 22120
+INFO 2025-07-07 01:20:16,024 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 200 2808
+INFO 2025-07-07 01:20:16,025 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 200 2810
+INFO 2025-07-07 01:20:16,027 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 200 3063
+INFO 2025-07-07 01:20:16,028 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 200 1653
+INFO 2025-07-07 01:20:16,029 basehttp "GET /static/admin/css/login.css HTTP/1.1" 200 951
+INFO 2025-07-07 01:20:16,031 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 200 16565
+INFO 2025-07-07 01:20:38,502 basehttp "POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+INFO 2025-07-07 01:20:38,545 basehttp "GET /admin/ HTTP/1.1" 200 25815
+INFO 2025-07-07 01:20:38,569 basehttp "GET /static/admin/css/dashboard.css HTTP/1.1" 200 441
+INFO 2025-07-07 01:20:38,602 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+INFO 2025-07-07 01:20:38,605 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+INFO 2025-07-07 01:20:38,611 basehttp "GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+INFO 2025-07-07 01:21:11,826 basehttp "GET /admin/ HTTP/1.1" 200 25815
+WARNING 2025-07-07 01:21:32,277 log Not Found: /django-admin/
+WARNING 2025-07-07 01:21:32,277 basehttp "GET /django-admin/ HTTP/1.1" 404 5231
+INFO 2025-07-07 01:23:03,650 autoreload /Users/willtower/projects/python-learning-studio/learning_community/urls.py changed, reloading.
+INFO 2025-07-07 01:23:06,114 autoreload Watching for file changes with StatReloader
+INFO 2025-07-07 01:23:12,740 basehttp "GET /admin/ HTTP/1.1" 302 0
+INFO 2025-07-07 01:23:14,043 basehttp "GET /django-admin/ HTTP/1.1" 302 0
+INFO 2025-07-07 01:23:33,604 basehttp "GET / HTTP/1.1" 200 34270
+INFO 2025-07-07 01:23:34,466 basehttp "GET /api/v1/notifications/ HTTP/1.1" 200 52
+INFO 2025-07-07 01:23:48,768 basehttp "GET /admin/ HTTP/1.1" 200 25836
+INFO 2025-07-07 01:23:48,865 basehttp "GET /static/wagtailadmin/js/icons.js?v=fab2d1d0 HTTP/1.1" 200 650
+INFO 2025-07-07 01:23:48,870 basehttp "GET /static/wagtailadmin/js/vendor/bootstrap-transition.js?v=fab2d1d0 HTTP/1.1" 200 876
+INFO 2025-07-07 01:23:48,876 basehttp "GET /static/wagtailadmin/js/vendor/bootstrap-modal.js?v=fab2d1d0 HTTP/1.1" 200 3891
+INFO 2025-07-07 01:23:48,881 basehttp "GET /static/wagtailadmin/js/vendor/jquery.datetimepicker.js?v=fab2d1d0 HTTP/1.1" 200 61447
+INFO 2025-07-07 01:23:48,881 basehttp "GET /static/wagtailadmin/js/vendor/jquery-3.6.0.min.js?v=fab2d1d0 HTTP/1.1" 200 89531
+INFO 2025-07-07 01:23:48,884 basehttp "GET /static/wagtailadmin/js/vendor/tag-it.js?v=fab2d1d0 HTTP/1.1" 200 8042
+INFO 2025-07-07 01:23:48,890 basehttp "GET /static/wagtailadmin/js/vendor/jquery-ui-1.13.2.min.js?v=fab2d1d0 HTTP/1.1" 200 254377
+INFO 2025-07-07 01:23:48,897 basehttp "GET /static/wagtailadmin/js/wagtailadmin.js?v=fab2d1d0 HTTP/1.1" 200 11603
+INFO 2025-07-07 01:23:48,900 basehttp "GET /static/wagtailadmin/js/telepath/telepath.js?v=fab2d1d0 HTTP/1.1" 200 4526
+INFO 2025-07-07 01:23:48,905 basehttp "GET /static/wagtailadmin/css/core.css?v=fab2d1d0 HTTP/1.1" 200 276553
+INFO 2025-07-07 01:23:48,910 basehttp "GET /static/wagtailadmin/js/modal-workflow.js?v=fab2d1d0 HTTP/1.1" 200 3754
+INFO 2025-07-07 01:23:48,914 basehttp "GET /static/wagtailadmin/js/privacy-switch.js?v=fab2d1d0 HTTP/1.1" 200 2386
+INFO 2025-07-07 01:23:48,919 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:23:48,922 basehttp "GET /static/wagtailadmin/js/sidebar.js?v=fab2d1d0 HTTP/1.1" 200 43930
+INFO 2025-07-07 01:23:48,925 basehttp "GET /static/wagtailadmin/js/vendor.js?v=fab2d1d0 HTTP/1.1" 200 365435
+INFO 2025-07-07 01:23:48,927 basehttp "GET /static/wagtailadmin/js/core.js?v=fab2d1d0 HTTP/1.1" 200 669369
+INFO 2025-07-07 01:23:48,949 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:23:49,540 basehttp "GET /static/wagtailadmin/images/favicon.ico?v=fab2d1d0 HTTP/1.1" 200 15406
+INFO 2025-07-07 01:23:55,231 basehttp "GET /admin/pages/2/ HTTP/1.1" 200 62823
+INFO 2025-07-07 01:23:55,268 basehttp "GET /static/wagtailadmin/js/date-time-chooser.js?v=fab2d1d0 HTTP/1.1" 200 3376
+INFO 2025-07-07 01:23:55,268 basehttp "GET /static/wagtailadmin/js/bulk-actions.js?v=fab2d1d0 HTTP/1.1" 200 5549
+INFO 2025-07-07 01:23:55,284 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:23:55,288 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:23:55,509 basehttp "GET /static/wagtailadmin/images/icons/arrow-down.svg HTTP/1.1" 200 304
+INFO 2025-07-07 01:23:58,722 basehttp "GET /admin/api/main/pages/?child_of=1&for_explorer=1&fields=parent HTTP/1.1" 200 1399
+INFO 2025-07-07 01:24:02,357 basehttp "GET /admin/pages/2/ HTTP/1.1" 200 62823
+INFO 2025-07-07 01:24:02,394 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:24:02,399 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:24:21,327 basehttp "GET /django-admin/ HTTP/1.1" 200 26445
+INFO 2025-07-07 01:24:27,212 basehttp "GET /accounts/signup/ HTTP/1.1" 302 0
+INFO 2025-07-07 01:24:27,236 basehttp "GET / HTTP/1.1" 200 34270
+INFO 2025-07-07 01:24:28,033 basehttp "GET /api/v1/notifications/ HTTP/1.1" 200 52
+WARNING 2025-07-07 01:24:51,007 log Not Found: /api/schema/swagger-ui/
+WARNING 2025-07-07 01:24:51,008 basehttp "GET /api/schema/swagger-ui/ HTTP/1.1" 404 7299
+INFO 2025-07-07 01:25:09,753 basehttp "GET /api/v1/courses/ HTTP/1.1" 200 14812
+INFO 2025-07-07 01:25:09,860 basehttp "GET /static/rest_framework/css/bootstrap-tweaks.css HTTP/1.1" 200 3426
+INFO 2025-07-07 01:25:09,866 basehttp "GET /static/rest_framework/css/default.css HTTP/1.1" 200 1152
+INFO 2025-07-07 01:25:09,866 basehttp "GET /static/rest_framework/css/prettify.css HTTP/1.1" 200 817
+INFO 2025-07-07 01:25:09,873 basehttp "GET /static/rest_framework/js/ajax-form.js HTTP/1.1" 200 3796
+INFO 2025-07-07 01:25:09,877 basehttp "GET /static/rest_framework/js/csrf.js HTTP/1.1" 200 1793
+INFO 2025-07-07 01:25:09,882 basehttp "GET /static/rest_framework/js/jquery-3.7.1.min.js HTTP/1.1" 200 87533
+INFO 2025-07-07 01:25:09,883 basehttp "GET /static/rest_framework/js/prettify-min.js HTTP/1.1" 200 13632
+INFO 2025-07-07 01:25:09,884 basehttp "GET /static/rest_framework/js/load-ajax-form.js HTTP/1.1" 200 59
+INFO 2025-07-07 01:25:09,884 basehttp "GET /static/rest_framework/js/bootstrap.min.js HTTP/1.1" 200 39680
+INFO 2025-07-07 01:25:09,885 basehttp "GET /static/rest_framework/js/default.js HTTP/1.1" 200 1268
+INFO 2025-07-07 01:25:09,886 basehttp "GET /static/rest_framework/css/bootstrap.min.css HTTP/1.1" 200 121457
+INFO 2025-07-07 01:25:09,959 basehttp "GET /static/rest_framework/img/grid.png HTTP/1.1" 200 1458
+INFO 2025-07-07 01:25:41,056 basehttp "GET / HTTP/1.1" 200 34270
+INFO 2025-07-07 01:25:41,608 basehttp "GET /api/v1/notifications/ HTTP/1.1" 200 52
+INFO 2025-07-07 01:27:48,265 unpublish Unpublished: "Welcome to your new Wagtail site!" pk=2
+INFO 2025-07-07 01:27:48,281 signal_handlers Page deleted: "Welcome to your new Wagtail site!" id=2
+INFO 2025-07-07 01:28:11,443 autoreload /Users/willtower/projects/python-learning-studio/learning_community/urls.py changed, reloading.
+INFO 2025-07-07 01:28:13,010 autoreload Watching for file changes with StatReloader
+INFO 2025-07-07 01:28:24,362 autoreload /Users/willtower/projects/python-learning-studio/learning_community/urls.py changed, reloading.
+INFO 2025-07-07 01:28:25,829 autoreload Watching for file changes with StatReloader
+INFO 2025-07-07 01:28:37,664 pages Page created: "Python Learning Studio" id=3 content_type=blog.HomePage path=/home/
+INFO 2025-07-07 01:28:37,711 pages Page edited: "Python Learning Studio" id=3 revision_id=1
+INFO 2025-07-07 01:28:37,754 publish_revision Published: "Python Learning Studio" pk=3 revision_id=1
+ERROR 2025-07-07 01:30:13,478 log Internal Server Error: /
+Traceback (most recent call last):
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 510, in parse
+    compile_func = self.tags[command]
+                   ~~~~~~~~~^^^^^^^^^
+KeyError: 'image'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/core/handlers/base.py", line 220, in _get_response
+    response = response.render()
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/response.py", line 90, in rendered_content
+    template = self.resolve_template(self.template_name)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/response.py", line 74, in resolve_template
+    return get_template(template, using=self.using)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/backends/django.py", line 79, in get_template
+    return Template(self.engine.get_template(template_name), self)
+                    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/engine.py", line 177, in get_template
+    template, origin = self.find_template(template_name)
+                       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/engine.py", line 159, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+        contents,
+    ...<2 lines>...
+        self.engine,
+    )
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 196, in compile_nodelist
+    nodelist = parser.parse()
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 518, in parse
+    raise self.error(token, e)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 516, in parse
+    compiled_result = compile_func(self, token)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/loader_tags.py", line 299, in do_extends
+    nodelist = parser.parse()
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 518, in parse
+    raise self.error(token, e)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 516, in parse
+    compiled_result = compile_func(self, token)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/loader_tags.py", line 234, in do_block
+    nodelist = parser.parse(("endblock",))
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 518, in parse
+    raise self.error(token, e)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 516, in parse
+    compiled_result = compile_func(self, token)
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/defaulttags.py", line 962, in do_if
+    nodelist = parser.parse(("elif", "else", "endif"))
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 512, in parse
+    self.invalid_block_tag(token, command, parse_until)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/willtower/projects/python-learning-studio/venv/lib/python3.13/site-packages/django/template/base.py", line 567, in invalid_block_tag
+    raise self.error(
+    ...<8 lines>...
+    )
+django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 53: 'image', expected 'elif', 'else' or 'endif'. Did you forget to register or load this tag?
+ERROR 2025-07-07 01:30:13,503 basehttp "GET / HTTP/1.1" 500 271763
+INFO 2025-07-07 01:30:33,084 basehttp "GET / HTTP/1.1" 200 23515
+INFO 2025-07-07 01:30:54,136 pages Page edited: "Python Learning Studio" id=3 revision_id=2
+INFO 2025-07-07 01:30:54,194 publish_revision Published: "Python Learning Studio" pk=3 revision_id=2
+INFO 2025-07-07 01:31:01,591 basehttp "GET / HTTP/1.1" 200 24541
+INFO 2025-07-07 01:31:07,872 basehttp "GET /admin/ HTTP/1.1" 302 0
+INFO 2025-07-07 01:31:51,869 basehttp "GET /admin/! HTTP/1.1" 301 0
+WARNING 2025-07-07 01:31:51,916 log Not Found: /admin/!/
+WARNING 2025-07-07 01:31:51,916 basehttp "GET /admin/!/ HTTP/1.1" 404 3416
+INFO 2025-07-07 01:32:09,927 basehttp "GET /admin/ HTTP/1.1" 200 25836
+INFO 2025-07-07 01:32:10,027 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:32:10,038 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:32:17,827 basehttp "GET / HTTP/1.1" 200 27798
+INFO 2025-07-07 01:32:18,561 basehttp "GET /api/v1/notifications/ HTTP/1.1" 200 52
+INFO 2025-07-07 01:32:34,248 basehttp "GET / HTTP/1.1" 200 27798
+INFO 2025-07-07 01:32:34,542 basehttp "GET /api/v1/notifications/ HTTP/1.1" 200 52
+INFO 2025-07-07 01:32:36,441 basehttp "GET /admin/ HTTP/1.1" 200 25836
+INFO 2025-07-07 01:32:36,479 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:32:36,505 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:32:48,847 basehttp "GET /admin/pages/3/ HTTP/1.1" 200 63223
+INFO 2025-07-07 01:32:48,894 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:32:48,896 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:32:53,615 basehttp "GET /admin/api/main/pages/?child_of=1&for_explorer=1&fields=parent HTTP/1.1" 200 1566
+INFO 2025-07-07 01:32:56,850 basehttp "GET /admin/pages/3/edit/ HTTP/1.1" 200 119838
+INFO 2025-07-07 01:32:56,900 basehttp "GET /static/wagtail_ai/draftail.css?v=fab2d1d0 HTTP/1.1" 200 1742
+INFO 2025-07-07 01:32:56,904 basehttp "GET /static/wagtailadmin/css/panels/streamfield.css?v=fab2d1d0 HTTP/1.1" 200 1079
+INFO 2025-07-07 01:32:56,907 basehttp "GET /static/wagtailembeds/js/embed-chooser-modal.js?v=fab2d1d0 HTTP/1.1" 200 358
+INFO 2025-07-07 01:32:56,910 basehttp "GET /static/wagtailadmin/css/panels/draftail.css?v=fab2d1d0 HTTP/1.1" 200 24204
+INFO 2025-07-07 01:32:56,913 basehttp "GET /static/wagtaildocs/js/document-chooser-modal.js?v=fab2d1d0 HTTP/1.1" 200 2193
+INFO 2025-07-07 01:32:56,916 basehttp "GET /static/wagtailadmin/js/page-chooser-modal.js?v=fab2d1d0 HTTP/1.1" 200 5265
+INFO 2025-07-07 01:32:56,927 basehttp "GET /static/wagtailimages/js/image-chooser-modal.js?v=fab2d1d0 HTTP/1.1" 200 3546
+INFO 2025-07-07 01:32:56,929 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:32:56,936 basehttp "GET /static/wagtailimages/js/image-chooser.js?v=fab2d1d0 HTTP/1.1" 200 2236
+INFO 2025-07-07 01:32:56,938 basehttp "GET /static/wagtailadmin/js/telepath/widgets.js?v=fab2d1d0 HTTP/1.1" 200 8115
+INFO 2025-07-07 01:32:56,941 basehttp "GET /static/wagtail_ai/draftail.js?v=fab2d1d0 HTTP/1.1" 200 13242
+INFO 2025-07-07 01:32:56,949 basehttp "GET /static/wagtailadmin/js/comments.js HTTP/1.1" 200 50463
+INFO 2025-07-07 01:32:56,953 basehttp "GET /static/wagtailimages/js/image-chooser-telepath.js?v=fab2d1d0 HTTP/1.1" 200 2350
+INFO 2025-07-07 01:32:56,960 basehttp "GET /static/wagtailadmin/js/workflow-action.js?v=fab2d1d0 HTTP/1.1" 200 3593
+INFO 2025-07-07 01:32:56,961 basehttp "GET /static/wagtailadmin/js/telepath/blocks.js?v=fab2d1d0 HTTP/1.1" 200 31796
+INFO 2025-07-07 01:32:56,962 basehttp "GET /static/wagtailadmin/js/draftail.js?v=fab2d1d0 HTTP/1.1" 200 294221
+INFO 2025-07-07 01:32:56,964 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:32:57,335 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:33:07,313 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:33:17,316 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:33:27,318 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:33:37,319 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:33:47,317 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:33:57,318 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:34:07,320 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:34:17,321 basehttp "POST /admin/editing-sessions/ping/wagtailcore/page/3/1/ HTTP/1.1" 200 238
+INFO 2025-07-07 01:34:24,789 basehttp "GET /admin/images/ HTTP/1.1" 200 31580
+INFO 2025-07-07 01:34:24,838 basehttp "POST /admin/editing-sessions/release/1/ HTTP/1.1" 200 2
+INFO 2025-07-07 01:34:24,845 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:34:24,858 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:34:28,815 basehttp "GET /admin/documents/ HTTP/1.1" 200 30502
+INFO 2025-07-07 01:34:28,870 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:34:28,879 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:34:30,570 basehttp "GET /admin/snippets/ HTTP/1.1" 200 27540
+INFO 2025-07-07 01:34:30,628 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:34:30,632 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:34:30,713 basehttp "GET /static/wagtailadmin/images/icons/arrow-up.svg HTTP/1.1" 200 310
+INFO 2025-07-07 01:34:42,541 basehttp "PATCH /admin/dismissibles/ HTTP/1.1" 200 70
+INFO 2025-07-07 01:34:44,674 basehttp "PATCH /admin/dismissibles/ HTTP/1.1" 200 70
+WARNING 2025-07-07 01:35:19,703 log Not Found: /admin/pages/2/
+WARNING 2025-07-07 01:35:19,704 basehttp "GET /admin/pages/2/ HTTP/1.1" 404 3416
+INFO 2025-07-07 01:35:20,224 basehttp "GET /admin/pages/3/ HTTP/1.1" 200 63361
+INFO 2025-07-07 01:35:20,249 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:35:20,260 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:35:23,162 basehttp "GET /admin/ HTTP/1.1" 200 25974
+INFO 2025-07-07 01:35:23,194 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:35:23,200 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:35:24,054 basehttp "GET /admin/pages/3/ HTTP/1.1" 200 63361
+INFO 2025-07-07 01:35:24,091 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:35:24,100 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:35:25,190 basehttp "GET / HTTP/1.1" 200 27798
+INFO 2025-07-07 01:35:25,709 basehttp "GET /api/v1/notifications/ HTTP/1.1" 200 52
+INFO 2025-07-07 01:36:11,869 basehttp "GET / HTTP/1.1" 200 24541
+INFO 2025-07-07 01:36:18,967 basehttp "GET / HTTP/1.1" 200 24541
+INFO 2025-07-07 01:37:24,298 basehttp "GET /admin/ HTTP/1.1" 200 25974
+INFO 2025-07-07 01:37:24,448 basehttp "GET /admin/sprite/?h=b489757f HTTP/1.1" 200 63586
+INFO 2025-07-07 01:37:24,460 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+INFO 2025-07-07 01:37:33,367 basehttp "GET / HTTP/1.1" 200 27798
+INFO 2025-07-07 01:37:33,944 basehttp "GET /api/v1/notifications/ HTTP/1.1" 200 52
+INFO 2025-07-07 01:37:42,272 basehttp "GET /api/v1/courses/ HTTP/1.1" 200 14812
+INFO 2025-07-07 01:37:42,299 basehttp "GET /static/rest_framework/css/bootstrap-tweaks.css HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,303 basehttp "GET /static/rest_framework/css/bootstrap.min.css HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,304 basehttp "GET /static/rest_framework/css/prettify.css HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,318 basehttp "GET /static/rest_framework/js/prettify-min.js HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,319 basehttp "GET /static/rest_framework/js/jquery-3.7.1.min.js HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,320 basehttp "GET /static/rest_framework/css/default.css HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,329 basehttp "GET /static/rest_framework/js/default.js HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,330 basehttp "GET /static/rest_framework/js/csrf.js HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,332 basehttp "GET /static/rest_framework/js/bootstrap.min.js HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,337 basehttp "GET /static/rest_framework/js/load-ajax-form.js HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,337 basehttp "GET /static/rest_framework/js/ajax-form.js HTTP/1.1" 304 0
+INFO 2025-07-07 01:37:42,358 basehttp "GET /static/rest_framework/img/grid.png HTTP/1.1" 304 0

@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # Main Django application
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=sqlite:///app/db.sqlite3
+    depends_on:
+      - redis
+    networks:
+      - python_learning_network
+
+  # Redis for caching and task queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - python_learning_network
+
+  # Code execution service (separate container for security)
+  code-executor:
+    build:
+      context: ./docker/python-executor
+      dockerfile: Dockerfile
+    restart: "no"  # Don't restart automatically
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /app/code:noexec,nosuid,size=50m
+      - /app/output:noexec,nosuid,size=50m
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    networks:
+      - python_learning_network
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 50
+    ulimits:
+      nproc: 50
+      nofile: 1024
+    environment:
+      - TIME_LIMIT=30
+      - MEMORY_LIMIT=134217728  # 128MB
+    profiles:
+      - code-execution  # Only start when explicitly requested
+
+volumes:
+  redis_data:
+
+networks:
+  python_learning_network:
+    driver: bridge

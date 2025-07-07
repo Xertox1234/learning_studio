@@ -1,0 +1,349 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Python Learning Studio - AI-Powered Programming Education{% endblock %}
+
+{% block meta_description %}Master Python programming with our AI-powered platform. Interactive lessons, coding exercises, and community support for learners of all levels.{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center min-vh-50">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">
+                    Master Python with
+                    <span class="text-gradient">AI-Powered</span>
+                    Learning
+                </h1>
+                <p class="lead mb-4">
+                    Join thousands of learners mastering Python through interactive lessons, 
+                    real-time code execution, and AI-powered assistance. From beginner to expert, 
+                    we've got you covered.
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    {% if user.is_authenticated %}
+                        <a href="/api/v1/courses/" class="btn btn-light btn-lg">
+                            <i class="bi bi-book me-2"></i>Continue Learning
+                        </a>
+                        <a href="/api/v1/exercises/" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-terminal me-2"></i>Practice Coding
+                        </a>
+                    {% else %}
+                        <a href="{% url 'account_signup' %}" class="btn btn-light btn-lg">
+                            <i class="bi bi-person-plus me-2"></i>Start Learning Free
+                        </a>
+                        <a href="#features" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-play-circle me-2"></i>See How It Works
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="code-demo-container position-relative">
+                    <div class="code-editor-container">
+                        <div class="code-editor-header">
+                            <div class="code-editor-tabs">
+                                <span class="code-tab active">hello_world.py</span>
+                            </div>
+                            <div class="ms-auto">
+                                <small class="text-light-emphasis">
+                                    <i class="bi bi-robot me-1"></i>AI-Assisted
+                                </small>
+                            </div>
+                        </div>
+                        <div class="p-3" style="background: #1e1e1e; color: #d4d4d4; font-family: 'Fira Code', monospace;">
+<pre style="margin: 0; line-height: 1.5;"><span style="color: #569cd6;">def</span> <span style="color: #dcdcaa;">greet_learner</span>(<span style="color: #9cdcfe;">name</span>):
+    <span style="color: #6a9955;"># AI suggests: Add personalized greeting</span>
+    <span style="color: #c586c0;">return</span> <span style="color: #ce9178;">f"Welcome to Python Learning Studio, {name}!"</span>
+
+<span style="color: #6a9955;"># Interactive exercise with real-time feedback</span>
+<span style="color: #dcdcaa;">print</span>(<span style="color: #dcdcaa;">greet_learner</span>(<span style="color: #ce9178;">"Future Python Developer"</span>))</pre>
+                        </div>
+                        <div class="code-output success p-2" style="background: #2d3748; color: #e2e8f0; font-family: 'Fira Code', monospace; font-size: 0.875rem;">
+                            <div class="text-success mb-1"><i class="bi bi-check-circle"></i> Code executed successfully</div>
+                            Welcome to Python Learning Studio, Future Python Developer!
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-3 mb-4">
+                <div class="h2 text-primary fw-bold">10,000+</div>
+                <div class="text-muted">Active Learners</div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="h2 text-success fw-bold">500+</div>
+                <div class="text-muted">Coding Exercises</div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="h2 text-info fw-bold">50+</div>
+                <div class="text-muted">Interactive Courses</div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="h2 text-warning fw-bold">94%</div>
+                <div class="text-muted">Success Rate</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section id="features" class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold mb-3">Why Choose Our Platform?</h2>
+            <p class="lead text-muted">Experience the future of programming education with AI-powered features</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card h-100 hover-lift">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-robot display-4 text-primary"></i>
+                        </div>
+                        <h5 class="card-title">AI-Powered Assistance</h5>
+                        <p class="card-text">
+                            Get instant help with code explanations, error debugging, and personalized hints 
+                            powered by advanced AI technology.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card h-100 hover-lift">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-terminal display-4 text-success"></i>
+                        </div>
+                        <h5 class="card-title">Real-Time Code Execution</h5>
+                        <p class="card-text">
+                            Practice coding with instant feedback. Run Python code directly in your browser 
+                            with our secure, containerized execution environment.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card h-100 hover-lift">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-people display-4 text-info"></i>
+                        </div>
+                        <h5 class="card-title">Collaborative Learning</h5>
+                        <p class="card-text">
+                            Join study groups, participate in code reviews, and learn together with 
+                            a supportive community of fellow programmers.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card h-100 hover-lift">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-graph-up display-4 text-warning"></i>
+                        </div>
+                        <h5 class="card-title">Progress Tracking</h5>
+                        <p class="card-text">
+                            Monitor your learning journey with detailed analytics, achievement badges, 
+                            and personalized learning recommendations.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card h-100 hover-lift">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-puzzle display-4 text-danger"></i>
+                        </div>
+                        <h5 class="card-title">Interactive Exercises</h5>
+                        <p class="card-text">
+                            Practice with hundreds of coding challenges designed to reinforce your learning 
+                            and build practical programming skills.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card h-100 hover-lift">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-award display-4 text-purple"></i>
+                        </div>
+                        <h5 class="card-title">Skill Certification</h5>
+                        <p class="card-text">
+                            Earn certificates for completed courses and showcase your Python programming 
+                            skills to employers and peers.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Popular Courses Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold mb-3">Popular Courses</h2>
+            <p class="lead text-muted">Start your Python journey with our most loved courses</p>
+        </div>
+        
+        <div class="row g-4" id="popular-courses">
+            <!-- Courses will be loaded here via JavaScript -->
+            <div class="col-lg-4">
+                <div class="card course-card h-100">
+                    <div class="position-relative">
+                        <img src="https://via.placeholder.com/400x200?text=Python+Basics" class="card-img-top" alt="Python Basics">
+                        <span class="badge difficulty-beginner position-absolute top-0 end-0 m-2">Beginner</span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Python Fundamentals</h5>
+                        <p class="card-text">Learn the basics of Python programming with hands-on exercises and real-world examples.</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>4 weeks
+                                <i class="bi bi-people ms-3 me-1"></i>1,234 students
+                            </small>
+                            <div class="text-warning">
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-half"></i>
+                                4.8
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="#" class="btn btn-primary w-100">Start Learning</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card course-card h-100">
+                    <div class="position-relative">
+                        <img src="https://via.placeholder.com/400x200?text=Web+Development" class="card-img-top" alt="Web Development">
+                        <span class="badge difficulty-intermediate position-absolute top-0 end-0 m-2">Intermediate</span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Web Development with Django</h5>
+                        <p class="card-text">Build dynamic web applications using Django framework and modern web technologies.</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>8 weeks
+                                <i class="bi bi-people ms-3 me-1"></i>856 students
+                            </small>
+                            <div class="text-warning">
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                4.9
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="#" class="btn btn-primary w-100">Start Learning</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card course-card h-100">
+                    <div class="position-relative">
+                        <img src="https://via.placeholder.com/400x200?text=Data+Science" class="card-img-top" alt="Data Science">
+                        <span class="badge difficulty-advanced position-absolute top-0 end-0 m-2">Advanced</span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">Data Science & Machine Learning</h5>
+                        <p class="card-text">Master data analysis, visualization, and machine learning with Python libraries.</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>12 weeks
+                                <i class="bi bi-people ms-3 me-1"></i>632 students
+                            </small>
+                            <div class="text-warning">
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-half"></i>
+                                4.7
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="#" class="btn btn-primary w-100">Start Learning</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-5">
+            <a href="/api/v1/courses/" class="btn btn-outline-primary btn-lg">
+                View All Courses <i class="bi bi-arrow-right ms-2"></i>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="display-5 fw-bold mb-3">Ready to Start Your Python Journey?</h2>
+                <p class="lead mb-4">
+                    Join our community of learners and start building amazing things with Python today. 
+                    Get started for free and unlock your programming potential.
+                </p>
+                {% if not user.is_authenticated %}
+                    <a href="{% url 'account_signup' %}" class="btn btn-light btn-lg me-3">
+                        <i class="bi bi-person-plus me-2"></i>Sign Up Free
+                    </a>
+                    <a href="{% url 'account_login' %}" class="btn btn-outline-light btn-lg">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                    </a>
+                {% else %}
+                    <a href="/api/v1/courses/" class="btn btn-light btn-lg me-3">
+                        <i class="bi bi-book me-2"></i>Browse Courses
+                    </a>
+                    <a href="/api/v1/exercises/" class="btn btn-outline-light btn-lg">
+                        <i class="bi bi-terminal me-2"></i>Practice Coding
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load popular courses dynamically
+document.addEventListener('DOMContentLoaded', function() {
+    // This would typically load real course data from the API
+    // For now, the static content above serves as a demo
+    console.log('Home page loaded successfully');
+});
+</script>
+{% endblock %}

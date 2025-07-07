@@ -1,0 +1,1 @@
+# Settings package for Python Learning Studio

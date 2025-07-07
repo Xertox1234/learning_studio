@@ -1,0 +1,294 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Courses - Python Learning Studio{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item active">Courses</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">Python Courses</h1>
+                    <p class="text-muted">Master Python through structured learning paths</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="bi bi-funnel me-2"></i>Filters
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-sort-down me-2"></i>Sort By
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="?sort=popularity">Most Popular</a></li>
+                            <li><a class="dropdown-item" href="?sort=newest">Newest</a></li>
+                            <li><a class="dropdown-item" href="?sort=difficulty">Difficulty</a></li>
+                            <li><a class="dropdown-item" href="?sort=rating">Highest Rated</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-primary active" data-filter="all">All Courses</button>
+                <button class="btn btn-sm btn-outline-primary" data-filter="beginner">Beginner</button>
+                <button class="btn btn-sm btn-outline-primary" data-filter="intermediate">Intermediate</button>
+                <button class="btn btn-sm btn-outline-primary" data-filter="advanced">Advanced</button>
+                <button class="btn btn-sm btn-outline-primary" data-filter="free">Free</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Grid -->
+    <div class="row g-4" id="course-grid">
+        {% for course in courses %}
+        <div class="col-lg-4 col-md-6 course-card-container" data-difficulty="{{ course.difficulty_level }}" data-category="{{ course.category.slug }}">
+            <div class="card course-card h-100 hover-lift">
+                <div class="position-relative">
+                    {% if course.thumbnail %}
+                        <img src="{{ course.thumbnail.url }}" class="card-img-top" alt="{{ course.title }}" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                        <img src="https://via.placeholder.com/400x200?text={{ course.title|truncatewords:2 }}" class="card-img-top" alt="{{ course.title }}" style="height: 200px; object-fit: cover;">
+                    {% endif %}
+                    <span class="badge difficulty-{{ course.difficulty_level }} position-absolute top-0 end-0 m-2">
+                        {{ course.get_difficulty_level_display }}
+                    </span>
+                    {% if course.is_free %}
+                        <span class="badge bg-success position-absolute top-0 start-0 m-2">Free</span>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body d-flex flex-column">
+                    <div class="mb-2">
+                        <small class="text-muted">
+                            <i class="bi bi-tag me-1"></i>{{ course.category.name }}
+                        </small>
+                    </div>
+                    
+                    <h5 class="card-title">{{ course.title }}</h5>
+                    <p class="card-text flex-grow-1">{{ course.short_description }}</p>
+                    
+                    <div class="course-meta small text-muted mb-3">
+                        <div class="row">
+                            <div class="col-6">
+                                <i class="bi bi-clock me-1"></i>{{ course.estimated_duration }} hours
+                            </div>
+                            <div class="col-6">
+                                <i class="bi bi-people me-1"></i>{{ course.enrolled_count }} students
+                            </div>
+                        </div>
+                        <div class="row mt-1">
+                            <div class="col-6">
+                                <i class="bi bi-bookmark me-1"></i>{{ course.lessons.count }} lessons
+                            </div>
+                            <div class="col-6">
+                                <div class="text-warning">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= course.average_rating %}
+                                            <i class="bi bi-star-fill"></i>
+                                        {% else %}
+                                            <i class="bi bi-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                    <span class="ms-1">{{ course.average_rating|floatformat:1 }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar (if user is enrolled) -->
+                    {% if user.is_authenticated %}
+                        {% with course.get_user_progress as progress %}
+                            {% if progress %}
+                                <div class="progress mb-2" style="height: 6px;">
+                                    <div class="progress-bar" style="width: {{ progress.progress_percentage }}%"></div>
+                                </div>
+                                <small class="text-muted">{{ progress.progress_percentage }}% complete</small>
+                            {% endif %}
+                        {% endwith %}
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between align-items-center">
+                        {% if course.is_free %}
+                            <span class="h6 text-success mb-0">Free</span>
+                        {% else %}
+                            <span class="h6 mb-0">${{ course.price }}</span>
+                        {% endif %}
+                        <a href="{% url 'course_detail' course.slug %}" class="btn btn-primary">
+                            {% if user.is_authenticated and course.is_user_enrolled %}
+                                Continue Learning
+                            {% else %}
+                                Learn More
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-book display-1 text-muted"></i>
+                <h3 class="mt-3">No courses found</h3>
+                <p class="text-muted">Try adjusting your filters or check back later for new courses.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="row mt-5">
+        <div class="col">
+            <nav aria-label="Course pagination">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Courses</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="get">
+                    <div class="mb-3">
+                        <label class="form-label">Difficulty Level</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="beginner" id="diff-beginner" name="difficulty">
+                            <label class="form-check-label" for="diff-beginner">Beginner</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="intermediate" id="diff-intermediate" name="difficulty">
+                            <label class="form-check-label" for="diff-intermediate">Intermediate</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="advanced" id="diff-advanced" name="difficulty">
+                            <label class="form-check-label" for="diff-advanced">Advanced</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" name="category">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                                <option value="{{ category.slug }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Duration</label>
+                        <select class="form-select" name="duration">
+                            <option value="">Any Duration</option>
+                            <option value="short">Short (< 5 hours)</option>
+                            <option value="medium">Medium (5-20 hours)</option>
+                            <option value="long">Long (> 20 hours)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="true" id="free-only" name="free">
+                        <label class="form-check-label" for="free-only">Free courses only</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter buttons
+    document.querySelectorAll('[data-filter]').forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            document.querySelectorAll('[data-filter]').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            const filter = this.getAttribute('data-filter');
+            const courseCards = document.querySelectorAll('.course-card-container');
+            
+            courseCards.forEach(card => {
+                if (filter === 'all') {
+                    card.style.display = 'block';
+                } else if (filter === 'free') {
+                    const isFree = card.querySelector('.badge.bg-success');
+                    card.style.display = isFree ? 'block' : 'none';
+                } else {
+                    const difficulty = card.getAttribute('data-difficulty');
+                    card.style.display = difficulty === filter ? 'block' : 'none';
+                }
+            });
+        });
+    });
+});
+
+function applyFilters() {
+    const form = document.querySelector('#filterModal form');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+    window.location.search = params.toString();
+}
+</script>
+{% endblock %}

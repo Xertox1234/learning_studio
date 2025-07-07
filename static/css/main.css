@@ -1,0 +1,532 @@
+/* Python Learning Studio - Custom CSS */
+
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --info-color: #0dcaf0;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    
+    /* Custom colors for coding themes */
+    --code-bg: #1e1e1e;
+    --code-text: #d4d4d4;
+    --syntax-keyword: #569cd6;
+    --syntax-string: #ce9178;
+    --syntax-comment: #6a9955;
+    --syntax-number: #b5cea8;
+    
+    /* Progress colors */
+    --progress-beginner: #28a745;
+    --progress-intermediate: #ffc107;
+    --progress-advanced: #dc3545;
+    --progress-expert: #6f42c1;
+}
+
+/* Global Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: var(--dark-color);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Navigation Enhancements */
+.navbar-brand {
+    font-size: 1.5rem;
+    letter-spacing: -0.5px;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: rgba(255, 255, 255, 0.9) !important;
+    transform: translateY(-1px);
+}
+
+.notification-dropdown {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Card Enhancements */
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--primary-color), #0056b3);
+    color: white;
+    border: none;
+}
+
+/* Course Cards */
+.course-card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.course-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.1);
+}
+
+.course-difficulty {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+}
+
+.difficulty-beginner { background-color: var(--progress-beginner); }
+.difficulty-intermediate { background-color: var(--progress-intermediate); }
+.difficulty-advanced { background-color: var(--progress-advanced); }
+.difficulty-expert { background-color: var(--progress-expert); }
+
+/* Progress Bars */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+}
+
+.progress-lg {
+    height: 12px;
+}
+
+.progress-xl {
+    height: 16px;
+}
+
+/* Code Editor Styles */
+.code-editor-container {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--code-bg);
+}
+
+.code-editor-header {
+    background: linear-gradient(135deg, #343a40, #495057);
+    color: white;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #495057;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.code-editor-tabs {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.code-tab {
+    padding: 0.25rem 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.code-tab.active {
+    background: var(--primary-color);
+}
+
+.code-editor {
+    min-height: 300px;
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+}
+
+.code-output {
+    background: #2d3748;
+    color: #e2e8f0;
+    padding: 1rem;
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-size: 0.875rem;
+    min-height: 100px;
+    white-space: pre-wrap;
+    overflow-y: auto;
+}
+
+.code-output.success {
+    border-left: 4px solid var(--success-color);
+}
+
+.code-output.error {
+    border-left: 4px solid var(--danger-color);
+}
+
+/* Exercise Interface */
+.exercise-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    min-height: 70vh;
+}
+
+@media (max-width: 992px) {
+    .exercise-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+.exercise-instructions {
+    padding: 1.5rem;
+    background: var(--light-color);
+    border-radius: 8px;
+    overflow-y: auto;
+}
+
+.exercise-code {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Test Results */
+.test-results {
+    margin-top: 1rem;
+}
+
+.test-case {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.test-case.passed {
+    background: rgba(25, 135, 84, 0.1);
+    border-left-color: var(--success-color);
+}
+
+.test-case.failed {
+    background: rgba(220, 53, 69, 0.1);
+    border-left-color: var(--danger-color);
+}
+
+/* Progress Dashboard */
+.progress-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.progress-card {
+    background: linear-gradient(135deg, var(--primary-color), #0056b3);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.progress-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.progress-label {
+    opacity: 0.9;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Study Group Cards */
+.study-group-card {
+    border-left: 4px solid var(--primary-color);
+    transition: all 0.3s ease;
+}
+
+.study-group-card:hover {
+    border-left-color: var(--success-color);
+    transform: translateX(4px);
+}
+
+.member-avatars {
+    display: flex;
+    margin-left: -8px;
+}
+
+.member-avatar {
+    width: 32px;
+    height: 32px;
+    border: 2px solid white;
+    border-radius: 50%;
+    margin-left: -8px;
+    transition: all 0.3s ease;
+}
+
+.member-avatar:hover {
+    transform: scale(1.1);
+    z-index: 10;
+}
+
+/* Discussion Interface */
+.discussion-thread {
+    border-left: 3px solid transparent;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.discussion-thread:hover {
+    border-left-color: var(--primary-color);
+    background: rgba(13, 110, 253, 0.05);
+}
+
+.discussion-meta {
+    font-size: 0.875rem;
+    color: var(--secondary-color);
+}
+
+.reply-indent {
+    margin-left: 2rem;
+    border-left: 2px solid var(--light-color);
+    padding-left: 1rem;
+}
+
+/* AI Assistant */
+.ai-chat-container {
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    background: var(--light-color);
+    border-radius: 8px 8px 0 0;
+}
+
+.ai-message {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.ai-message.user {
+    flex-direction: row-reverse;
+}
+
+.ai-message.user .message-content {
+    background: var(--primary-color);
+    color: white;
+}
+
+.ai-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--success-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.75rem;
+}
+
+.message-content {
+    background: white;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    max-width: 80%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.ai-chat-input {
+    padding: 1rem;
+    background: white;
+    border-radius: 0 0 8px 8px;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Learning Path Visualization */
+.learning-path {
+    position: relative;
+    padding: 2rem 0;
+}
+
+.path-step {
+    position: relative;
+    margin-bottom: 2rem;
+    padding-left: 4rem;
+}
+
+.path-step::before {
+    content: '';
+    position: absolute;
+    left: 1.5rem;
+    top: 0;
+    bottom: -2rem;
+    width: 2px;
+    background: var(--light-color);
+}
+
+.path-step:last-child::before {
+    bottom: 50%;
+}
+
+.step-indicator {
+    position: absolute;
+    left: 0.75rem;
+    top: 0.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--light-color);
+    border: 3px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    z-index: 2;
+}
+
+.step-indicator.completed {
+    background: var(--success-color);
+    color: white;
+}
+
+.step-indicator.current {
+    background: var(--primary-color);
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(13, 110, 253, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .exercise-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .progress-dashboard {
+        grid-template-columns: 1fr;
+    }
+    
+    .member-avatars {
+        margin-left: 0;
+    }
+    
+    .member-avatar {
+        margin-left: -4px;
+    }
+    
+    .reply-indent {
+        margin-left: 1rem;
+    }
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --light-color: #343a40;
+        --dark-color: #f8f9fa;
+    }
+    
+    body {
+        background-color: #1a1a1a;
+        color: var(--dark-color);
+    }
+    
+    .card {
+        background-color: #2d3748;
+        color: var(--dark-color);
+    }
+    
+    .exercise-instructions {
+        background: #2d3748;
+        color: var(--dark-color);
+    }
+}
+
+/* Loading States */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Utility Classes */
+.text-gradient {
+    background: linear-gradient(135deg, var(--primary-color), var(--success-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.hover-lift {
+    transition: transform 0.3s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+}

@@ -1,0 +1,280 @@
+{% extends 'base/base.html' %}
+{% load static wagtailcore_tags wagtailimages_tags %}
+
+{% block title %}{{ page.title }} - AI-Powered Programming Education{% endblock %}
+
+{% block meta_description %}Master Python programming with our AI-powered platform. Interactive lessons, coding exercises, and community support for learners of all levels.{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center min-vh-50">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">
+                    {{ page.hero_title|default:"Master Python with" }}
+                    <span class="text-gradient">AI-Powered</span>
+                    Learning
+                </h1>
+                {% if page.hero_subtitle %}
+                    <h2 class="h4 mb-3">{{ page.hero_subtitle }}</h2>
+                {% endif %}
+                {% if page.hero_description %}
+                    <div class="lead mb-4">
+                        {{ page.hero_description|richtext }}
+                    </div>
+                {% else %}
+                    <p class="lead mb-4">
+                        Join thousands of learners mastering Python through interactive lessons, 
+                        real-time code execution, and AI-powered assistance. From beginner to expert, 
+                        we've got you covered.
+                    </p>
+                {% endif %}
+                <div class="d-flex gap-3 flex-wrap">
+                    {% if user.is_authenticated %}
+                        <a href="/courses/" class="btn btn-light btn-lg">
+                            <i class="bi bi-book me-2"></i>Continue Learning
+                        </a>
+                        <a href="/exercises/" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-terminal me-2"></i>Practice Coding
+                        </a>
+                    {% else %}
+                        <a href="{% url 'account_signup' %}" class="btn btn-light btn-lg">
+                            <i class="bi bi-person-plus me-2"></i>Start Learning Free
+                        </a>
+                        <a href="#features" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-play-circle me-2"></i>See How It Works
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-6">
+                {% if page.hero_image %}
+                    {% image page.hero_image fill-600x400 class="img-fluid rounded shadow" %}
+                {% else %}
+                    <div class="code-demo-container position-relative">
+                        <div class="code-editor-container">
+                            <div class="code-editor-header">
+                                <div class="code-editor-tabs">
+                                    <span class="code-tab active">hello_world.py</span>
+                                </div>
+                                <div class="ms-auto">
+                                    <small class="text-light-emphasis">
+                                        <i class="bi bi-robot me-1"></i>AI-Assisted
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="p-3" style="background: #1e1e1e; color: #d4d4d4; font-family: 'Fira Code', monospace;">
+<pre style="margin: 0; line-height: 1.5;"><span style="color: #569cd6;">def</span> <span style="color: #dcdcaa;">greet_learner</span>(<span style="color: #9cdcfe;">name</span>):
+    <span style="color: #6a9955;"># AI suggests: Add personalized greeting</span>
+    <span style="color: #c586c0;">return</span> <span style="color: #ce9178;">f"Welcome to Python Learning Studio, {name}!"</span>
+
+<span style="color: #6a9955;"># Interactive exercise with real-time feedback</span>
+<span style="color: #dcdcaa;">print</span>(<span style="color: #dcdcaa;">greet_learner</span>(<span style="color: #ce9178;">"Future Python Developer"</span>))</pre>
+                            </div>
+                            <div class="code-output success p-2" style="background: #2d3748; color: #e2e8f0; font-family: 'Fira Code', monospace; font-size: 0.875rem;">
+                                <div class="text-success mb-1"><i class="bi bi-check-circle"></i> Code executed successfully</div>
+                                Welcome to Python Learning Studio, Future Python Developer!
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center">
+            {% if page.stats %}
+                {% for block in page.stats %}
+                    {% if block.block_type == 'stat' %}
+                        <div class="col-md-3 mb-4">
+                            <div class="h2 text-primary fw-bold">{{ block.value.number }}</div>
+                            <div class="text-muted">{{ block.value.label }}</div>
+                            {% if block.value.description %}
+                                <small class="text-muted">{{ block.value.description }}</small>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <!-- Default stats -->
+                <div class="col-md-3 mb-4">
+                    <div class="h2 text-primary fw-bold">10,000+</div>
+                    <div class="text-muted">Active Learners</div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="h2 text-success fw-bold">500+</div>
+                    <div class="text-muted">Coding Exercises</div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="h2 text-info fw-bold">50+</div>
+                    <div class="text-muted">Interactive Courses</div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="h2 text-warning fw-bold">94%</div>
+                    <div class="text-muted">Success Rate</div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section id="features" class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold mb-3">{{ page.features_title|default:"Why Choose Our Platform?" }}</h2>
+            <p class="lead text-muted">Experience the future of programming education with AI-powered features</p>
+        </div>
+        
+        <div class="row g-4">
+            {% if page.features %}
+                {% for block in page.features %}
+                    {% if block.block_type == 'feature' %}
+                        <div class="col-lg-4">
+                            <div class="card h-100 hover-lift">
+                                <div class="card-body text-center p-4">
+                                    <div class="mb-3">
+                                        <i class="{{ block.value.icon|default:'bi bi-star' }} display-4 text-primary"></i>
+                                    </div>
+                                    <h5 class="card-title">{{ block.value.title }}</h5>
+                                    <p class="card-text">{{ block.value.description }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <!-- Default features -->
+                <div class="col-lg-4">
+                    <div class="card h-100 hover-lift">
+                        <div class="card-body text-center p-4">
+                            <div class="mb-3">
+                                <i class="bi bi-robot display-4 text-primary"></i>
+                            </div>
+                            <h5 class="card-title">AI-Powered Assistance</h5>
+                            <p class="card-text">
+                                Get instant help with code explanations, error debugging, and personalized hints 
+                                powered by advanced AI technology.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card h-100 hover-lift">
+                        <div class="card-body text-center p-4">
+                            <div class="mb-3">
+                                <i class="bi bi-terminal display-4 text-success"></i>
+                            </div>
+                            <h5 class="card-title">Real-Time Code Execution</h5>
+                            <p class="card-text">
+                                Practice coding with instant feedback. Run Python code directly in your browser 
+                                with our secure, containerized execution environment.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card h-100 hover-lift">
+                        <div class="card-body text-center p-4">
+                            <div class="mb-3">
+                                <i class="bi bi-people display-4 text-info"></i>
+                            </div>
+                            <h5 class="card-title">Collaborative Learning</h5>
+                            <p class="card-text">
+                                Join study groups, participate in code reviews, and learn together with 
+                                a supportive community of fellow programmers.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Recent Blog Posts Section -->
+{% if recent_posts %}
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold mb-3">Latest from Our Blog</h2>
+            <p class="lead text-muted">Stay updated with the latest programming tips and tutorials</p>
+        </div>
+        
+        <div class="row g-4">
+            {% for post in recent_posts %}
+                <div class="col-lg-4">
+                    <div class="card h-100">
+                        {% if post.featured_image %}
+                            {% image post.featured_image fill-400x200 class="card-img-top" %}
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ post.title }}</h5>
+                            <p class="card-text">{{ post.intro }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    {% if post.author %}{{ post.author.get_display_name }}{% endif %}
+                                    {% if post.date %} • {{ post.date }}{% endif %}
+                                </small>
+                                {% if post.reading_time %}
+                                    <small class="text-muted">{{ post.reading_time }} min read</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{{ post.url }}" class="btn btn-outline-primary">Read More</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Call to Action -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="display-5 fw-bold mb-3">Ready to Start Your Python Journey?</h2>
+                <p class="lead mb-4">
+                    Join our community of learners and start building amazing things with Python today. 
+                    Get started for free and unlock your programming potential.
+                </p>
+                {% if not user.is_authenticated %}
+                    <a href="{% url 'account_signup' %}" class="btn btn-light btn-lg me-3">
+                        <i class="bi bi-person-plus me-2"></i>Sign Up Free
+                    </a>
+                    <a href="{% url 'account_login' %}" class="btn btn-outline-light btn-lg">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                    </a>
+                {% else %}
+                    <a href="/courses/" class="btn btn-light btn-lg me-3">
+                        <i class="bi bi-book me-2"></i>Browse Courses
+                    </a>
+                    <a href="/community/" class="btn btn-outline-light btn-lg">
+                        <i class="bi bi-people me-2"></i>Join Community
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load dynamic content
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Wagtail homepage loaded successfully');
+});
+</script>
+{% endblock %}

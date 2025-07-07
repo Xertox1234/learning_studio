@@ -1,0 +1,523 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ lesson.title }} - {{ lesson.course.title }} - Python Learning Studio{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'course_list' %}">Courses</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'course_detail' lesson.course.slug %}">{{ lesson.course.title }}</a></li>
+        <li class="breadcrumb-item active">{{ lesson.title }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Main Content Area -->
+        <div class="col-lg-9">
+            <!-- Lesson Header -->
+            <div class="lesson-header mb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h1 class="h3 mb-2">{{ lesson.title }}</h1>
+                        <p class="text-muted mb-3">{{ lesson.description }}</p>
+                        
+                        <div class="lesson-meta d-flex gap-4 flex-wrap">
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                <span>{{ lesson.estimated_duration }} minutes</span>
+                            </div>
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-code-square me-1"></i>
+                                <span>{{ lesson.exercises.count }} exercises</span>
+                            </div>
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-bookmark me-1"></i>
+                                <span>{{ lesson.get_difficulty_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Lesson Progress -->
+                    {% if user.is_authenticated and lesson.course.is_user_enrolled %}
+                        <div class="lesson-progress text-end">
+                            {% with lesson.get_user_progress as progress %}
+                                {% if progress.completed %}
+                                    <div class="text-success">
+                                        <i class="bi bi-check-circle-fill me-1"></i>
+                                        Completed
+                                    </div>
+                                {% else %}
+                                    <div class="text-warning">
+                                        <i class="bi bi-clock me-1"></i>
+                                        In Progress
+                                    </div>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Lesson Content Tabs -->
+            <ul class="nav nav-tabs mb-4" id="lessonTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="content-tab" data-bs-toggle="tab" data-bs-target="#content" type="button">
+                        <i class="bi bi-book me-2"></i>Content
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="exercises-tab" data-bs-toggle="tab" data-bs-target="#exercises" type="button">
+                        <i class="bi bi-code-square me-2"></i>Exercises ({{ lesson.exercises.count }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="resources-tab" data-bs-toggle="tab" data-bs-target="#resources" type="button">
+                        <i class="bi bi-file-earmark-text me-2"></i>Resources
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button">
+                        <i class="bi bi-journal-text me-2"></i>Notes
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="lessonTabContent">
+                <!-- Content Tab -->
+                <div class="tab-pane fade show active" id="content" role="tabpanel">
+                    <div class="lesson-content">
+                        <!-- Video Player (if video content exists) -->
+                        {% if lesson.video_url %}
+                            <div class="video-container mb-4">
+                                <div class="ratio ratio-16x9">
+                                    <iframe src="{{ lesson.video_url }}" allowfullscreen></iframe>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Lesson Content -->
+                        <div class="content-body">
+                            {{ lesson.content|safe }}
+                        </div>
+
+                        <!-- Code Examples -->
+                        {% if lesson.code_examples %}
+                            <div class="code-examples mt-4">
+                                <h4>Code Examples</h4>
+                                <div class="code-example-container">
+                                    <div class="code-editor-header">
+                                        <div class="code-editor-tabs">
+                                            <span class="code-tab active">example.py</span>
+                                        </div>
+                                        <div class="ms-auto">
+                                            <button class="btn btn-sm btn-outline-light copy-code-btn">
+                                                <i class="bi bi-copy"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <pre class="code-block"><code class="language-python">{{ lesson.code_examples }}</code></pre>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Key Concepts -->
+                        {% if lesson.key_concepts %}
+                            <div class="key-concepts mt-4">
+                                <h4>Key Concepts</h4>
+                                <div class="concepts-grid">
+                                    {% for concept in lesson.key_concepts %}
+                                        <div class="concept-card">
+                                            <h6>{{ concept.title }}</h6>
+                                            <p>{{ concept.description }}</p>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Exercises Tab -->
+                <div class="tab-pane fade" id="exercises" role="tabpanel">
+                    <div class="exercises-section">
+                        <div class="exercises-header mb-4">
+                            <h4>Practice Exercises</h4>
+                            <p class="text-muted">Test your understanding with these coding exercises</p>
+                        </div>
+
+                        <div class="exercises-list">
+                            {% for exercise in lesson.exercises.all %}
+                                <div class="exercise-item border rounded p-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <h6 class="mb-0 me-3">{{ exercise.title }}</h6>
+                                                <span class="badge difficulty-{{ exercise.difficulty_level }}">
+                                                    {{ exercise.get_difficulty_level_display }}
+                                                </span>
+                                            </div>
+                                            <p class="text-muted mb-2">{{ exercise.description }}</p>
+                                            <div class="exercise-meta small text-muted">
+                                                <i class="bi bi-clock me-1"></i>{{ exercise.estimated_time }} min
+                                                <i class="bi bi-award ms-3 me-1"></i>{{ exercise.points }} points
+                                                
+                                                <!-- Progress indicator -->
+                                                {% if user.is_authenticated %}
+                                                    {% with exercise.get_user_progress as progress %}
+                                                        {% if progress.completed %}
+                                                            <span class="badge bg-success ms-2">Completed</span>
+                                                        {% elif progress.started %}
+                                                            <span class="badge bg-warning ms-2">In Progress</span>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="exercise-actions">
+                                            <a href="{% url 'exercise_detail' exercise.id %}" class="btn btn-primary btn-sm">
+                                                {% if user.is_authenticated %}
+                                                    {% with exercise.get_user_progress as progress %}
+                                                        {% if progress.completed %}
+                                                            Review
+                                                        {% elif progress.started %}
+                                                            Continue
+                                                        {% else %}
+                                                            Start
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                {% else %}
+                                                    View
+                                                {% endif %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="text-center py-4">
+                                    <i class="bi bi-code-square display-4 text-muted"></i>
+                                    <h5 class="mt-3">No exercises yet</h5>
+                                    <p class="text-muted">Exercises for this lesson are coming soon.</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resources Tab -->
+                <div class="tab-pane fade" id="resources" role="tabpanel">
+                    <div class="resources-section">
+                        <h4>Additional Resources</h4>
+                        <p class="text-muted mb-4">Enhance your learning with these supplementary materials</p>
+
+                        <div class="resources-list">
+                            {% if lesson.resources.all %}
+                                {% for resource in lesson.resources.all %}
+                                    <div class="resource-item d-flex align-items-start p-3 border rounded mb-3">
+                                        <div class="resource-icon me-3">
+                                            {% if resource.type == 'pdf' %}
+                                                <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                            {% elif resource.type == 'link' %}
+                                                <i class="bi bi-link-45deg text-primary"></i>
+                                            {% elif resource.type == 'video' %}
+                                                <i class="bi bi-play-circle text-success"></i>
+                                            {% else %}
+                                                <i class="bi bi-file-earmark text-secondary"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">{{ resource.title }}</h6>
+                                            <p class="text-muted mb-2">{{ resource.description }}</p>
+                                            <small class="text-muted">{{ resource.get_type_display }}</small>
+                                        </div>
+                                        <div class="resource-actions">
+                                            <a href="{{ resource.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i>Open
+                                            </a>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="bi bi-file-earmark-text display-4 text-muted"></i>
+                                    <h5 class="mt-3">No additional resources</h5>
+                                    <p class="text-muted">All necessary information is included in the lesson content.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Tab -->
+                <div class="tab-pane fade" id="notes" role="tabpanel">
+                    <div class="notes-section">
+                        <div class="notes-header mb-4">
+                            <h4>My Notes</h4>
+                            <p class="text-muted">Take notes to help you remember important concepts</p>
+                        </div>
+
+                        {% if user.is_authenticated %}
+                            <div class="notes-editor mb-4">
+                                <div class="form-group">
+                                    <textarea class="form-control" rows="6" placeholder="Write your notes here..." id="lesson-notes">{{ user_notes.content|default:"" }}</textarea>
+                                </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-primary" onclick="saveNotes()">Save Notes</button>
+                                    <button class="btn btn-outline-secondary ms-2" onclick="clearNotes()">Clear</button>
+                                </div>
+                            </div>
+
+                            <div class="notes-tips">
+                                <h6>Tips for effective note-taking:</h6>
+                                <ul class="list-unstyled">
+                                    <li class="mb-1"><i class="bi bi-check text-success me-2"></i>Summarize key concepts in your own words</li>
+                                    <li class="mb-1"><i class="bi bi-check text-success me-2"></i>Write down questions you have</li>
+                                    <li class="mb-1"><i class="bi bi-check text-success me-2"></i>Note practical applications</li>
+                                    <li class="mb-1"><i class="bi bi-check text-success me-2"></i>Record any "aha" moments</li>
+                                </ul>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-journal-text display-4 text-muted"></i>
+                                <h5 class="mt-3">Login to take notes</h5>
+                                <p class="text-muted">Sign in to save your personal notes for this lesson.</p>
+                                <a href="{% url 'account_login' %}" class="btn btn-primary">Login</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-3">
+            <div class="lesson-sidebar">
+                <!-- Course Navigation -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Course Progress</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="course-progress mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>{{ lesson.course.title }}</span>
+                                <span class="text-muted">{{ lesson.course.get_user_progress_percentage }}%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" style="width: {{ lesson.course.get_user_progress_percentage }}%"></div>
+                            </div>
+                        </div>
+                        <a href="{% url 'course_detail' lesson.course.slug %}" class="btn btn-sm btn-outline-primary w-100">
+                            View Course
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Lesson Navigation -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Lessons</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="lessons-nav">
+                            {% for course_lesson in lesson.course.lessons.all %}
+                                <div class="lesson-nav-item {% if course_lesson.id == lesson.id %}active{% endif %}">
+                                    <a href="{% url 'lesson_detail' lesson.course.slug course_lesson.slug %}" class="d-flex align-items-center p-3 text-decoration-none">
+                                        <div class="lesson-status me-2">
+                                            {% if user.is_authenticated %}
+                                                {% with course_lesson.get_user_progress as progress %}
+                                                    {% if progress.completed %}
+                                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                                    {% elif progress.started %}
+                                                        <i class="bi bi-play-circle text-warning"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-circle text-muted"></i>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                <i class="bi bi-circle text-muted"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="lesson-title">{{ course_lesson.title }}</div>
+                                            <small class="text-muted">{{ course_lesson.estimated_duration }} min</small>
+                                        </div>
+                                    </a>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lesson Actions -->
+                <div class="card">
+                    <div class="card-body">
+                        <div class="lesson-actions">
+                            {% if user.is_authenticated and lesson.course.is_user_enrolled %}
+                                <button class="btn btn-success w-100 mb-3" onclick="markLessonComplete()">
+                                    <i class="bi bi-check-circle me-2"></i>Mark as Complete
+                                </button>
+                            {% endif %}
+                            
+                            <button class="btn btn-outline-primary w-100 mb-2" onclick="askAI()">
+                                <i class="bi bi-robot me-2"></i>Ask AI Assistant
+                            </button>
+                            
+                            <div class="lesson-navigation">
+                                {% if lesson.get_previous_lesson %}
+                                    <a href="{% url 'lesson_detail' lesson.course.slug lesson.get_previous_lesson.slug %}" class="btn btn-outline-secondary me-2">
+                                        <i class="bi bi-arrow-left"></i>
+                                    </a>
+                                {% endif %}
+                                
+                                {% if lesson.get_next_lesson %}
+                                    <a href="{% url 'lesson_detail' lesson.course.slug lesson.get_next_lesson.slug %}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.lesson-nav-item.active {
+    background-color: #f8f9fa;
+    border-left: 3px solid #0d6efd;
+}
+
+.lesson-nav-item a {
+    color: inherit;
+}
+
+.lesson-nav-item a:hover {
+    background-color: #f8f9fa;
+}
+
+.code-example-container {
+    background: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.code-block {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem;
+    margin: 0;
+    font-family: 'Fira Code', 'Consolas', monospace;
+}
+
+.concepts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.concept-card {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #0d6efd;
+}
+
+.resource-icon {
+    font-size: 1.5rem;
+    width: 2rem;
+    text-align: center;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function markLessonComplete() {
+    const lessonId = {{ lesson.id }};
+    
+    fetch(`/api/v1/lessons/${lessonId}/complete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error marking lesson as complete. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error marking lesson as complete. Please try again.');
+    });
+}
+
+function saveNotes() {
+    const content = document.getElementById('lesson-notes').value;
+    const lessonId = {{ lesson.id }};
+    
+    fetch(`/api/v1/lessons/${lessonId}/notes/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: content })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Notes saved successfully!');
+        } else {
+            alert('Error saving notes. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving notes. Please try again.');
+    });
+}
+
+function clearNotes() {
+    if (confirm('Are you sure you want to clear all notes?')) {
+        document.getElementById('lesson-notes').value = '';
+    }
+}
+
+function askAI() {
+    // Open AI assistant modal
+    document.getElementById('ai-assistant-btn').click();
+}
+
+// Copy code functionality
+document.querySelectorAll('.copy-code-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const codeBlock = this.closest('.code-example-container').querySelector('.code-block');
+        const code = codeBlock.textContent;
+        
+        navigator.clipboard.writeText(code).then(() => {
+            const icon = this.querySelector('i');
+            icon.className = 'bi bi-check';
+            setTimeout(() => {
+                icon.className = 'bi bi-copy';
+            }, 2000);
+        });
+    });
+});
+</script>
+{% endblock %}

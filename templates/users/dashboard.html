@@ -1,0 +1,452 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Python Learning Studio{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Dashboard Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">Welcome back, {{ user.first_name|default:user.username }}!</h1>
+                    <p class="text-muted">Continue your Python learning journey</p>
+                </div>
+                <div class="user-stats text-end">
+                    <div class="badge bg-primary me-2">
+                        <i class="bi bi-trophy me-1"></i>{{ user.total_points }} points
+                    </div>
+                    <div class="badge bg-success">
+                        <i class="bi bi-calendar-check me-1"></i>{{ user.streak_days }} day streak
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-primary text-white me-3">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ enrolled_courses_count }}</h5>
+                            <p class="text-muted mb-0">Enrolled Courses</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-success text-white me-3">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ completed_exercises_count }}</h5>
+                            <p class="text-muted mb-0">Exercises Completed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-info text-white me-3">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ total_study_hours }}</h5>
+                            <p class="text-muted mb-0">Hours Studied</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-warning text-white me-3">
+                            <i class="bi bi-star"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ average_score }}%</h5>
+                            <p class="text-muted mb-0">Average Score</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Continue Learning Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Continue Learning</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_courses %}
+                        {% for enrollment in current_courses %}
+                            <div class="course-progress-item d-flex align-items-center p-3 border rounded mb-3">
+                                <div class="course-thumbnail me-3">
+                                    {% if enrollment.course.thumbnail %}
+                                        <img src="{{ enrollment.course.thumbnail.url }}" alt="{{ enrollment.course.title }}" class="rounded" width="80" height="60" style="object-fit: cover;">
+                                    {% else %}
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 80px; height: 60px;">
+                                            <i class="bi bi-book text-muted"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ enrollment.course.title }}</h6>
+                                    <div class="progress mb-2" style="height: 6px;">
+                                        <div class="progress-bar" style="width: {{ enrollment.progress_percentage }}%"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <small class="text-muted">{{ enrollment.progress_percentage }}% complete</small>
+                                        <small class="text-muted">{{ enrollment.completed_lessons }}/{{ enrollment.total_lessons }} lessons</small>
+                                    </div>
+                                </div>
+                                <div class="course-actions ms-3">
+                                    <a href="{% url 'course_detail' enrollment.course.slug %}" class="btn btn-primary btn-sm">Continue</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-book display-4 text-muted"></i>
+                            <h5 class="mt-3">No courses in progress</h5>
+                            <p class="text-muted">Start learning by enrolling in a course</p>
+                            <a href="{% url 'course_list' %}" class="btn btn-primary">Browse Courses</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="activity-timeline">
+                        {% for activity in recent_activities %}
+                            <div class="activity-item d-flex align-items-start mb-3">
+                                <div class="activity-icon me-3">
+                                    {% if activity.type == 'exercise_completed' %}
+                                        <div class="bg-success rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="bi bi-check text-white small"></i>
+                                        </div>
+                                    {% elif activity.type == 'lesson_completed' %}
+                                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="bi bi-book text-white small"></i>
+                                        </div>
+                                    {% elif activity.type == 'course_enrolled' %}
+                                        <div class="bg-info rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="bi bi-plus text-white small"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="activity-content">
+                                        <p class="mb-1">{{ activity.description }}</p>
+                                        <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
+                                    </div>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-activity display-4 text-muted"></i>
+                                <h5 class="mt-3">No recent activity</h5>
+                                <p class="text-muted">Start learning to see your activity here</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Learning Progress (Last 30 Days)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="progressChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Achievements -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Achievements</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_achievements %}
+                        {% for achievement in recent_achievements %}
+                            <div class="achievement-item d-flex align-items-center mb-3">
+                                <div class="achievement-icon me-3">
+                                    <div class="bg-warning rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        <i class="bi bi-trophy text-dark"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1">{{ achievement.title }}</h6>
+                                    <small class="text-muted">{{ achievement.earned_at|date:"M d" }}</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="bi bi-trophy text-muted"></i>
+                            <p class="text-muted small mb-0">No achievements yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Learning Streak -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Learning Streak</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="streak-display">
+                        <div class="streak-number h1 text-primary mb-2">{{ user.streak_days }}</div>
+                        <p class="text-muted mb-3">day{{ user.streak_days|pluralize }} in a row</p>
+                        <div class="streak-calendar">
+                            <div class="row g-1">
+                                {% for day in streak_calendar %}
+                                    <div class="col">
+                                        <div class="streak-day {% if day.has_activity %}active{% endif %} {% if day.is_today %}today{% endif %}" title="{{ day.date|date:'M d' }}">
+                                            <small>{{ day.date|date:'j' }}</small>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Recommended for You</h5>
+                </div>
+                <div class="card-body">
+                    {% if recommended_courses %}
+                        {% for course in recommended_courses %}
+                            <div class="recommendation-item mb-3">
+                                <div class="d-flex align-items-start">
+                                    <div class="recommendation-thumbnail me-3">
+                                        {% if course.thumbnail %}
+                                            <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}" class="rounded" width="50" height="35" style="object-fit: cover;">
+                                        {% else %}
+                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 35px;">
+                                                <i class="bi bi-book text-muted small"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1 small">{{ course.title }}</h6>
+                                        <small class="text-muted">{{ course.get_difficulty_level_display }}</small>
+                                    </div>
+                                </div>
+                                <a href="{% url 'course_detail' course.slug %}" class="btn btn-sm btn-outline-primary w-100 mt-2">
+                                    View Course
+                                </a>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="bi bi-lightbulb text-muted"></i>
+                            <p class="text-muted small mb-0">Complete more courses to get recommendations</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'course_list' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-search me-2"></i>Browse Courses
+                        </a>
+                        <a href="/exercises/" class="btn btn-outline-success">
+                            <i class="bi bi-code-square me-2"></i>Practice Exercises
+                        </a>
+                        <a href="/community/" class="btn btn-outline-info">
+                            <i class="bi bi-people me-2"></i>Join Community
+                        </a>
+                        <button class="btn btn-outline-secondary ai-help-btn">
+                            <i class="bi bi-robot me-2"></i>Ask AI Assistant
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.course-progress-item {
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.course-progress-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.activity-timeline {
+    position: relative;
+}
+
+.activity-timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.streak-day {
+    aspect-ratio: 1;
+    background: #f8f9fa;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    border: 1px solid #e9ecef;
+}
+
+.streak-day.active {
+    background: #198754;
+    color: white;
+    border-color: #198754;
+}
+
+.streak-day.today {
+    border-color: #0d6efd;
+    border-width: 2px;
+}
+
+.recommendation-item {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.75rem;
+}
+
+.recommendation-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Progress Chart
+    const ctx = document.getElementById('progressChart').getContext('2d');
+    
+    // Sample data - this would come from the backend
+    const progressData = {
+        labels: {{ progress_chart_labels|safe }},
+        datasets: [{
+            label: 'Exercises Completed',
+            data: {{ progress_chart_data|safe }},
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    };
+
+    new Chart(ctx, {
+        type: 'line',
+        data: progressData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+
+    // AI Help button
+    document.querySelector('.ai-help-btn').addEventListener('click', function() {
+        // Open AI assistant modal
+        if (document.getElementById('ai-assistant-btn')) {
+            document.getElementById('ai-assistant-btn').click();
+        } else {
+            alert('AI Assistant is not available right now. Please try again later.');
+        }
+    });
+});
+</script>
+{% endblock %}

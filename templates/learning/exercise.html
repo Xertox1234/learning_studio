@@ -1,0 +1,385 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ exercise.title }} - Python Learning Studio{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="#">{{ exercise.lesson.course.title }}</a></li>
+        <li class="breadcrumb-item"><a href="#">{{ exercise.lesson.title }}</a></li>
+        <li class="breadcrumb-item active">{{ exercise.title }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Exercise Information Sidebar -->
+        <div class="col-lg-4 p-4">
+            <div class="exercise-instructions">
+                <!-- Exercise Header -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h1 class="h3 mb-0">{{ exercise.title }}</h1>
+                        <span class="badge difficulty-{{ exercise.difficulty_level }}">
+                            {{ exercise.get_difficulty_level_display }}
+                        </span>
+                    </div>
+                    
+                    <div class="d-flex gap-3 text-muted small mb-3">
+                        <span><i class="bi bi-clock me-1"></i>{{ exercise.estimated_time }} min</span>
+                        <span><i class="bi bi-award me-1"></i>{{ exercise.points }} points</span>
+                        <span><i class="bi bi-code-square me-1"></i>{{ exercise.programming_language.name }}</span>
+                    </div>
+                    
+                    <!-- Progress -->
+                    {% if progress %}
+                    <div class="progress mb-3" style="height: 8px;">
+                        <div class="progress-bar {% if progress.completed %}bg-success{% elif progress.started %}bg-warning{% else %}bg-secondary{% endif %}" 
+                             style="width: {% if progress.completed %}100{% elif progress.started %}50{% else %}0{% endif %}%">
+                        </div>
+                    </div>
+                    <div class="small text-muted">
+                        {% if progress.completed %}
+                            ✅ Completed - Best Score: {{ progress.best_score }}%
+                        {% elif progress.started %}
+                            🔄 In Progress - {{ progress.total_attempts }} attempt{{ progress.total_attempts|pluralize }}
+                        {% else %}
+                            📝 Not Started
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Exercise Description -->
+                <div class="mb-4">
+                    <h5 class="fw-bold mb-3">Problem Description</h5>
+                    <div class="exercise-description">
+                        {{ exercise.description|linebreaks }}
+                    </div>
+                </div>
+                
+                <!-- Instructions -->
+                {% if exercise.instructions %}
+                <div class="mb-4">
+                    <h5 class="fw-bold mb-3">Instructions</h5>
+                    <div class="exercise-instructions-content">
+                        {{ exercise.instructions|linebreaks }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Sample Test Cases -->
+                {% if sample_test_cases %}
+                <div class="mb-4">
+                    <h5 class="fw-bold mb-3">Sample Test Cases</h5>
+                    {% for test_case in sample_test_cases %}
+                    <div class="test-case-example mb-3 p-3 bg-light rounded">
+                        <div class="fw-semibold mb-2">{{ test_case.name }}</div>
+                        {% if test_case.input_data %}
+                        <div class="mb-2">
+                            <small class="text-muted">Input:</small>
+                            <code class="d-block">{{ test_case.input_data }}</code>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <small class="text-muted">Expected Output:</small>
+                            <code class="d-block">{{ test_case.expected_output }}</code>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- Hints -->
+                <div class="mb-4">
+                    <button class="btn btn-outline-info btn-sm get-hint-btn" 
+                            data-exercise="{{ exercise.id }}" 
+                            data-editor="code-editor">
+                        <i class="bi bi-lightbulb"></i> Get Hint
+                    </button>
+                    
+                    <button class="btn btn-outline-success btn-sm ai-help-btn ms-2" 
+                            data-type="code_explanation" 
+                            data-content="{{ exercise.description }}">
+                        <i class="bi bi-robot"></i> AI Help
+                    </button>
+                </div>
+                
+                <!-- Exercise Stats -->
+                <div class="small text-muted">
+                    <div>Success Rate: {{ exercise.get_success_rate|floatformat:1 }}%</div>
+                    <div>Total Submissions: {{ exercise.total_submissions }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Code Editor and Results -->
+        <div class="col-lg-8 p-0">
+            <div class="exercise-code h-100">
+                <!-- Code Editor Header -->
+                <div class="code-editor-header">
+                    <div class="code-editor-tabs">
+                        <span class="code-tab active">solution.{{ exercise.programming_language.file_extension }}</span>
+                    </div>
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-light run-code-btn" 
+                                data-editor="code-editor" 
+                                data-language="{{ exercise.programming_language.slug }}"
+                                data-output="#code-output">
+                            <i class="bi bi-play-fill"></i> Run Code
+                        </button>
+                        <button class="btn btn-sm btn-success submit-code-btn" 
+                                data-editor="code-editor" 
+                                data-exercise="{{ exercise.id }}"
+                                data-output="#submission-results">
+                            <i class="bi bi-check-circle"></i> Submit
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Code Editor -->
+                <textarea id="code-editor" 
+                          class="code-editor" 
+                          data-language="{{ exercise.programming_language.slug }}"
+                          style="width: 100%; height: 400px; resize: vertical;">{{ exercise.starter_code|default:"# Write your solution here" }}</textarea>
+                
+                <!-- Output Tabs -->
+                <div class="bg-dark text-light">
+                    <ul class="nav nav-tabs nav-tabs-dark border-0" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active text-light" data-bs-toggle="tab" data-bs-target="#output-tab">
+                                <i class="bi bi-terminal me-1"></i>Output
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link text-light" data-bs-toggle="tab" data-bs-target="#results-tab">
+                                <i class="bi bi-check-circle me-1"></i>Results
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Output Content -->
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="output-tab">
+                        <div id="code-output" class="code-output">
+                            <div class="text-muted">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Click "Run Code" to execute your solution
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="results-tab">
+                        <div id="submission-results" class="code-output">
+                            <div class="text-muted">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Click "Submit" to test your solution against all test cases
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Assistant Modal -->
+<div class="modal fade" id="aiAssistantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-robot me-2"></i>AI Programming Assistant
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="ai-chat-container">
+                    <div class="ai-chat-messages" id="ai-chat-messages">
+                        <div class="ai-message">
+                            <div class="ai-avatar">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                Hi! I'm your AI programming assistant. I can help you with:
+                                <ul class="mb-0 mt-2">
+                                    <li>Explaining code concepts</li>
+                                    <li>Debugging errors</li>
+                                    <li>Providing hints for exercises</li>
+                                    <li>Code review and suggestions</li>
+                                </ul>
+                                How can I help you today?
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ai-chat-input">
+                        <div class="input-group">
+                            <input type="text" class="form-control" placeholder="Ask me anything about programming..." id="ai-chat-input">
+                            <button class="btn btn-primary" id="ai-send-btn">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.exercise-container {
+    height: calc(100vh - 200px);
+}
+
+.exercise-instructions {
+    height: 100%;
+    overflow-y: auto;
+}
+
+.exercise-code {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-tabs-dark .nav-link {
+    border: none;
+    background: transparent;
+}
+
+.nav-tabs-dark .nav-link.active {
+    background: #495057;
+    border-bottom: 2px solid #0d6efd;
+}
+
+.test-case-example {
+    border-left: 3px solid #0d6efd;
+}
+
+@media (max-width: 992px) {
+    .exercise-container {
+        height: auto;
+    }
+    
+    .exercise-instructions {
+        height: auto;
+        max-height: 400px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load saved code draft
+    const editor = PLS.getCodeEditor('code-editor');
+    if (editor) {
+        const savedCode = PLS.loadCodeDraft('code-editor');
+        if (savedCode && savedCode !== editor.getValue()) {
+            const userChoice = confirm('Found a saved draft. Do you want to load it?');
+            if (userChoice) {
+                editor.setValue(savedCode);
+            }
+        }
+    }
+    
+    // AI Chat functionality
+    const aiChatInput = document.getElementById('ai-chat-input');
+    const aiSendBtn = document.getElementById('ai-send-btn');
+    const aiChatMessages = document.getElementById('ai-chat-messages');
+    
+    function sendAIMessage() {
+        const message = aiChatInput.value.trim();
+        if (!message) return;
+        
+        // Add user message
+        const userMessage = document.createElement('div');
+        userMessage.className = 'ai-message user';
+        userMessage.innerHTML = `
+            <div class="ai-avatar" style="background: #0d6efd;">
+                <i class="bi bi-person"></i>
+            </div>
+            <div class="message-content">${message}</div>
+        `;
+        aiChatMessages.appendChild(userMessage);
+        
+        // Clear input
+        aiChatInput.value = '';
+        
+        // Show typing indicator
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'ai-message typing';
+        typingIndicator.innerHTML = `
+            <div class="ai-avatar">
+                <i class="bi bi-robot"></i>
+            </div>
+            <div class="message-content">
+                <div class="typing-dots">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+        `;
+        aiChatMessages.appendChild(typingIndicator);
+        aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+        
+        // Send to AI (mock response for now)
+        setTimeout(() => {
+            typingIndicator.remove();
+            
+            const aiResponse = document.createElement('div');
+            aiResponse.className = 'ai-message';
+            aiResponse.innerHTML = `
+                <div class="ai-avatar">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <div class="message-content">
+                    I understand you're asking about "${message}". This is a demo response. 
+                    In the full implementation, this would connect to the AI assistance API 
+                    to provide helpful programming guidance.
+                </div>
+            `;
+            aiChatMessages.appendChild(aiResponse);
+            aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+        }, 1500);
+    }
+    
+    aiSendBtn.addEventListener('click', sendAIMessage);
+    aiChatInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendAIMessage();
+        }
+    });
+});
+</script>
+
+<style>
+.typing-dots {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.typing-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6c757d;
+    animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+    40% { transform: scale(1); opacity: 1; }
+}
+</style>
+{% endblock %}

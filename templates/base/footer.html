@@ -1,0 +1,136 @@
+{% load static %}
+
+<footer class="bg-dark text-light py-5 mt-5">
+    <div class="container">
+        <div class="row">
+            <!-- Brand and Description -->
+            <div class="col-lg-4 mb-4">
+                <h5 class="fw-bold mb-3">
+                    <i class="bi bi-code-square me-2"></i>
+                    Python Learning Studio
+                </h5>
+                <p class="text-light-emphasis">
+                    AI-powered programming education platform designed to help you master Python 
+                    through interactive lessons, coding exercises, and community collaboration.
+                </p>
+                <div class="d-flex gap-3">
+                    <a href="#" class="text-light-emphasis">
+                        <i class="bi bi-github fs-4"></i>
+                    </a>
+                    <a href="#" class="text-light-emphasis">
+                        <i class="bi bi-twitter fs-4"></i>
+                    </a>
+                    <a href="#" class="text-light-emphasis">
+                        <i class="bi bi-linkedin fs-4"></i>
+                    </a>
+                    <a href="#" class="text-light-emphasis">
+                        <i class="bi bi-discord fs-4"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Learning Resources -->
+            <div class="col-lg-2 col-md-6 mb-4">
+                <h6 class="fw-bold mb-3">Learning</h6>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><a href="/api/v1/courses/" class="text-light-emphasis text-decoration-none">Browse Courses</a></li>
+                    <li class="mb-2"><a href="/api/v1/exercises/" class="text-light-emphasis text-decoration-none">Practice Exercises</a></li>
+                    <li class="mb-2"><a href="/api/v1/learning-paths/" class="text-light-emphasis text-decoration-none">Learning Paths</a></li>
+                    <li class="mb-2"><a href="#" class="text-light-emphasis text-decoration-none">Certifications</a></li>
+                    <li class="mb-2"><a href="#" class="text-light-emphasis text-decoration-none">Progress Tracking</a></li>
+                </ul>
+            </div>
+            
+            <!-- Community -->
+            <div class="col-lg-2 col-md-6 mb-4">
+                <h6 class="fw-bold mb-3">Community</h6>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><a href="/api/v1/discussions/" class="text-light-emphasis text-decoration-none">Discussions</a></li>
+                    <li class="mb-2"><a href="/api/v1/study-groups/" class="text-light-emphasis text-decoration-none">Study Groups</a></li>
+                    <li class="mb-2"><a href="/api/v1/peer-reviews/" class="text-light-emphasis text-decoration-none">Code Reviews</a></li>
+                    <li class="mb-2"><a href="/api/v1/learning-sessions/" class="text-light-emphasis text-decoration-none">Live Sessions</a></li>
+                    <li class="mb-2"><a href="#" class="text-light-emphasis text-decoration-none">Events</a></li>
+                </ul>
+            </div>
+            
+            <!-- Support -->
+            <div class="col-lg-2 col-md-6 mb-4">
+                <h6 class="fw-bold mb-3">Support</h6>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><a href="#" class="text-light-emphasis text-decoration-none">Help Center</a></li>
+                    <li class="mb-2"><a href="#" class="text-light-emphasis text-decoration-none">Documentation</a></li>
+                    <li class="mb-2"><a href="#" class="text-light-emphasis text-decoration-none">API Reference</a></li>
+                    <li class="mb-2"><a href="#" class="text-light-emphasis text-decoration-none">Contact Us</a></li>
+                    <li class="mb-2"><a href="#" class="text-light-emphasis text-decoration-none">Report Bug</a></li>
+                </ul>
+            </div>
+            
+            <!-- Platform Stats -->
+            <div class="col-lg-2 col-md-6 mb-4">
+                <h6 class="fw-bold mb-3">Platform</h6>
+                <div class="text-light-emphasis">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Students:</span>
+                        <span class="fw-bold">10,000+</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Exercises:</span>
+                        <span class="fw-bold">500+</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Courses:</span>
+                        <span class="fw-bold">50+</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Success Rate:</span>
+                        <span class="fw-bold text-success">94%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <hr class="my-4 border-secondary">
+        
+        <!-- Bottom Footer -->
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <p class="mb-0 text-light-emphasis">
+                    &copy; 2024 Python Learning Studio. All rights reserved.
+                </p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <div class="d-flex justify-content-md-end gap-3">
+                    <a href="#" class="text-light-emphasis text-decoration-none small">Privacy Policy</a>
+                    <a href="#" class="text-light-emphasis text-decoration-none small">Terms of Service</a>
+                    <a href="#" class="text-light-emphasis text-decoration-none small">Cookie Policy</a>
+                </div>
+                <div class="mt-2">
+                    <small class="text-light-emphasis">
+                        <i class="bi bi-cpu me-1"></i>
+                        Powered by AI & Built with ❤️
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Back to Top Button -->
+<button class="btn btn-primary position-fixed bottom-0 start-0 m-3 rounded-circle" 
+        id="backToTop" 
+        style="display: none; z-index: 1040;"
+        onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+    <i class="bi bi-arrow-up"></i>
+</button>
+
+<script>
+// Show/hide back to top button
+window.addEventListener('scroll', function() {
+    const backToTop = document.getElementById('backToTop');
+    if (window.pageYOffset > 300) {
+        backToTop.style.display = 'block';
+    } else {
+        backToTop.style.display = 'none';
+    }
+});
+</script>

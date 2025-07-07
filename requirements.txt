@@ -1,0 +1,49 @@
+# Core Django and Web Framework
+Django==5.2.4
+Pillow==10.3.0
+python-decouple==3.8
+
+# Wagtail CMS
+wagtail==7.0.1
+wagtail-ai==2.1.2
+
+# Database
+psycopg2-binary==2.9.9
+
+# Authentication
+django-allauth==0.63.3
+PyJWT==2.8.0
+cryptography==42.0.8
+
+# API Framework
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.0
+dj-rest-auth==5.0.2
+drf-spectacular==0.27.2
+
+# AI Integration
+openai==1.35.5
+requests==2.31.0
+
+# Development Tools
+django-extensions==3.2.3
+django-debug-toolbar==4.4.2
+
+# Production Dependencies
+gunicorn==22.0.0
+whitenoise==6.7.0
+redis==5.0.7
+django-redis==5.4.0
+celery==5.3.7
+
+# Security
+django-cors-headers==4.3.1
+django-csp==3.8
+
+# Utilities
+python-dotenv==1.0.1
+markdown==3.6
+bleach==6.1.0
+
+# Docker Integration
+docker==7.1.0

@@ -1,0 +1,3 @@
+# Core Django only for initial setup
+Django==5.2.4
+python-decouple==3.8
