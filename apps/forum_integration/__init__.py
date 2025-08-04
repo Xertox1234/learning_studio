@@ -1,0 +1,1 @@
+default_app_config = 'apps.forum_integration.apps.ForumIntegrationConfig'

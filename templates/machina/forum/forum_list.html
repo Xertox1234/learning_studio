@@ -1,0 +1,97 @@
+{% load i18n %}
+{% load mptt_tags %}
+{% load forum_tags %}
+{% load forum_conversation_tags %}
+{% load forum_member_tags %}
+{% load forum_tracking_tags %}
+
+<!-- CUSTOM FORUM LIST TEMPLATE LOADED -->
+{% if forum_contents.nodes %}
+{% recurseforumcontents forum_contents %}
+{% if node.level == root_level %}
+{% if node.obj.is_category %}
+<!-- Category Card -->
+<div class="forum-category mb-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h3 class="h5 mb-0">
+                <i class="bi bi-folder2-open me-2"></i>
+                {{ node.obj.name }}
+            </h3>
+            {% if node.obj.description %}
+                <small class="text-white-50">{{ node.obj.description }}</small>
+            {% endif %}
+        </div>
+        
+        {% if children %}
+            <div class="list-group list-group-flush">
+                {{ children }}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<!-- Regular Forum (should not appear at root level) -->
+<div class="alert alert-warning">
+    Unexpected forum at root level: {{ node.obj.name }}
+</div>
+{% endif %}
+
+{% elif node.level == 1 %}
+<!-- Subforum Item -->
+<div class="list-group-item">
+    <div class="row align-items-center">
+        <!-- Forum icon and info -->
+        <div class="col-md-6">
+            <div class="d-flex align-items-start">
+                <div class="forum-icon me-3">
+                    <i class="bi bi-folder-fill fs-2 text-primary"></i>
+                </div>
+                <div>
+                    <h4 class="h6 mb-1">
+                        <a href="{% url 'forum:forum' node.obj.slug node.obj.pk %}" class="text-decoration-none">
+                            {{ node.obj.name }}
+                        </a>
+                    </h4>
+                    {% if node.obj.description %}
+                        <p class="text-muted small mb-0">{{ node.obj.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Forum stats -->
+        <div class="col-md-2 text-center">
+            <div class="text-muted">
+                <div class="fw-bold">{{ node.obj.direct_topics_count }}</div>
+                <small>Topics</small>
+            </div>
+        </div>
+        <div class="col-md-2 text-center">
+            <div class="text-muted">
+                <div class="fw-bold">{{ node.obj.direct_posts_count }}</div>
+                <small>Posts</small>
+            </div>
+        </div>
+        
+        <!-- Last post info -->
+        <div class="col-md-2">
+            {% if node.obj.last_post_on %}
+                <div class="text-muted small">
+                    <div>{{ node.obj.last_post_on|timesince }} ago</div>
+                </div>
+            {% else %}
+                <span class="text-muted small">No posts yet</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{{ children }}
+{% endif %}
+{% endrecurseforumcontents %}
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    No forums are available.
+</div>
+{% endif %}

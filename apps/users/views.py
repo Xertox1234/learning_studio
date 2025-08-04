@@ -12,12 +12,12 @@ def dashboard_view(request):
     user = request.user
     
     # Get user's course enrollments
-    enrolled_courses = user.enrollments.filter(is_active=True)
+    enrolled_courses = user.enrollments.all()
     current_courses = enrolled_courses.filter(progress_percentage__lt=100)[:3]
     
     # Calculate stats
     enrolled_courses_count = enrolled_courses.count()
-    completed_exercises_count = user.exercise_submissions.filter(is_correct=True).count()
+    completed_exercises_count = user.exercise_submissions.filter(status='passed').count()
     total_study_hours = round(user.total_study_time / 3600, 1) if hasattr(user, 'total_study_time') else 0
     average_score = user.exercise_submissions.aggregate(
         avg_score=models.Avg('score')

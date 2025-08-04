@@ -278,7 +278,6 @@ erDiagram
 
 ### Future Integrations (Planned)
 - **Code Execution**: Docker-based sandboxing
-- **Discourse Forum**: SSO and API integration
 - **Email Service**: Automated notifications
 - **Payment Processing**: Subscription management
 

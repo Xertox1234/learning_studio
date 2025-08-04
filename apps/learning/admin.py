@@ -120,7 +120,8 @@ class LessonAdmin(admin.ModelAdmin):
             'fields': ('title', 'slug', 'description', 'course')
         }),
         ('Content', {
-            'fields': ('content', 'video_url')
+            'fields': ('content_format', 'enable_structured_content', 'content', 'structured_content', 'video_url'),
+            'description': 'Choose content format: Plain text, Markdown, or Structured blocks for enhanced interactivity.'
         }),
         ('Classification', {
             'fields': ('lesson_type', 'difficulty_level', 'order', 'estimated_duration')
@@ -138,9 +139,34 @@ class LessonAdmin(admin.ModelAdmin):
     )
     
     filter_horizontal = ['required_lessons']
+    actions = ['convert_to_structured_content', 'enable_structured_content', 'disable_structured_content']
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('course')
+    
+    def convert_to_structured_content(self, request, queryset):
+        """Convert selected lessons to use structured content."""
+        converted = 0
+        for lesson in queryset:
+            if not lesson.enable_structured_content and lesson.content:
+                lesson.create_default_structured_content()
+                lesson.save()
+                converted += 1
+        
+        self.message_user(request, f'{converted} lessons converted to structured content.')
+    convert_to_structured_content.short_description = "Convert to structured content"
+    
+    def enable_structured_content(self, request, queryset):
+        """Enable structured content for selected lessons."""
+        updated = queryset.update(enable_structured_content=True, content_format='structured')
+        self.message_user(request, f'{updated} lessons enabled for structured content.')
+    enable_structured_content.short_description = "Enable structured content"
+    
+    def disable_structured_content(self, request, queryset):
+        """Disable structured content for selected lessons."""
+        updated = queryset.update(enable_structured_content=False, content_format='plain')
+        self.message_user(request, f'{updated} lessons disabled for structured content.')
+    disable_structured_content.short_description = "Disable structured content"
 
 
 @admin.register(CourseEnrollment)

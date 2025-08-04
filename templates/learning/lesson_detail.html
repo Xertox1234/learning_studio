@@ -1,16 +1,27 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load content_tags %}
 
 {% block title %}{{ lesson.title }} - {{ lesson.course.title }} - Python Learning Studio{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
-    <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'course_list' %}">Courses</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'course_detail' lesson.course.slug %}">{{ lesson.course.title }}</a></li>
-        <li class="breadcrumb-item active">{{ lesson.title }}</li>
-    </ol>
+<nav aria-label="breadcrumb" class="bg-dark">
+    <div class="container-fluid">
+        <ol class="breadcrumb mb-0 py-3">
+            <li class="breadcrumb-item">
+                <a href="{% url 'wagtail_serve' '' %}" class="text-light text-decoration-none">
+                    <i class="bi bi-house"></i> Home
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'course_list' %}" class="text-light text-decoration-none">Courses</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'course_detail' lesson.course.slug %}" class="text-light text-decoration-none">{{ lesson.course.title }}</a>
+            </li>
+            <li class="breadcrumb-item active text-warning" aria-current="page">{{ lesson.title }}</li>
+        </ol>
+    </div>
 </nav>
 {% endblock %}
 
@@ -101,13 +112,19 @@
                             </div>
                         {% endif %}
 
-                        <!-- Lesson Content -->
+                        <!-- Enhanced Lesson Content -->
                         <div class="content-body">
-                            {{ lesson.content|safe }}
+                            {% if lesson.enable_structured_content %}
+                                <!-- Render structured content blocks -->
+                                {{ lesson|render_lesson_content }}
+                            {% else %}
+                                <!-- Fallback to legacy content rendering -->
+                                {{ lesson.content|safe }}
+                            {% endif %}
                         </div>
 
-                        <!-- Code Examples -->
-                        {% if lesson.code_examples %}
+                        <!-- Legacy Code Examples (if not using structured content) -->
+                        {% if not lesson.enable_structured_content and lesson.has_code_examples %}
                             <div class="code-examples mt-4">
                                 <h4>Code Examples</h4>
                                 <div class="code-example-container">
@@ -391,57 +408,15 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-.lesson-nav-item.active {
-    background-color: #f8f9fa;
-    border-left: 3px solid #0d6efd;
-}
-
-.lesson-nav-item a {
-    color: inherit;
-}
-
-.lesson-nav-item a:hover {
-    background-color: #f8f9fa;
-}
-
-.code-example-container {
-    background: #1e1e1e;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.code-block {
-    background: #1e1e1e;
-    color: #d4d4d4;
-    padding: 1rem;
-    margin: 0;
-    font-family: 'Fira Code', 'Consolas', monospace;
-}
-
-.concepts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.concept-card {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    border-left: 4px solid #0d6efd;
-}
-
-.resource-icon {
-    font-size: 1.5rem;
-    width: 2rem;
-    text-align: center;
-}
-</style>
+<link rel="stylesheet" href="{% static 'css/code-interface.css' %}">
+<link rel="stylesheet" href="{% static 'css/fill-in-blanks.css' %}">
+{% content_block_css %}
+<!-- Use standard Bootstrap Darkly theme - no custom overrides needed for buttons -->
 {% endblock %}
 
 {% block extra_js %}
+<!-- Fill-in-the-blanks JavaScript -->
+<script src="{% static 'js/fill-in-blanks.js' %}"></script>
 <script>
 function markLessonComplete() {
     const lessonId = {{ lesson.id }};
@@ -504,19 +479,83 @@ function askAI() {
     document.getElementById('ai-assistant-btn').click();
 }
 
-// Copy code functionality
+// Enhanced copy code functionality
 document.querySelectorAll('.copy-code-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-        const codeBlock = this.closest('.code-example-container').querySelector('.code-block');
-        const code = codeBlock.textContent;
+        let code = '';
+        
+        // Check if this is a new structured content block
+        if (this.hasAttribute('data-code')) {
+            code = this.getAttribute('data-code');
+        } else {
+            // Legacy code block
+            const codeBlock = this.closest('.code-example-container').querySelector('.code-block');
+            code = codeBlock.textContent;
+        }
         
         navigator.clipboard.writeText(code).then(() => {
             const icon = this.querySelector('i');
+            const originalClass = icon.className;
             icon.className = 'bi bi-check';
             setTimeout(() => {
-                icon.className = 'bi bi-copy';
+                icon.className = originalClass;
             }, 2000);
         });
+    });
+});
+
+// Quiz functionality
+document.querySelectorAll('.check-answer-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const quizBlock = this.closest('.quiz-block');
+        const correctAnswer = parseInt(quizBlock.getAttribute('data-correct-answer'));
+        const selectedOption = quizBlock.querySelector('input[type="radio"]:checked');
+        const explanation = quizBlock.querySelector('.quiz-explanation');
+        
+        if (!selectedOption) {
+            alert('Please select an answer first.');
+            return;
+        }
+        
+        const selectedValue = parseInt(selectedOption.value);
+        const isCorrect = selectedValue === correctAnswer;
+        
+        // Remove previous feedback
+        quizBlock.querySelectorAll('.quiz-feedback').forEach(el => el.remove());
+        
+        // Add feedback
+        const feedback = document.createElement('div');
+        feedback.className = `quiz-feedback alert-${isCorrect ? 'success' : 'danger'} mt-3 p-3 rounded`;
+        feedback.innerHTML = isCorrect 
+            ? '<i class="bi bi-check-circle"></i> Correct! Well done.'
+            : '<i class="bi bi-x-circle"></i> Not quite right. Try again.';
+        
+        this.parentNode.insertBefore(feedback, this.nextSibling);
+        
+        // Show explanation if correct or after attempt
+        if (explanation) {
+            explanation.style.display = 'block';
+        }
+        
+        // Disable further attempts for this question
+        quizBlock.querySelectorAll('input[type="radio"]').forEach(input => {
+            input.disabled = true;
+        });
+        this.disabled = true;
+    });
+});
+
+// Heading anchor links
+document.querySelectorAll('.lesson-heading .heading-anchor').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href').substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth' });
+            // Update URL without triggering page reload
+            history.pushState(null, null, this.getAttribute('href'));
+        }
     });
 });
 </script>

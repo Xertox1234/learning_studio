@@ -3,7 +3,7 @@
 :root {
     --primary-color: #0d6efd;
     --secondary-color: #6c757d;
-    --success-color: #198754;
+    --success-color: #0d6efd;
     --info-color: #0dcaf0;
     --warning-color: #ffc107;
     --danger-color: #dc3545;
@@ -30,6 +30,11 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: var(--dark-color);
+}
+
+/* Heading Styles */
+h3 {
+    color: white;
 }
 
 /* Custom scrollbar */
@@ -83,7 +88,7 @@ body {
 }
 
 .card-header {
-    background: linear-gradient(135deg, var(--primary-color), #0056b3);
+    background: #375a7f;
     color: white;
     border: none;
 }
@@ -206,7 +211,8 @@ body {
 
 .exercise-instructions {
     padding: 1.5rem;
-    background: var(--light-color);
+    background: #375a7f;
+    color: white;
     border-radius: 8px;
     overflow-y: auto;
 }
@@ -247,7 +253,7 @@ body {
 }
 
 .progress-card {
-    background: linear-gradient(135deg, var(--primary-color), #0056b3);
+    background: #375a7f;
     color: white;
     border-radius: 12px;
     padding: 1.5rem;
@@ -461,27 +467,110 @@ body {
     }
 }
 
-/* Dark Theme Support */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --light-color: #343a40;
-        --dark-color: #f8f9fa;
-    }
-    
-    body {
-        background-color: #1a1a1a;
-        color: var(--dark-color);
-    }
-    
-    .card {
-        background-color: #2d3748;
-        color: var(--dark-color);
-    }
-    
-    .exercise-instructions {
-        background: #2d3748;
-        color: var(--dark-color);
-    }
+/* Enhanced Dark Theme Support with Bootswatch Darkly */
+[data-bs-theme="dark"] {
+    /* Enhanced dark theme variables */
+    --code-bg: #1e1e1e;
+    --code-text: #d4d4d4;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .exercise-instructions {
+    background: var(--primary-color);
+    color: white;
+    border: 1px solid var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .ai-chat-messages {
+    background: var(--bs-dark);
+    color: var(--bs-light);
+}
+
+[data-bs-theme="dark"] .message-content {
+    background: var(--bs-secondary);
+    color: var(--bs-light);
+}
+
+[data-bs-theme="dark"] .code-output {
+    background: #0d1117;
+    color: #e6edf3;
+    border: 1px solid var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .glass-effect {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+}
+
+[data-bs-theme="dark"] .learning-path .path-step::before {
+    background: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .step-indicator {
+    background: var(--bs-secondary);
+    border-color: var(--bs-dark);
+}
+
+[data-bs-theme="dark"] h3 {
+    color: white;
+}
+
+/* Light theme specific adjustments */
+[data-bs-theme="light"] {
+    --code-bg: #f8f9fa;
+    --code-text: #212529;
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 0, 0, 0.1);
+}
+
+[data-bs-theme="light"] h3 {
+    color: white;
+}
+
+[data-bs-theme="light"] .code-output {
+    background: #f8f9fa;
+    color: #212529;
+    border: 1px solid #dee2e6;
+}
+
+[data-bs-theme="light"] .glass-effect {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+}
+
+/* Theme transition effects */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Theme toggle button styling */
+#theme-toggle {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#theme-toggle:hover {
+    transform: scale(1.1);
+}
+
+[data-bs-theme="dark"] #theme-toggle {
+    background-color: var(--bs-warning);
+    border-color: var(--bs-warning);
+    color: var(--bs-dark);
+}
+
+[data-bs-theme="light"] #theme-toggle {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: var(--bs-white);
 }
 
 /* Loading States */
@@ -529,4 +618,22 @@ body {
 
 .hover-lift:hover {
     transform: translateY(-4px);
+}
+
+/* Footer Column Spacing and Layout */
+footer .row {
+    --bs-gutter-x: 0.75rem; /* Reduced from default 1.5rem */
+}
+
+footer .col-lg-1,
+footer .col-lg-2,
+footer .col-lg-3,
+footer .col-lg-5 {
+    padding-left: calc(var(--bs-gutter-x) * 0.5);
+    padding-right: calc(var(--bs-gutter-x) * 0.5);
+}
+
+/* Ensure brand section has enough space */
+footer .col-lg-5 h5 {
+    white-space: nowrap; /* Prevent wrapping of brand name */
 }

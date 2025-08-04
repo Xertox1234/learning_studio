@@ -1,0 +1,269 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Exercises - Python Learning Studio{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'wagtail_serve' '' %}">Home</a></li>
+        <li class="breadcrumb-item active">Exercises</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">Programming Exercises</h1>
+                    <p class="text-muted">Practice your coding skills with interactive challenges</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="bi bi-funnel me-2"></i>Filters
+                    </button>
+                    <a href="{% url 'code_playground' %}" class="btn btn-primary">
+                        <i class="bi bi-code-slash me-2"></i>Code Playground
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-primary active" data-filter="all">All Exercises</button>
+                <button class="btn btn-sm btn-outline-primary" data-filter="beginner">Beginner</button>
+                <button class="btn btn-sm btn-outline-primary" data-filter="intermediate">Intermediate</button>
+                <button class="btn btn-sm btn-outline-primary" data-filter="advanced">Advanced</button>
+                <button class="btn btn-sm btn-outline-primary" data-filter="python">Python</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exercise Grid -->
+    <div class="row g-4" id="exercise-grid">
+        {% for exercise in exercises %}
+        <div class="col-lg-4 col-md-6 exercise-card-container" data-difficulty="{{ exercise.difficulty_level }}" data-language="{{ exercise.programming_language.slug }}">
+            <div class="card exercise-card h-100 hover-lift">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="badge difficulty-{{ exercise.difficulty_level }}">
+                            {{ exercise.get_difficulty_level_display }}
+                        </span>
+                        <span class="badge bg-secondary">
+                            {{ exercise.programming_language.name }}
+                        </span>
+                    </div>
+                    
+                    <h5 class="card-title">{{ exercise.title }}</h5>
+                    <p class="card-text">{{ exercise.description|truncatewords:20 }}</p>
+                    
+                    <div class="exercise-meta small text-muted mb-3">
+                        <div class="row">
+                            <div class="col-6">
+                                <i class="bi bi-clock me-1"></i>{{ exercise.estimated_time_minutes }} min
+                            </div>
+                            <div class="col-6">
+                                <i class="bi bi-trophy me-1"></i>{{ exercise.max_score }} points
+                            </div>
+                        </div>
+                        <div class="row mt-1">
+                            <div class="col-6">
+                                <i class="bi bi-code me-1"></i>{{ exercise.exercise_type.name }}
+                            </div>
+                            <div class="col-6">
+                                <i class="bi bi-check-circle me-1"></i>{{ exercise.submissions.count }} attempts
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress indicator for authenticated users -->
+                    {% if user.is_authenticated %}
+                        {% with exercise.get_user_progress as progress %}
+                            {% if progress %}
+                                <div class="d-flex align-items-center mb-2">
+                                    {% if progress.is_completed %}
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        <span class="text-success small">Completed</span>
+                                    {% else %}
+                                        <i class="bi bi-circle-half text-warning me-2"></i>
+                                        <span class="text-warning small">In Progress</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        {% if exercise.lesson %}
+                            <small class="text-muted">
+                                <i class="bi bi-book me-1"></i>{{ exercise.lesson.title }}
+                            </small>
+                        {% else %}
+                            <small class="text-muted">
+                                <i class="bi bi-puzzle me-1"></i>Practice Exercise
+                            </small>
+                        {% endif %}
+                        <a href="{% url 'exercise_detail' exercise.id %}" class="btn btn-primary btn-sm">
+                            {% if user.is_authenticated and exercise.is_user_completed %}
+                                Review
+                            {% else %}
+                                Start
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-code-slash display-1 text-muted"></i>
+                <h3 class="mt-3">No exercises found</h3>
+                <p class="text-muted">Try adjusting your filters or check back later for new exercises.</p>
+                <a href="{% url 'code_playground' %}" class="btn btn-primary">Try the Code Playground</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="row mt-5">
+        <div class="col">
+            <nav aria-label="Exercise pagination">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.difficulty %}&difficulty={{ request.GET.difficulty }}{% endif %}{% if request.GET.language %}&language={{ request.GET.language }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.difficulty %}&difficulty={{ request.GET.difficulty }}{% endif %}{% if request.GET.language %}&language={{ request.GET.language }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.difficulty %}&difficulty={{ request.GET.difficulty }}{% endif %}{% if request.GET.language %}&language={{ request.GET.language }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter Exercises</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="get">
+                    <div class="mb-3">
+                        <label class="form-label">Difficulty Level</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" value="beginner" id="diff-beginner" name="difficulty">
+                            <label class="form-check-label" for="diff-beginner">Beginner</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" value="intermediate" id="diff-intermediate" name="difficulty">
+                            <label class="form-check-label" for="diff-intermediate">Intermediate</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" value="advanced" id="diff-advanced" name="difficulty">
+                            <label class="form-check-label" for="diff-advanced">Advanced</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Programming Language</label>
+                        <select class="form-select" name="language">
+                            <option value="">All Languages</option>
+                            {% for language in programming_languages %}
+                                <option value="{{ language.slug }}">{{ language.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Exercise Type</label>
+                        <select class="form-select" name="type">
+                            <option value="">All Types</option>
+                            <option value="function">Function</option>
+                            <option value="class">Class</option>
+                            <option value="algorithm">Algorithm</option>
+                            <option value="debug">Debug</option>
+                            <option value="fill_blank">Fill in the Blank</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter buttons
+    document.querySelectorAll('[data-filter]').forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            document.querySelectorAll('[data-filter]').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            const filter = this.getAttribute('data-filter');
+            const exerciseCards = document.querySelectorAll('.exercise-card-container');
+            
+            exerciseCards.forEach(card => {
+                if (filter === 'all') {
+                    card.style.display = 'block';
+                } else {
+                    const difficulty = card.getAttribute('data-difficulty');
+                    const language = card.getAttribute('data-language');
+                    card.style.display = (difficulty === filter || language === filter) ? 'block' : 'none';
+                }
+            });
+        });
+    });
+});
+
+function applyFilters() {
+    const form = document.querySelector('#filterModal form');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+    window.location.search = params.toString();
+}
+</script>
+{% endblock %}

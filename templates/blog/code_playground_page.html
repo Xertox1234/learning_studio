@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+
+{% block title %}{{ page.title }} - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .playground-container {
+    min-height: 80vh;
+  }
+  
+  .feature-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .shortcut-key {
+    background: var(--bs-gray-200);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-family: monospace;
+    font-size: 0.875rem;
+  }
+  
+  .dark-mode .shortcut-key {
+    background: var(--bs-gray-700);
+    color: var(--bs-gray-100);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h1 class="display-4 fw-bold mb-2">{{ page.title }}</h1>
+      {% if page.description %}
+        <div class="lead text-muted">
+          {{ page.description|richtext }}
+        </div>
+      {% else %}
+        <p class="lead text-muted">
+          Write, test, and experiment with code in our interactive playground.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Main Playground -->
+  <div class="row mb-5">
+    <div class="col-12">
+      <div class="card shadow-lg border-0 playground-container">
+        <div class="card-body p-0">
+          <!-- React Component Mount Point -->
+          <div id="code-playground-root" 
+               data-initial-code="{{ initial_code|escapejs }}"
+               data-language="{{ page.programming_language }}"
+               data-enable-file-ops="{{ page.enable_file_operations|yesno:'true,false' }}"
+               data-enable-auto-save="{{ page.enable_auto_save|yesno:'true,false' }}"
+               data-enable-multiple-languages="{{ page.enable_multiple_languages|yesno:'true,false' }}">
+            <!-- Fallback content for when React is not available -->
+            <div class="p-4 text-center">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading playground...</span>
+              </div>
+              <p class="mt-3 text-muted">Loading interactive code playground...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features and Information -->
+  <div class="row g-4">
+    <!-- Features -->
+    <div class="col-lg-6">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5 mb-3">
+            <i class="fas fa-star text-warning me-2"></i>Features
+          </h3>
+          <div class="row g-3">
+            {% if page.features %}
+              {% for feature_block in page.features %}
+                {% if feature_block.block_type == 'feature' %}
+                  <div class="col-sm-6">
+                    <div class="feature-card p-3 h-100 border rounded">
+                      <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-{{ feature_block.value.icon }} text-primary me-2"></i>
+                        <h6 class="mb-0">{{ feature_block.value.title }}</h6>
+                      </div>
+                      <p class="text-muted small mb-0">{{ feature_block.value.description }}</p>
+                    </div>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              {% for feature in default_features %}
+                <div class="col-sm-6">
+                  <div class="feature-card p-3 h-100 border rounded">
+                    <div class="d-flex align-items-center mb-2">
+                      <i class="fas fa-{{ feature.icon }} text-primary me-2"></i>
+                      <h6 class="mb-0">{{ feature.title }}</h6>
+                    </div>
+                    <p class="text-muted small mb-0">{{ feature.description }}</p>
+                  </div>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Keyboard Shortcuts -->
+    <div class="col-lg-6">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title h5 mb-3">
+            <i class="fas fa-keyboard text-info me-2"></i>Keyboard Shortcuts
+          </h3>
+          <div class="list-group list-group-flush">
+            {% if page.shortcuts %}
+              {% for shortcut_block in page.shortcuts %}
+                {% if shortcut_block.block_type == 'shortcut' %}
+                  <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                    <span class="shortcut-key">{{ shortcut_block.value.keys }}</span>
+                    <span class="text-muted">{{ shortcut_block.value.description }}</span>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              {% for shortcut in default_shortcuts %}
+                <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                  <span class="shortcut-key">{{ shortcut.keys }}</span>
+                  <span class="text-muted">{{ shortcut.description }}</span>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Code Examples (if configured) -->
+  {% if page.code_examples %}
+    <div class="row mt-5">
+      <div class="col-12">
+        <h3 class="h4 mb-4">
+          <i class="fas fa-code text-success me-2"></i>Code Examples
+        </h3>
+        <div class="row g-4">
+          {% for example_block in page.code_examples %}
+            {% if example_block.block_type == 'example' %}
+              <div class="col-lg-4 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <h6 class="card-title mb-0">{{ example_block.value.title }}</h6>
+                      <span class="badge bg-{{ example_block.value.category|default:'primary' }} ms-2">
+                        {{ example_block.value.category|capfirst }}
+                      </span>
+                    </div>
+                    <p class="text-muted small mb-3">{{ example_block.value.description }}</p>
+                    <div class="position-relative">
+                      <pre class="bg-light p-3 rounded small overflow-auto" style="max-height: 200px;"><code>{{ example_block.value.code }}</code></pre>
+                      <span class="position-absolute top-0 end-0 m-2 badge bg-secondary">
+                        {{ example_block.value.language|capfirst }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Include React App for Code Playground -->
+<script>
+  // Global configuration for the playground
+  window.playgroundConfig = {
+    initialCode: {{ initial_code|escapejs }},
+    language: '{{ page.programming_language }}',
+    enableFileOperations: {{ page.enable_file_operations|yesno:'true,false' }},
+    enableAutoSave: {{ page.enable_auto_save|yesno:'true,false' }},
+    enableMultipleLanguages: {{ page.enable_multiple_languages|yesno:'true,false' }}
+  };
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Load React Components -->
+<script src="{% url 'django.contrib.staticfiles:static' 'react/assets/main-B3-eL2bl.js' %}" type="module"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize the playground if React components are available
+  if (window.React && window.ReactDOM) {
+    const playgroundRoot = document.getElementById('code-playground-root');
+    if (playgroundRoot && window.AdvancedCodePlayground) {
+      const config = window.playgroundConfig;
+      
+      // Create React element and render
+      const playgroundElement = React.createElement(window.AdvancedCodePlayground, {
+        initialCode: config.initialCode,
+        language: config.language,
+        onSave: (codeData) => {
+          console.log('Code saved:', codeData);
+          // Could integrate with Django API here
+        },
+        onExecute: (code, result) => {
+          console.log('Code executed:', { code, result });
+        },
+        className: 'min-h-600px'
+      });
+      
+      ReactDOM.render(playgroundElement, playgroundRoot);
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base/base.html" %}
+{% load static %}
+{% load i18n %}
+{% load forum_tags %}
+{% load wagtail_forum_tags %}
+
+{% block title %}
+    {% if page_title %}{{ page_title }} - {% endif %}Forum - {{ block.super }}
+{% endblock title %}
+
+{% block meta_description %}
+    {% if page_description %}{{ page_description }}{% else %}Community forum for Python Learning Studio{% endif %}
+{% endblock meta_description %}
+
+{% block extra_css %}
+    {{ block.super }}
+    <style>
+        /* Forum-specific styling */
+        .forum-breadcrumb {
+            background-color: var(--bs-secondary-bg);
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .forum-header {
+            background: linear-gradient(135deg, var(--bs-primary), var(--bs-secondary));
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .forum-stats {
+            background-color: var(--bs-secondary-bg);
+            border-radius: 0.375rem;
+            padding: 1rem;
+        }
+        
+        .topic-row:hover {
+            background-color: var(--bs-secondary-bg);
+        }
+        
+        .forum-category {
+            border: 1px solid var(--bs-border-color);
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        
+        .forum-category-header {
+            background-color: var(--bs-secondary-bg);
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+        
+        .forum-icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bs-primary);
+            color: white;
+            margin-right: 0.75rem;
+        }
+        
+        .post-content {
+            background-color: var(--bs-body-bg);
+            border: 1px solid var(--bs-border-color);
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .post-header {
+            background-color: var(--bs-secondary-bg);
+            margin: -1rem -1rem 1rem -1rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+        
+        .user-avatar {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            background-color: var(--bs-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .pagination-forum {
+            margin: 2rem 0;
+        }
+        
+        .forum-tools {
+            background-color: var(--bs-secondary-bg);
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+{% endblock extra_css %}
+
+{% block breadcrumb %}
+    <div class="container-fluid">
+        <nav aria-label="breadcrumb" class="forum-breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'forum:index' %}">Forum</a></li>
+                {% block forum_breadcrumb %}{% endblock forum_breadcrumb %}
+            </ol>
+        </nav>
+    </div>
+{% endblock breadcrumb %}
+
+{% block content %}
+    <div class="container-fluid">
+        {% block forum_header %}
+            <div class="forum-header text-center">
+                <div class="container">
+                    <h1 class="display-4 mb-0">
+                        {% block forum_title %}Community Forum{% endblock forum_title %}
+                    </h1>
+                    <p class="lead mb-0">
+                        {% block forum_subtitle %}Connect, learn, and share with fellow Python enthusiasts{% endblock forum_subtitle %}
+                    </p>
+                </div>
+            </div>
+        {% endblock forum_header %}
+        
+        <div class="row">
+            <div class="col-lg-9">
+                {% block forum_main_content %}{% endblock forum_main_content %}
+            </div>
+            
+            <div class="col-lg-3">
+                {% block forum_sidebar %}
+                    <div class="forum-stats">
+                        <h5><i class="bi bi-graph-up me-2"></i>Forum Stats</h5>
+                        {% forum_stats as stats %}
+                        <div class="row text-center">
+                            <div class="col-12 mb-2">
+                                <div class="fw-bold text-primary">{{ stats.total_topics }}</div>
+                                <small class="text-muted">Topics</small>
+                            </div>
+                            <div class="col-12 mb-2">
+                                <div class="fw-bold text-success">{{ stats.total_posts }}</div>
+                                <small class="text-muted">Posts</small>
+                            </div>
+                            <div class="col-12">
+                                <div class="fw-bold text-info">{{ stats.total_forums }}</div>
+                                <small class="text-muted">Forums</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if user.is_authenticated %}
+                        <div class="forum-tools mt-3">
+                            <h6><i class="bi bi-person-circle me-2"></i>Quick Actions</h6>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'forum:index' %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-house me-1"></i>Forum Home
+                                </a>
+                                <a href="#" class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-search me-1"></i>Search Topics
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endblock forum_sidebar %}
+            </div>
+        </div>
+    </div>
+{% endblock content %}

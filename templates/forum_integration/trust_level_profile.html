@@ -1,0 +1,318 @@
+{% extends "base/base.html" %}
+{% load static %}
+{% load trust_level_tags %}
+
+{% block title %}My Trust Level - Python Learning Studio{% endblock %}
+
+{% block extra_css %}
+    <link href="{% static 'css/reading-progress.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">
+                        <i class="bi bi-shield-check me-2"></i>My Trust Level Progress
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% trust_level_progress_bar user %}
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h5>Engagement Metrics</h5>
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <span><i class="bi bi-eye me-2"></i>Posts Read</span>
+                                    <strong>{{ trust_level.posts_read }}</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <span><i class="bi bi-collection me-2"></i>Topics Viewed</span>
+                                    <strong>{{ trust_level.topics_viewed }}</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <span><i class="bi bi-clock me-2"></i>Reading Time</span>
+                                    <strong>{{ trust_level.time_read.total_seconds|floatformat:0 }}s</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <span><i class="bi bi-calendar-check me-2"></i>Days Visited</span>
+                                    <strong>{{ trust_level.days_visited }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Community Metrics</h5>
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <span><i class="bi bi-chat-dots me-2"></i>Posts Created</span>
+                                    <strong>{{ trust_level.posts_created }}</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <span><i class="bi bi-plus-circle me-2"></i>Topics Created</span>
+                                    <strong>{{ trust_level.topics_created }}</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <span><i class="bi bi-heart me-2"></i>Likes Given</span>
+                                    <strong>{{ trust_level.likes_given }}</strong>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <span><i class="bi bi-heart-fill text-danger me-2"></i>Likes Received</span>
+                                    <strong>{{ trust_level.likes_received }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if reading_progress %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-book me-2"></i>Recent Reading Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Topic</th>
+                                    <th>Progress</th>
+                                    <th>Time Spent</th>
+                                    <th>Last Read</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for progress in reading_progress %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ progress.topic.get_absolute_url }}">{{ progress.topic.subject|truncatechars:50 }}</a>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="width: 80px; height: 20px;">
+                                            <div class="progress-bar" style="width: {{ progress.completion_percentage }}%"></div>
+                                        </div>
+                                        <small class="text-muted">{{ progress.completion_percentage }}%</small>
+                                    </td>
+                                    <td>{{ progress.time_spent.total_seconds|floatformat:0 }}s</td>
+                                    <td>{{ progress.last_accessed|date:"M d, H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Reading Achievements Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-trophy me-2"></i>Reading Achievements
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="reading-stats-widget">
+                        <div class="reading-stats-grid">
+                            <div class="reading-stat-item">
+                                <span class="reading-stat-value">{{ trust_level.posts_read }}</span>
+                                <p class="reading-stat-label">Posts Read</p>
+                            </div>
+                            <div class="reading-stat-item">
+                                <span class="reading-stat-value">{{ reading_progress|length }}</span>
+                                <p class="reading-stat-label">Topics Started</p>
+                            </div>
+                            <div class="reading-stat-item">
+                                <span class="reading-stat-value">{{ trust_level.time_read.total_seconds|floatformat:0 |default:0 |add:0 |div:60 |floatformat:0 }}</span>
+                                <p class="reading-stat-label">Minutes Read</p>
+                            </div>
+                            <div class="reading-stat-item">
+                                <span class="reading-stat-value">{{ recent_activity|length }}</span>
+                                <p class="reading-stat-label">Active Days</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Reading Milestones -->
+                    <div class="reading-milestones mt-4">
+                        <div class="milestone {% if trust_level.posts_read >= 1 %}completed{% endif %}">
+                            <div class="milestone-icon">
+                                <i class="bi bi-book"></i>
+                            </div>
+                            <div class="milestone-label">First Read</div>
+                        </div>
+                        <div class="milestone {% if trust_level.posts_read >= 10 %}completed{% endif %}">
+                            <div class="milestone-icon">
+                                <i class="bi bi-bookmark"></i>
+                            </div>
+                            <div class="milestone-label">10 Posts</div>
+                        </div>
+                        <div class="milestone {% if trust_level.posts_read >= 100 %}completed{% endif %}">
+                            <div class="milestone-icon">
+                                <i class="bi bi-star"></i>
+                            </div>
+                            <div class="milestone-label">100 Posts</div>
+                        </div>
+                        <div class="milestone {% if trust_level.posts_read >= 500 %}completed{% endif %}">
+                            <div class="milestone-icon">
+                                <i class="bi bi-award"></i>
+                            </div>
+                            <div class="milestone-label">500 Posts</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Reading Achievements -->
+                    <div class="reading-achievements mt-4">
+                        <h6>Recent Achievements</h6>
+                        <div class="achievement-item {% if trust_level.posts_read >= 1 %}unlocked{% endif %}">
+                            <div class="achievement-icon">
+                                <i class="bi bi-book-fill"></i>
+                            </div>
+                            <div class="achievement-content">
+                                <h6>First Reader</h6>
+                                <p>Read your first forum post</p>
+                            </div>
+                            <div class="achievement-progress">
+                                <div class="achievement-progress-bar">
+                                    <div class="achievement-progress-fill" style="width: {% if trust_level.posts_read >= 1 %}100{% else %}{{ trust_level.posts_read|default:0 }}0{% endif %}%"></div>
+                                </div>
+                                <div class="achievement-percentage">{% if trust_level.posts_read >= 1 %}100{% else %}{{ trust_level.posts_read|default:0 }}0{% endif %}%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="achievement-item {% if trust_level.posts_read >= 10 %}unlocked{% endif %}">
+                            <div class="achievement-icon">
+                                <i class="bi bi-bookmark-star-fill"></i>
+                            </div>
+                            <div class="achievement-content">
+                                <h6>Dedicated Reader</h6>
+                                <p>Read 10 forum posts</p>
+                            </div>
+                            <div class="achievement-progress">
+                                <div class="achievement-progress-bar">
+                                    <div class="achievement-progress-fill" style="width: {% widthratio trust_level.posts_read 10 100 %}%"></div>
+                                </div>
+                                <div class="achievement-percentage">{% widthratio trust_level.posts_read 10 100 %}%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="achievement-item {% if trust_level.time_read.total_seconds >= 3600 %}unlocked{% endif %}">
+                            <div class="achievement-icon">
+                                <i class="bi bi-clock-fill"></i>
+                            </div>
+                            <div class="achievement-content">
+                                <h6>Time Investor</h6>
+                                <p>Spent 1 hour reading content</p>
+                            </div>
+                            <div class="achievement-progress">
+                                <div class="achievement-progress-bar">
+                                    <div class="achievement-progress-fill" style="width: {% widthratio trust_level.time_read.total_seconds 3600 100 %}%"></div>
+                                </div>
+                                <div class="achievement-percentage">{% widthratio trust_level.time_read.total_seconds 3600 100 %}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Trust Level Guide
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="trust-level-guide">
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge trust-level-0 me-2">TL0</span>
+                                <strong>New User</strong>
+                            </div>
+                            <p class="small text-muted mb-2">Basic posting with rate limits</p>
+                            <p class="small">
+                                <strong>To TL1:</strong> Read 10 posts, spend 10 minutes reading
+                            </p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge trust-level-1 me-2">TL1</span>
+                                <strong>Basic User</strong>
+                            </div>
+                            <p class="small text-muted mb-2">Post images, more links</p>
+                            <p class="small">
+                                <strong>To TL2:</strong> Visit 15 days, read 100 posts, receive 1 like
+                            </p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge trust-level-2 me-2">TL2</span>
+                                <strong>Member</strong>
+                            </div>
+                            <p class="small text-muted mb-2">Extended editing, create wiki posts</p>
+                            <p class="small">
+                                <strong>To TL3:</strong> Visit 50 days, read 500 posts, receive 10 likes, give 30 likes
+                            </p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge trust-level-3 me-2">TL3</span>
+                                <strong>Regular</strong>
+                            </div>
+                            <p class="small text-muted mb-2">Edit titles, basic moderation</p>
+                            <p class="small">
+                                <strong>To TL4:</strong> Manual promotion by staff
+                            </p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge trust-level-4 me-2">TL4</span>
+                                <strong>Leader</strong>
+                            </div>
+                            <p class="small text-muted">Full moderation capabilities</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if recent_activity %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-activity me-2"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for activity in recent_activity %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small">{{ activity.date|date:"M d" }}</span>
+                        <div class="small text-end">
+                            {% if activity.posts_read_today %}
+                                <div>{{ activity.posts_read_today }} posts read</div>
+                            {% endif %}
+                            {% if activity.topics_viewed_today %}
+                                <div>{{ activity.topics_viewed_today }} topics viewed</div>
+                            {% endif %}
+                            {% if activity.posts_created_today %}
+                                <div>{{ activity.posts_created_today }} posts created</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

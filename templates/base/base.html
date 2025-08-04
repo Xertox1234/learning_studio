@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,19 +7,92 @@
     <meta name="description" content="{% block meta_description %}AI-powered Python programming education platform{% endblock %}">
     <title>{% block title %}Python Learning Studio{% endblock %}</title>
     
-    <!-- Bootstrap 5.3 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="PyLearning">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Python Learning Studio">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/icon-180x180.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/icon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/icon-16x16.png' %}">
+    <link rel="mask-icon" href="{% static 'images/safari-pinned-tab.svg' %}" color="#0d6efd">
+    <meta name="msapplication-TileColor" content="#0d6efd">
+    <meta name="msapplication-config" content="{% static 'browserconfig.xml' %}">
+    
+    <!-- Bootstrap 5.3 CSS with Bootswatch Darkly theme -->
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/darkly/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+    
+    <!-- Light theme CSS (hidden by default) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-light-css" disabled>
     
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
-    <!-- CodeMirror for code editing -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.0.1/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.0.1/theme/material-darker.min.css">
+    <!-- CodeMirror 6 removed - using simple implementation -->
     
     <!-- Custom CSS -->
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/trust-levels.css' %}">
+    <link rel="stylesheet" href="{% static 'css/advanced-search.css' %}">
+    <link rel="stylesheet" href="{% static 'css/mobile-enhancements.css' %}">
+    <link rel="stylesheet" href="{% static 'css/lazy-loading.css' %}">
+    <link rel="stylesheet" href="{% static 'css/virtual-scroll.css' %}">
+    <link rel="stylesheet" href="{% static 'css/real-time-features.css' %}">
+    
+    <!-- Bootstrap Success Color Override -->
+    <style>
+    /* Force all Bootstrap success classes to use blue instead of green - NUCLEAR OPTION */
+    .btn-success, .btn-success:hover, .btn-success:focus, .btn-success:active, .btn-success:visited {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: #ffffff !important;
+    }
+    .btn-outline-success, .btn-outline-success:hover, .btn-outline-success:focus, .btn-outline-success:active, .btn-outline-success:visited {
+        background-color: transparent !important;
+        border-color: #0d6efd !important;
+        color: #0d6efd !important;
+    }
+    .btn-outline-success:hover, .btn-outline-success:focus, .btn-outline-success:active {
+        background-color: #0d6efd !important;
+        color: #ffffff !important;
+    }
+    .border-success, .border-success-top, .border-success-end, .border-success-bottom, .border-success-start {
+        border-color: #0d6efd !important;
+    }
+    .text-success {
+        color: #0d6efd !important;
+    }
+    .bg-success {
+        background-color: #0d6efd !important;
+    }
+    .alert-success {
+        background-color: rgba(13, 110, 253, 0.1) !important;
+        border-color: #0d6efd !important;
+        color: #0d6efd !important;
+    }
+    
+    /* Override any possible container with success styling */
+    .interactive-code-block, .interactive-code-block * {
+        border-color: #4a5568 !important;
+    }
+    .interactive-code-block.border-success, .interactive-code-block .border-success {
+        border-color: #0d6efd !important;
+    }
+    
+    /* Override any CSS variables that might be green */
+    :root {
+        --bs-success-rgb: 13, 110, 253 !important;
+        --bs-success: #0d6efd !important;
+    }
+    </style>
     
     {% block extra_css %}{% endblock %}
     
@@ -26,6 +100,9 @@
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
+    
+    <!-- Real-time Connection Status -->
+    <div class="connection-status disconnected" id="connection-status">Offline</div>
     
     <!-- Navigation -->
     {% include 'base/navbar.html' %}
@@ -61,18 +138,23 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- CodeMirror -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.0.1/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.0.1/mode/python/python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.0.1/mode/javascript/javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.0.1/addon/edit/closebrackets.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.0.1/addon/edit/matchbrackets.min.js"></script>
+    <!-- CodeMirror 5 removed - using CodeMirror 6 modules above -->
     
     <!-- Chart.js for progress visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Custom JavaScript -->
     <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/dist/codemirror-enhanced.bundle.js' %}"></script>
+    
+    <!-- Badge Celebrations System -->
+    {% if user.is_authenticated %}
+        <script>
+            // Pass user ID to JavaScript for WebSocket connections
+            window.userId = {{ user.id }};
+        </script>
+        <script src="{% static 'js/badge-celebrations.js' %}"></script>
+    {% endif %}
     
     {% block extra_js %}{% endblock %}
     
@@ -96,6 +178,60 @@
             
             {% block ready_js %}{% endblock %}
         });
+        
+        // Theme Switcher Functionality
+        function toggleTheme() {
+            const darkCSS = document.getElementById('bootstrap-css');
+            const lightCSS = document.getElementById('bootstrap-light-css');
+            const themeIcon = document.getElementById('theme-icon');
+            const currentTheme = localStorage.getItem('theme') || 'dark';
+            
+            if (currentTheme === 'dark') {
+                // Switch to light theme
+                darkCSS.disabled = true;
+                lightCSS.disabled = false;
+                themeIcon.className = 'bi bi-sun-fill';
+                localStorage.setItem('theme', 'light');
+                document.body.setAttribute('data-bs-theme', 'light');
+            } else {
+                // Switch to dark theme
+                darkCSS.disabled = false;
+                lightCSS.disabled = true;
+                themeIcon.className = 'bi bi-moon-fill';
+                localStorage.setItem('theme', 'dark');
+                document.body.setAttribute('data-bs-theme', 'dark');
+            }
+        }
+        
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            const darkCSS = document.getElementById('bootstrap-css');
+            const lightCSS = document.getElementById('bootstrap-light-css');
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (savedTheme === 'light') {
+                darkCSS.disabled = true;
+                lightCSS.disabled = false;
+                themeIcon.className = 'bi bi-sun-fill';
+                document.body.setAttribute('data-bs-theme', 'light');
+            } else {
+                darkCSS.disabled = false;
+                lightCSS.disabled = true;
+                themeIcon.className = 'bi bi-moon-fill';
+                document.body.setAttribute('data-bs-theme', 'dark');
+            }
+        });
     </script>
+    
+    <!-- PWA Initialization -->
+    <script src="{% static 'js/pwa-init.js' %}"></script>
+    
+    <!-- Just-in-Time Loading -->
+    <script src="{% static 'js/infinite-scroll.js' %}"></script>
+    <script src="{% static 'js/forum-infinite-scroll.js' %}"></script>
+    <script src="{% static 'js/lazy-image-loader.js' %}"></script>
+    <script src="{% static 'js/smart-prefetch.js' %}"></script>
+    <script src="{% static 'js/real-time-client.js' %}"></script>
 </body>
 </html>

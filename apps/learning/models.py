@@ -8,6 +8,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
+import json
 
 User = get_user_model()
 
@@ -41,7 +42,7 @@ class Category(models.Model):
         return self.name
     
     def get_absolute_url(self):
-        return reverse('learning:category', kwargs={'slug': self.slug})
+        return reverse('category', kwargs={'slug': self.slug})
 
 
 class Course(models.Model):
@@ -117,7 +118,7 @@ class Course(models.Model):
         super().save(*args, **kwargs)
     
     def get_absolute_url(self):
-        return reverse('learning:course_detail', kwargs={'slug': self.slug})
+        return reverse('course_detail', kwargs={'slug': self.slug})
     
     def update_statistics(self):
         """Update course statistics."""
@@ -150,6 +151,35 @@ class Course(models.Model):
         """Generate AI-powered learning objectives."""
         # This will be implemented with the LearningContentAI service
         return f"AI-generated learning objectives for {self.title}"
+    
+    # Template compatibility methods
+    @property
+    def enrolled_count(self):
+        """Template compatibility property for total_enrollments."""
+        return self.total_enrollments
+    
+    def get_user_progress(self, user):
+        """Get user's progress in this course."""
+        if not user.is_authenticated:
+            return None
+        
+        try:
+            enrollment = self.enrollments.get(user=user)
+            return enrollment.progress_percentage
+        except:
+            return None
+    
+    def is_user_enrolled(self, user):
+        """Check if user is enrolled in this course."""
+        if not user.is_authenticated:
+            return False
+        
+        return self.enrollments.filter(user=user).exists()
+    
+    @property
+    def first_lesson(self):
+        """Get the first lesson in the course."""
+        return self.lessons.filter(is_published=True).order_by('order').first()
 
 
 class Lesson(models.Model):
@@ -165,8 +195,28 @@ class Lesson(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
     
     # Content
-    content = models.TextField(help_text="Main lesson content")
+    content = models.TextField(help_text="Main lesson content (legacy field)")
+    structured_content = models.JSONField(
+        default=list, 
+        blank=True,
+        help_text="Structured content blocks for enhanced lesson delivery"
+    )
     video_url = models.URLField(blank=True, help_text="Optional video URL")
+    
+    # Enhanced content features
+    enable_structured_content = models.BooleanField(
+        default=False,
+        help_text="Use structured content blocks instead of plain text"
+    )
+    content_format = models.CharField(
+        max_length=20,
+        choices=[
+            ('plain', 'Plain Text'),
+            ('markdown', 'Markdown'),
+            ('structured', 'Structured Blocks'),
+        ],
+        default='plain'
+    )
     
     # Lesson metadata
     lesson_type = models.CharField(
@@ -226,7 +276,7 @@ class Lesson(models.Model):
         return f"{self.course.title} - {self.title}"
     
     def get_absolute_url(self):
-        return reverse('learning:lesson_detail', kwargs={
+        return reverse('lesson_detail', kwargs={
             'course_slug': self.course.slug,
             'lesson_slug': self.slug
         })
@@ -258,6 +308,77 @@ class Lesson(models.Model):
                 return False
         
         return True
+    
+    def is_completed_by(self, user):
+        """Check if this lesson is completed by the user."""
+        if not user.is_authenticated:
+            return False
+        
+        return UserProgress.objects.filter(
+            user=user,
+            lesson=self,
+            completed=True
+        ).exists()
+    
+    def get_content_blocks(self):
+        """Get structured content blocks."""
+        if self.enable_structured_content and self.structured_content:
+            return self.structured_content
+        return []
+    
+    def add_content_block(self, block_type, content, **kwargs):
+        """Add a content block to structured content."""
+        if not isinstance(self.structured_content, list):
+            self.structured_content = []
+        
+        block = {
+            'type': block_type,
+            'content': content,
+            'id': len(self.structured_content),
+            **kwargs
+        }
+        self.structured_content.append(block)
+        return block
+    
+    def get_rendered_content(self):
+        """Get content in the appropriate format for rendering."""
+        if self.enable_structured_content:
+            return self.get_content_blocks()
+        elif self.content_format == 'markdown':
+            return self.content  # Will be processed by template
+        else:
+            return self.content  # Plain text
+    
+    def has_code_examples(self):
+        """Check if lesson has code examples in structured content."""
+        if not self.enable_structured_content:
+            return False
+        
+        for block in self.get_content_blocks():
+            if block.get('type') in ['code_example', 'interactive_code']:
+                return True
+        return False
+    
+    def get_code_examples(self):
+        """Get all code example blocks."""
+        examples = []
+        for block in self.get_content_blocks():
+            if block.get('type') in ['code_example', 'interactive_code']:
+                examples.append(block)
+        return examples
+    
+    def create_default_structured_content(self):
+        """Convert plain content to basic structured content."""
+        if self.content and not self.structured_content:
+            self.structured_content = [
+                {
+                    'type': 'text',
+                    'content': self.content,
+                    'id': 0
+                }
+            ]
+            self.enable_structured_content = True
+            self.content_format = 'structured'
 
 
 class CourseEnrollment(models.Model):
@@ -418,7 +539,7 @@ class LearningPath(models.Model):
         return self.title
     
     def get_absolute_url(self):
-        return reverse('learning:learning_path', kwargs={'slug': self.slug})
+        return reverse('learning_path', kwargs={'slug': self.slug})
 
 
 class LearningPathCourse(models.Model):

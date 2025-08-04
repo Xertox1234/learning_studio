@@ -1,0 +1,349 @@
+/**
+ * CSS for real-time forum features
+ * Includes styles for connection status, typing indicators, online users, and notifications
+ */
+
+/* Connection Status Indicator */
+.connection-status {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    z-index: 1050;
+    transition: all 0.3s ease;
+}
+
+.connection-status.connected {
+    background-color: #28a745;
+    color: white;
+}
+
+.connection-status.connecting {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.connection-status.disconnected {
+    background-color: #dc3545;
+    color: white;
+}
+
+.connection-status::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+    background-color: currentColor;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Typing Indicator */
+.typing-indicator {
+    padding: 8px 12px;
+    background-color: var(--bs-light);
+    border-radius: 15px;
+    font-style: italic;
+    color: var(--bs-secondary);
+    margin: 10px 0;
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.typing-indicator::after {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    margin-left: 4px;
+    animation: typingDots 1.5s infinite;
+}
+
+@keyframes typingDots {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-5px); }
+}
+
+/* Online Users Sidebar */
+.online-users {
+    position: sticky;
+    top: 20px;
+    background: var(--bs-white);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.online-users h6 {
+    margin-bottom: 10px;
+    color: var(--bs-primary);
+    font-weight: 600;
+}
+
+.online-users .list-unstyled li {
+    padding: 2px 0;
+    font-size: 0.9rem;
+}
+
+.online-users .list-unstyled li i {
+    margin-right: 6px;
+    font-size: 0.7rem;
+}
+
+/* New Post Animation */
+.post-item.new-post {
+    animation: slideInNewPost 0.5s ease-out;
+    border-left: 3px solid var(--bs-success);
+}
+
+@keyframes slideInNewPost {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Updated Post Animation */
+.post-item.updated {
+    animation: highlightUpdate 1s ease-out;
+}
+
+@keyframes highlightUpdate {
+    0% { background-color: var(--bs-warning); }
+    100% { background-color: transparent; }
+}
+
+/* Like Button States */
+.like-button {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.like-button.liked {
+    color: var(--bs-danger);
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.like-button.liked i {
+    animation: heartBeat 0.6s ease-in-out;
+}
+
+@keyframes heartBeat {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.2); }
+    50% { transform: scale(1); }
+    75% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Real-time Notification Toast */
+.real-time-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    max-width: 300px;
+    background: var(--bs-primary);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1055;
+    animation: slideInToast 0.3s ease-out;
+}
+
+@keyframes slideInToast {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.real-time-toast.hiding {
+    animation: slideOutToast 0.3s ease-in forwards;
+}
+
+@keyframes slideOutToast {
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Activity Feed */
+.activity-feed {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--bs-light);
+    border-radius: 8px;
+}
+
+.activity-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: 0.9rem;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-item .activity-time {
+    color: var(--bs-secondary);
+    font-size: 0.8rem;
+}
+
+/* WebSocket Debug Panel */
+.ws-debug-panel {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    max-width: 300px;
+    z-index: 1060;
+    display: none;
+}
+
+.ws-debug-panel.show {
+    display: block;
+}
+
+.ws-debug-panel .connection-item {
+    margin: 4px 0;
+    padding: 2px 0;
+}
+
+.ws-debug-panel .connection-item.connected {
+    color: #28a745;
+}
+
+.ws-debug-panel .connection-item.disconnected {
+    color: #dc3545;
+}
+
+/* Forum Post Real-time Features */
+.post-item {
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.post-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.post-real-time-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.post-item:hover .post-real-time-actions {
+    opacity: 1;
+}
+
+.post-real-time-actions button {
+    margin-left: 5px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+}
+
+/* Live Counter Animations */
+.live-counter {
+    transition: all 0.3s ease;
+}
+
+.live-counter.updating {
+    animation: counterUpdate 0.5s ease-out;
+}
+
+@keyframes counterUpdate {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); color: var(--bs-success); }
+    100% { transform: scale(1); }
+}
+
+/* Dark Theme Adaptations */
+@media (prefers-color-scheme: dark) {
+    .online-users {
+        background: var(--bs-dark);
+        border-color: var(--bs-secondary);
+    }
+    
+    .typing-indicator {
+        background-color: var(--bs-secondary);
+        color: var(--bs-light);
+    }
+    
+    .activity-feed {
+        background: var(--bs-dark);
+        color: var(--bs-light);
+    }
+    
+    .post-item:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+    .connection-status {
+        top: 5px;
+        right: 5px;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+    
+    .online-users {
+        position: static;
+        margin-bottom: 15px;
+    }
+    
+    .real-time-toast {
+        bottom: 10px;
+        right: 10px;
+        max-width: calc(100vw - 20px);
+    }
+    
+    .ws-debug-panel {
+        bottom: 5px;
+        left: 5px;
+        max-width: calc(100vw - 10px);
+    }
+}
+
+/* Print Media - Hide Real-time Elements */
+@media print {
+    .connection-status,
+    .typing-indicator,
+    .online-users,
+    .real-time-toast,
+    .ws-debug-panel,
+    .post-real-time-actions {
+        display: none !important;
+    }
+}

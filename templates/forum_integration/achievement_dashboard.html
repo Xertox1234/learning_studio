@@ -1,0 +1,270 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Achievement Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="bi bi-trophy text-warning"></i> 
+                Achievement Dashboard
+                <!-- Sound Toggle -->
+                <button class="btn btn-sm btn-outline-secondary ms-3" data-toggle-sounds title="Toggle celebration sounds">
+                    <i class="bi bi-volume-up"></i>
+                </button>
+            </h1>
+        </div>
+    </div>
+    
+    <!-- Stats Overview -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ user_stats.points.total }}</h4>
+                            <p class="mb-0">Total Points</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-star-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ user_stats.badges.total }}</h4>
+                            <p class="mb-0">Badges Earned</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-award" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ user_stats.streaks.current }}</h4>
+                            <p class="mb-0">Current Streak</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-calendar-check" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>TL{{ user_stats.trust_level.level }}</h4>
+                            <p class="mb-0">{{ user_stats.trust_level.name }}</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-shield" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Recent Badges -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-award"></i> Recent Badges
+                    </h5>
+                    <a href="{% url 'forum_integration:badge_collection' %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_badges %}
+                        {% for user_badge in recent_badges %}
+                            <div class="d-flex align-items-center mb-3 p-2 border rounded">
+                                <div class="badge-icon me-3" style="color: {{ user_badge.badge.color }};">
+                                    <i class="{{ user_badge.badge.icon }}" style="font-size: 2rem;"></i>
+                                </div>
+                                <div class="flex-fill">
+                                    <h6 class="mb-1">{{ user_badge.badge.name }}</h6>
+                                    <p class="text-muted mb-1 small">{{ user_badge.badge.description }}</p>
+                                    <small class="text-muted">
+                                        Earned {{ user_badge.earned_at|timesince }} ago
+                                    </small>
+                                </div>
+                                <div class="badge bg-{{ user_badge.badge.rarity }}">
+                                    {{ user_badge.badge.get_rarity_display }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            <i class="bi bi-award" style="font-size: 3rem; opacity: 0.3;"></i><br>
+                            No badges earned yet. Keep participating to earn your first badge!
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Badge Progress -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-target"></i> Badge Progress
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if badge_progress %}
+                        {% for progress_item in badge_progress %}
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-semibold">{{ progress_item.badge.name }}</span>
+                                    <span class="text-muted small">
+                                        {{ progress_item.progress }}/{{ progress_item.badge.condition_value }}
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ progress_item.percentage }}%;" 
+                                         aria-valuenow="{{ progress_item.percentage }}" 
+                                         aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ progress_item.badge.description }}</small>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            All available badges earned! 🎉
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Point History -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up"></i> Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_points %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Action</th>
+                                        <th>Points</th>
+                                        <th>Total</th>
+                                        <th>When</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for point_entry in recent_points %}
+                                        <tr>
+                                            <td>{{ point_entry.reason }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if point_entry.points_change > 0 %}success{% else %}danger{% endif %}">
+                                                    {% if point_entry.points_change > 0 %}+{% endif %}{{ point_entry.points_change }}
+                                                </span>
+                                            </td>
+                                            <td>{{ point_entry.new_total }}</td>
+                                            <td class="text-muted small">{{ point_entry.timestamp|timesince }} ago</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            No point activity yet. Start participating to earn points!
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Leaderboard Position -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-ol"></i> Your Ranking
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if leaderboard_rank %}
+                        <div class="display-4 text-primary mb-2">#{{ leaderboard_rank }}</div>
+                        <p class="text-muted">Global Ranking</p>
+                        <a href="{% url 'forum_integration:leaderboard' %}" class="btn btn-outline-primary">
+                            View Full Leaderboard
+                        </a>
+                    {% else %}
+                        <div class="text-muted">
+                            <i class="bi bi-trophy" style="font-size: 3rem; opacity: 0.3;"></i>
+                            <p>Start earning points to appear on the leaderboard!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Debug/Test Panel (only visible to superusers) -->
+    {% if user.is_superuser %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">🧪 Celebration Test Panel (Admin Only)</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">Test different celebration animations:</p>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary" data-trigger-celebration="sparkle">Sparkle</button>
+                        <button class="btn btn-sm btn-outline-success" data-trigger-celebration="bounce">Bounce</button>
+                        <button class="btn btn-sm btn-outline-warning" data-trigger-celebration="confetti">Confetti</button>
+                        <button class="btn btn-sm btn-outline-danger" data-trigger-celebration="fireworks">Fireworks</button>
+                        <button class="btn btn-sm btn-outline-dark" data-trigger-celebration="epic_celebration">Epic</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.badge.bg-common { background-color: #6c757d !important; }
+.badge.bg-uncommon { background-color: #198754 !important; }
+.badge.bg-rare { background-color: #0d6efd !important; }
+.badge.bg-epic { background-color: #6f42c1 !important; }
+.badge.bg-legendary { background-color: #fd7e14 !important; }
+</style>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base/base.html" %}
+{% load i18n %}
+{% load static %}
+{% load forum_stats %}
+
+{% block title %}Forum - {% block sub_title %}{% endblock %}{% endblock %}
+
+{% block extra_css %}
+    <!-- Forum-specific CSS -->
+    <link rel="stylesheet" href="{% static 'css/forum.css' %}">
+{% endblock %}
+
+{% block body_class %}forum-page{% endblock %}
+
+{% block main_class %}container-fluid py-4{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="bg-light border-bottom">
+    <div class="container-fluid">
+        <ol class="breadcrumb mb-0 py-2">
+            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            <li class="breadcrumb-item"><a href="/community/">Community</a></li>
+            <li class="breadcrumb-item"><a href="/forum/">Forum</a></li>
+            {% block breadcrumb_items %}{% endblock %}
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Main forum content - CUSTOM BOARD BASE -->
+        <div class="col-lg-9">
+            {% block forum_content %}{% endblock %}
+        </div>
+        
+        <!-- Forum sidebar -->
+        <div class="col-lg-3">
+            {% block forum_sidebar %}
+                <!-- Forum statistics -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Forum Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="fw-bold text-primary h5">{{ forum_total_topics }}</div>
+                                <small class="text-muted">Topics</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="fw-bold text-primary h5">{{ forum_total_posts }}</div>
+                                <small class="text-muted">Posts</small>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="fw-bold text-success h5">{{ forum_total_users }}</div>
+                                <small class="text-muted">Members</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="fw-bold text-success h5">{{ forum_online_users }}</div>
+                                <small class="text-muted">Online</small>
+                            </div>
+                        </div>
+                        {% if forum_latest_member %}
+                        <hr class="my-3">
+                        <div class="text-center">
+                            <div class="small text-muted">Latest member:</div>
+                            <strong>{{ forum_latest_member.username }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Online users -->
+                {% if forum_online_users > 0 %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Online Activity</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center">
+                            <div class="text-success h6">{{ forum_online_users }}</div>
+                            <small class="text-muted">
+                                {{ forum_online_users|pluralize:"user is,users are" }} currently online
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Quick links -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Quick Links</h6>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="/forum/search/" class="list-group-item list-group-item-action">
+                            <i class="bi bi-search me-2"></i>Search Forums
+                        </a>
+                        {% if user.is_authenticated %}
+                        <a href="/api/v1/dashboard/forum-stats/" class="list-group-item list-group-item-action">
+                            <i class="bi bi-person-badge me-2"></i>My Profile
+                        </a>
+                        {% endif %}
+                        <a href="/community/" class="list-group-item list-group-item-action">
+                            <i class="bi bi-house me-2"></i>Community Home
+                        </a>
+                    </div>
+                </div>
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <!-- Forum-specific JavaScript -->
+    <script src="{% static 'js/forum.js' %}"></script>
+{% endblock %}

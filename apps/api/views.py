@@ -4,13 +4,19 @@ Provides REST API endpoints using Django REST Framework ViewSets.
 """
 
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Count, Avg
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
+from django.conf import settings
+from django.utils.decorators import method_decorator
 
 from apps.learning.models import *
 from apps.users.models import UserProfile, Achievement, UserFollow
@@ -20,6 +26,54 @@ from .serializers import *
 from .permissions import IsOwnerOrReadOnly, IsInstructorOrReadOnly
 
 User = get_user_model()
+
+# Rate Limiting Utilities (defined early to avoid import errors)
+
+def get_client_ip(request):
+    """Get the client IP address from the request."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+def get_user_or_ip(request):
+    """Get user ID if authenticated, otherwise use IP address for rate limiting."""
+    if request.user.is_authenticated:
+        return f"user_{request.user.id}"
+    return f"ip_{get_client_ip(request)}"
+
+
+class RateLimitMixin:
+    """
+    Mixin to add rate limiting to ViewSets.
+    Apply different rate limits based on action type.
+    """
+    
+    @method_decorator(ratelimit(key=get_user_or_ip, rate=settings.RATE_LIMIT_SETTINGS['API_CALLS'], method=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], block=True))
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+
+def ratelimited(request, exception):
+    """
+    Custom view for handling rate limit exceeded responses.
+    Returns a user-friendly error message and appropriate HTTP status.
+    """
+    if request.content_type == 'application/json' or request.path.startswith('/api/'):
+        from django.http import JsonResponse
+        return JsonResponse({
+            'error': 'Rate limit exceeded',
+            'message': 'Too many requests. Please try again later.',
+            'retry_after': getattr(exception, 'time_left', 60)
+        }, status=429)
+    else:
+        # For non-API requests, render a template
+        return render(request, 'errors/rate_limited.html', {
+            'retry_after': getattr(exception, 'time_left', 60)
+        }, status=429)
 
 
 # User Management ViewSets
@@ -294,7 +348,7 @@ class ExerciseViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
-class SubmissionViewSet(viewsets.ModelViewSet):
+class SubmissionViewSet(RateLimitMixin, viewsets.ModelViewSet):
     """ViewSet for Submission model."""
     serializer_class = SubmissionSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
@@ -369,7 +423,7 @@ class ExerciseHintViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 # Community Features ViewSets
-class DiscussionViewSet(viewsets.ModelViewSet):
+class DiscussionViewSet(RateLimitMixin, viewsets.ModelViewSet):
     """ViewSet for Discussion model."""
     queryset = Discussion.objects.all().order_by('-is_pinned', '-last_activity_at')
     serializer_class = DiscussionSerializer
@@ -405,7 +459,7 @@ class DiscussionViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class DiscussionReplyViewSet(viewsets.ModelViewSet):
+class DiscussionReplyViewSet(RateLimitMixin, viewsets.ModelViewSet):
     """ViewSet for DiscussionReply model."""
     serializer_class = DiscussionReplySerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
@@ -565,6 +619,7 @@ class CodeExecutionView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(ratelimit(key='user', rate=settings.RATE_LIMIT_SETTINGS['AI_REQUESTS'], method='POST', block=True), name='post')
 class AIAssistanceView(APIView):
     """API view for AI-powered assistance."""
     permission_classes = [permissions.IsAuthenticated]
@@ -588,6 +643,38 @@ class AIAssistanceView(APIView):
                     response = learning_ai.review_student_code(content, context)
                 elif assistance_type == 'exercise_generation':
                     response = learning_ai.create_exercise_from_concept(content, difficulty)
+                elif assistance_type == 'contextual_chat':
+                    # Parse context for contextual chat
+                    import json
+                    try:
+                        context_data = json.loads(context) if context else {}
+                        exercise_context = context_data.get('exercise', {})
+                        student_code = context_data.get('student_code', '')
+                        conversation_history = context_data.get('conversation_history', [])
+                        response = learning_ai.contextual_chat_response(
+                            content, exercise_context, student_code, conversation_history
+                        )
+                    except json.JSONDecodeError:
+                        response = learning_ai.contextual_chat_response(content)
+                elif assistance_type == 'real_world_examples':
+                    industry_focus = serializer.validated_data.get('industry_focus', 'general')
+                    response = learning_ai.generate_real_world_examples(content, industry_focus)
+                elif assistance_type == 'debugging_guidance':
+                    response = learning_ai.generate_debugging_guidance(content, context, difficulty)
+                elif assistance_type == 'struggle_analysis':
+                    # Parse context for struggle analysis
+                    import json
+                    try:
+                        context_data = json.loads(context) if context else {}
+                        time_spent = context_data.get('time_spent', 0)
+                        wrong_attempts = context_data.get('wrong_attempts', 0)
+                        code_attempts = context_data.get('code_attempts', [])
+                        exercise_data = context_data.get('exercise_data', {})
+                        response = learning_ai.analyze_student_struggle(
+                            exercise_data, time_spent, wrong_attempts, code_attempts
+                        )
+                    except json.JSONDecodeError:
+                        response = "I'd be happy to help, but I need more information about what you're working on."
                 else:
                     return Response({'error': 'Invalid assistance type'}, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -707,6 +794,7 @@ logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate=settings.RATE_LIMIT_SETTINGS['CODE_EXECUTION'], method='POST', block=True)
 def execute_code(request):
     """Execute Python code in a secure Docker environment."""
     try:
@@ -867,3 +955,2036 @@ def docker_status(request):
             'error': str(e),
             'executor_type': 'fallback'
         })
+
+
+# Forum API Views
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def forum_list(request):
+    """Get forum data for React frontend."""
+    try:
+        from machina.apps.forum.models import Forum
+        from machina.apps.forum_conversation.models import Topic, Post
+        from django.contrib.auth import get_user_model
+        from apps.forum_integration.statistics_service import forum_stats_service
+        
+        User = get_user_model()
+        
+        # Get forum categories and their children
+        forum_categories = Forum.objects.filter(type=Forum.FORUM_CAT)
+        
+        forums_data = []
+        for category in forum_categories:
+            category_data = {
+                'id': category.id,
+                'name': category.name,
+                'slug': category.slug,
+                'description': str(category.description) if category.description else '',
+                'type': 'category',
+                'forums': []
+            }
+            
+            # Get child forums
+            for forum in category.get_children():
+                if forum.type == Forum.FORUM_POST:
+                    # Get latest topic for this forum
+                    latest_topic = Topic.objects.filter(
+                        forum=forum, approved=True
+                    ).select_related('poster', 'last_post', 'last_post__poster').order_by('-last_post_on').first()
+                    
+                    last_post_data = None
+                    if latest_topic and latest_topic.last_post:
+                        last_post_data = {
+                            'id': latest_topic.last_post.id,
+                            'title': latest_topic.subject,
+                            'author': {
+                                'username': latest_topic.last_post.poster.username,
+                                'avatar': None,
+                                'trust_level': 1  # Default trust level
+                            },
+                            'created_at': latest_topic.last_post_on.isoformat() if latest_topic.last_post_on else None
+                        }
+                    
+                    # Get real statistics for this forum
+                    forum_stats = forum_stats_service.get_forum_specific_stats(forum.id)
+                    
+                    forum_data = {
+                        'id': forum.id,
+                        'name': forum.name,
+                        'slug': forum.slug,
+                        'description': str(forum.description) if forum.description else '',
+                        'icon': '💬',  # Default icon
+                        'topics_count': forum.direct_topics_count,
+                        'posts_count': forum.direct_posts_count,
+                        'last_post': last_post_data,
+                        'stats': {
+                            'online_users': forum_stats['online_users'],
+                            'weekly_posts': forum_stats['weekly_posts'],
+                            'trending': forum_stats['trending']
+                        },
+                        'color': 'bg-blue-500'  # Default color
+                    }
+                    category_data['forums'].append(forum_data)
+            
+            if category_data['forums']:  # Only include categories that have forums
+                forums_data.append(category_data)
+        
+        # Get overall stats using the statistics service
+        overall_stats = forum_stats_service.get_forum_statistics()
+        
+        return Response({
+            'categories': forums_data,
+            'stats': {
+                'total_topics': overall_stats['total_topics'],
+                'total_posts': overall_stats['total_posts'],
+                'total_users': overall_stats['total_users'],
+                'online_users': overall_stats['online_users']
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch forum data: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def forum_topic_detail(request, forum_slug, forum_id, topic_slug, topic_id):
+    """Get topic detail with posts for React frontend."""
+    try:
+        from machina.apps.forum.models import Forum
+        from machina.apps.forum_conversation.models import Topic, Post
+        
+        # Get the topic
+        topic = Topic.objects.select_related('poster', 'forum').get(
+            id=topic_id,
+            forum_id=forum_id,
+            approved=True
+        )
+        
+        # Get posts for this topic
+        posts = Post.objects.select_related('poster').filter(
+            topic=topic,
+            approved=True
+        ).order_by('created')
+        
+        # Format posts data
+        posts_data = []
+        for post in posts:
+            posts_data.append({
+                'id': post.id,
+                'content': str(post.content),
+                'created': post.created.isoformat(),
+                'updated': post.updated.isoformat() if post.updated else None,
+                'poster': {
+                    'id': post.poster.id,
+                    'username': post.poster.username,
+                    'first_name': post.poster.first_name,
+                    'last_name': post.poster.last_name,
+                    'avatar': None,  # Could add avatar logic here
+                },
+                'position': posts_data.__len__() + 1
+            })
+        
+        # Format topic data
+        topic_data = {
+            'id': topic.id,
+            'subject': topic.subject,
+            'slug': topic.slug,
+            'created': topic.created.isoformat(),
+            'updated': topic.updated.isoformat(),
+            'posts_count': topic.posts_count,
+            'views_count': topic.views_count,
+            'poster': {
+                'id': topic.poster.id,
+                'username': topic.poster.username,
+                'first_name': topic.poster.first_name,
+                'last_name': topic.poster.last_name,
+                'avatar': None,
+            },
+            'forum': {
+                'id': topic.forum.id,
+                'name': topic.forum.name,
+                'slug': topic.forum.slug,
+                'description': str(topic.forum.description) if topic.forum.description else '',
+            },
+            'posts': posts_data
+        }
+        
+        return Response(topic_data)
+        
+    except Topic.DoesNotExist:
+        return Response({
+            'error': 'Topic not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def forum_detail(request, forum_slug, forum_id):
+    """Get forum detail with topics list for React frontend."""
+    try:
+        from machina.apps.forum.models import Forum
+        from machina.apps.forum_conversation.models import Topic
+        
+        # Get the forum
+        forum = Forum.objects.get(id=forum_id, slug=forum_slug)
+        
+        # Get topics for this forum
+        topics = Topic.objects.select_related('poster', 'last_post', 'last_post__poster').filter(
+            forum=forum,
+            approved=True
+        ).order_by('-last_post_on')[:20]  # Limit to 20 most recent topics
+        
+        # Format topics data
+        topics_data = []
+        for topic in topics:
+            last_post_data = None
+            if topic.last_post:
+                last_post_data = {
+                    'id': topic.last_post.id,
+                    'created': topic.last_post.created.isoformat(),
+                    'poster': {
+                        'username': topic.last_post.poster.username,
+                        'display_name': topic.last_post.poster.get_display_name() if hasattr(topic.last_post.poster, 'get_display_name') else topic.last_post.poster.username
+                    }
+                }
+            
+            topics_data.append({
+                'id': topic.id,
+                'subject': topic.subject,
+                'slug': topic.slug,
+                'created': topic.created.isoformat(),
+                'posts_count': topic.posts_count,
+                'views_count': topic.views_count,
+                'last_post_on': topic.last_post_on.isoformat() if topic.last_post_on else None,
+                'poster': {
+                    'id': topic.poster.id,
+                    'username': topic.poster.username,
+                    'display_name': topic.poster.get_display_name() if hasattr(topic.poster, 'get_display_name') else topic.poster.username
+                },
+                'last_post': last_post_data
+            })
+        
+        # Format forum data
+        forum_data = {
+            'id': forum.id,
+            'name': forum.name,
+            'slug': forum.slug,
+            'description': str(forum.description) if forum.description else '',
+            'topics_count': forum.direct_topics_count,
+            'posts_count': forum.direct_posts_count,
+            'topics': topics_data
+        }
+        
+        return Response(forum_data)
+        
+    except Forum.DoesNotExist:
+        return Response({
+            'error': 'Forum not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch forum: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Forum Topic CRUD API Views
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def topic_create(request):
+    """Create a new forum topic."""
+    try:
+        from machina.apps.forum.models import Forum
+        from machina.apps.forum_conversation.models import Topic, Post
+        from django.utils import timezone
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"Topic creation request from user {request.user.id}: {request.data}")
+        
+        # Get forum
+        forum_id = request.data.get('forum_id')
+        if not forum_id:
+            return Response({
+                'error': 'Forum ID is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            forum = Forum.objects.get(id=forum_id)
+            logger.info(f"Found forum: {forum.name} (ID: {forum.id}, Type: {forum.type})")
+        except Forum.DoesNotExist:
+            return Response({
+                'error': 'Forum not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if forum allows posting
+        if forum.type != Forum.FORUM_POST:
+            return Response({
+                'error': 'Cannot create topics in this forum type'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate required fields
+        subject = request.data.get('subject', '').strip()
+        content = request.data.get('content', '').strip()
+        
+        if not subject:
+            return Response({
+                'error': 'Subject is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not content:
+            return Response({
+                'error': 'Content is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create topic
+        logger.info("Creating topic...")
+        topic = Topic.objects.create(
+            forum=forum,
+            subject=subject,
+            poster=request.user,
+            type=request.data.get('topic_type', Topic.TOPIC_POST),
+            status=Topic.TOPIC_UNLOCKED,
+            approved=True,
+            created=timezone.now(),
+            updated=timezone.now()
+        )
+        logger.info(f"Created topic {topic.id}: {topic.subject}")
+        
+        # Create the first post
+        logger.info("Creating first post...")
+        post = Post.objects.create(
+            topic=topic,
+            poster=request.user,
+            subject=subject,
+            content=content,
+            approved=True,
+            enable_signature=request.data.get('enable_signature', False),
+            created=timezone.now(),
+            updated=timezone.now()
+        )
+        logger.info(f"Created post {post.id} for topic {topic.id}")
+        
+        # Update topic references
+        topic.first_post = post
+        topic.last_post = post
+        topic.last_post_on = post.created
+        topic.posts_count = 1
+        topic.save()
+        
+        # Update forum statistics
+        forum.refresh_from_db()
+        
+        # Return successful response
+        topic_data = {
+            'id': topic.id,
+            'subject': topic.subject,
+            'slug': topic.slug,
+            'created': topic.created.isoformat(),
+            'posts_count': topic.posts_count,
+            'views_count': getattr(topic, 'views_count', 0),
+            'forum': {
+                'id': forum.id,
+                'name': forum.name,
+                'slug': forum.slug,
+            },
+            'poster': {
+                'id': request.user.id,
+                'username': request.user.username,
+                'display_name': request.user.get_display_name() if hasattr(request.user, 'get_display_name') else request.user.username
+            }
+        }
+        
+        return Response({
+            'success': True,
+            'topic': topic_data,
+            'message': 'Topic created successfully'
+        }, status=status.HTTP_201_CREATED)
+            
+    except Exception as e:
+        logger.error(f"Failed to create topic: {str(e)}")
+        return Response({
+            'error': f'Failed to create topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def topic_edit(request, topic_id):
+    """Edit an existing forum topic."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+        from machina.apps.forum_conversation.forms import TopicForm
+        
+        # Get the topic
+        try:
+            topic = Topic.objects.select_related('forum', 'first_post').get(
+                id=topic_id,
+                approved=True
+            )
+        except Topic.DoesNotExist:
+            return Response({
+                'error': 'Topic not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check permissions - user must be topic creator or have moderation permissions
+        if topic.poster != request.user:
+            # Check if user has moderation permissions for this forum
+            # This would need to be implemented based on your permission system
+            return Response({
+                'error': 'You do not have permission to edit this topic'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get the first post (topic post)
+        first_post = topic.first_post
+        if not first_post:
+            return Response({
+                'error': 'Topic post not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Update fields
+        subject = request.data.get('subject', '').strip()
+        content = request.data.get('content', '').strip()
+        
+        if not subject:
+            return Response({
+                'error': 'Subject is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not content:
+            return Response({
+                'error': 'Content is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prepare form data
+        form_data = {
+            'subject': subject,
+            'content': content,
+            'topic_type': request.data.get('topic_type', topic.type),
+            'enable_signature': request.data.get('enable_signature', first_post.enable_signature),
+            'update_reason': request.data.get('update_reason', ''),
+        }
+        
+        # Use TopicForm for validation and update
+        form = TopicForm(
+            data=form_data,
+            instance=first_post,
+            user=request.user,
+            forum=topic.forum,
+            topic=topic
+        )
+        
+        if form.is_valid():
+            # Save the updated post and topic
+            post = form.save()
+            updated_topic = post.topic
+            
+            # Return updated topic data
+            topic_data = {
+                'id': updated_topic.id,
+                'subject': updated_topic.subject,
+                'slug': updated_topic.slug,
+                'updated': updated_topic.updated.isoformat(),
+                'posts_count': updated_topic.posts_count,
+                'views_count': updated_topic.views_count,
+                'forum': {
+                    'id': updated_topic.forum.id,
+                    'name': updated_topic.forum.name,
+                    'slug': updated_topic.forum.slug,
+                },
+                'poster': {
+                    'id': updated_topic.poster.id,
+                    'username': updated_topic.poster.username,
+                    'display_name': updated_topic.poster.get_display_name() if hasattr(updated_topic.poster, 'get_display_name') else updated_topic.poster.username
+                }
+            }
+            
+            return Response({
+                'success': True,
+                'topic': topic_data,
+                'message': 'Topic updated successfully'
+            })
+        else:
+            return Response({
+                'error': 'Validation failed',
+                'errors': form.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        return Response({
+            'error': f'Failed to update topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def topic_delete(request, topic_id):
+    """Delete a forum topic."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+        
+        # Get the topic
+        try:
+            topic = Topic.objects.select_related('forum', 'first_post').get(
+                id=topic_id,
+                approved=True
+            )
+        except Topic.DoesNotExist:
+            return Response({
+                'error': 'Topic not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check permissions - user must be topic creator or have moderation permissions
+        if topic.poster != request.user:
+            # Check if user has moderation permissions for this forum
+            # This would need to be implemented based on your permission system
+            return Response({
+                'error': 'You do not have permission to delete this topic'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Store forum info for response
+        forum_data = {
+            'id': topic.forum.id,
+            'name': topic.forum.name,
+            'slug': topic.forum.slug,
+        }
+        
+        # Delete the topic (this will cascade to delete all posts)
+        topic_subject = topic.subject
+        topic.delete()
+        
+        return Response({
+            'success': True,
+            'message': f'Topic "{topic_subject}" deleted successfully',
+            'forum': forum_data
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to delete topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Forum Post CRUD API Views
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate=settings.RATE_LIMIT_SETTINGS['FORUM_POSTS'], method='POST', block=True)
+@csrf_exempt
+def post_create(request):
+    """Create a new forum post (reply to a topic)."""
+    try:
+        from machina.apps.forum_conversation.models import Topic, Post
+        from django.utils import timezone
+        
+        # Get topic ID from request data
+        topic_id = request.data.get('topic_id')
+        if not topic_id:
+            return Response({
+                'error': 'Topic ID is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get content
+        content = request.data.get('content', '').strip()
+        if not content:
+            return Response({
+                'error': 'Content is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get the topic
+        try:
+            topic = Topic.objects.get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response({
+                'error': 'Topic not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Create the post using the same pattern as topic_create
+        # Use explicit timestamps to avoid signal issues
+        post = Post.objects.create(
+            topic=topic,
+            poster=request.user,
+            subject=f'Re: {topic.subject}',
+            content=content,
+            approved=True,
+            enable_signature=request.data.get('enable_signature', True),
+            created=timezone.now(),
+            updated=timezone.now()
+        )
+        
+        # Update topic statistics
+        topic.posts_count = topic.posts.filter(approved=True).count()
+        topic.last_post = post
+        topic.last_post_on = post.created
+        topic.save()
+        
+        # Update forum statistics
+        forum = topic.forum
+        forum.posts_count = Post.objects.filter(topic__forum=forum, approved=True).count()
+        forum.last_post = post
+        forum.save()
+        
+        # Calculate position safely
+        post_position = topic.posts.filter(approved=True).count()
+        
+        # Return success response
+        return Response({
+            'success': True,
+            'message': 'Post created successfully',
+            'post': {
+                'id': post.id,
+                'content': str(post.content),
+                'created': post.created.isoformat() if post.created else timezone.now().isoformat(),
+                'updated': post.updated.isoformat() if post.updated else None,
+                'poster': {
+                    'id': request.user.id,
+                    'username': request.user.username,
+                    'first_name': request.user.first_name,
+                    'last_name': request.user.last_name,
+                },
+                'position': post_position,
+                'topic': {
+                    'id': topic.id,
+                    'subject': topic.subject,
+                    'slug': topic.slug,
+                }
+            }
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error creating post: {str(e)}")
+        return Response({
+            'error': f'Failed to create post: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def post_reply(request, topic_id):
+    """Create a reply post to a topic."""
+    try:
+        from machina.apps.forum_conversation.models import Topic, Post
+        from machina.apps.forum_conversation.forms import PostForm
+        
+        # Get the topic
+        try:
+            topic = Topic.objects.select_related('forum').get(
+                id=topic_id,
+                approved=True
+            )
+        except Topic.DoesNotExist:
+            return Response({
+                'error': 'Topic not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if topic is locked
+        if topic.status == Topic.TOPIC_LOCKED:
+            return Response({
+                'error': 'Topic is locked'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Validate required fields
+        content = request.data.get('content', '').strip()
+        
+        if not content:
+            return Response({
+                'error': 'Content is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prepare form data
+        form_data = {
+            'subject': f"Re: {topic.subject}",
+            'content': content,
+            'enable_signature': request.data.get('enable_signature', False),
+        }
+        
+        # Use PostForm for validation and creation
+        form = PostForm(
+            data=form_data,
+            user=request.user,
+            forum=topic.forum,
+            topic=topic
+        )
+        
+        if form.is_valid():
+            # Save the post
+            post = form.save()
+            
+            # Return post data
+            post_data = {
+                'id': post.id,
+                'content': str(post.content),
+                'created': post.created.isoformat(),
+                'poster': {
+                    'id': request.user.id,
+                    'username': request.user.username,
+                    'display_name': request.user.get_display_name() if hasattr(request.user, 'get_display_name') else request.user.username
+                },
+                'topic': {
+                    'id': topic.id,
+                    'subject': topic.subject,
+                    'slug': topic.slug,
+                },
+                'position': topic.posts.count()
+            }
+            
+            return Response({
+                'success': True,
+                'post': post_data,
+                'message': 'Reply posted successfully'
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response({
+                'error': 'Validation failed',
+                'errors': form.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        return Response({
+            'error': f'Failed to create reply: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def post_edit(request, post_id):
+    """Edit an existing forum post."""
+    try:
+        from machina.apps.forum_conversation.models import Post
+        from machina.apps.forum_conversation.forms import PostForm
+        
+        # Get the post
+        try:
+            post = Post.objects.select_related('topic', 'topic__forum', 'poster').get(
+                id=post_id,
+                approved=True
+            )
+        except Post.DoesNotExist:
+            return Response({
+                'error': 'Post not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check permissions - user must be post creator or have moderation permissions
+        if post.poster != request.user:
+            return Response({
+                'error': 'You do not have permission to edit this post'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Validate required fields
+        content = request.data.get('content', '').strip()
+        
+        if not content:
+            return Response({
+                'error': 'Content is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prepare form data
+        form_data = {
+            'subject': request.data.get('subject', post.subject),
+            'content': content,
+            'enable_signature': request.data.get('enable_signature', post.enable_signature),
+            'update_reason': request.data.get('update_reason', ''),
+        }
+        
+        # Use PostForm for validation and update
+        form = PostForm(
+            data=form_data,
+            instance=post,
+            user=request.user,
+            forum=post.topic.forum,
+            topic=post.topic
+        )
+        
+        if form.is_valid():
+            # Save the updated post
+            updated_post = form.save()
+            
+            # Return updated post data
+            post_data = {
+                'id': updated_post.id,
+                'subject': updated_post.subject,
+                'content': str(updated_post.content),
+                'updated': updated_post.updated.isoformat(),
+                'updates_count': updated_post.updates_count,
+                'poster': {
+                    'id': updated_post.poster.id,
+                    'username': updated_post.poster.username,
+                    'display_name': updated_post.poster.get_display_name() if hasattr(updated_post.poster, 'get_display_name') else updated_post.poster.username
+                },
+                'updated_by': {
+                    'id': updated_post.updated_by.id,
+                    'username': updated_post.updated_by.username,
+                } if updated_post.updated_by else None
+            }
+            
+            return Response({
+                'success': True,
+                'post': post_data,
+                'message': 'Post updated successfully'
+            })
+        else:
+            return Response({
+                'error': 'Validation failed',
+                'errors': form.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        return Response({
+            'error': f'Failed to update post: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def post_delete(request, post_id):
+    """Delete a forum post."""
+    try:
+        from machina.apps.forum_conversation.models import Post
+        
+        # Get the post
+        try:
+            post = Post.objects.select_related('topic', 'topic__forum', 'poster').get(
+                id=post_id,
+                approved=True
+            )
+        except Post.DoesNotExist:
+            return Response({
+                'error': 'Post not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check permissions - user must be post creator or have moderation permissions
+        if post.poster != request.user:
+            return Response({
+                'error': 'You do not have permission to delete this post'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if this is the first post of a topic (can't delete topic starter post without deleting topic)
+        if post.is_topic_head:
+            return Response({
+                'error': 'Cannot delete the first post of a topic. Delete the topic instead.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Store topic info for response
+        topic_data = {
+            'id': post.topic.id,
+            'subject': post.topic.subject,
+            'slug': post.topic.slug,
+        }
+        
+        # Delete the post
+        post_id_deleted = post.id
+        post.delete()
+        
+        return Response({
+            'success': True,
+            'message': f'Post #{post_id_deleted} deleted successfully',
+            'topic': topic_data
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to delete post: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def post_quote(request, post_id):
+    """Get a post for quoting."""
+    try:
+        from machina.apps.forum_conversation.models import Post
+        
+        # Get the post
+        try:
+            post = Post.objects.select_related('topic', 'poster').get(
+                id=post_id,
+                approved=True
+            )
+        except Post.DoesNotExist:
+            return Response({
+                'error': 'Post not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Format quoted content
+        quoted_content = f"""[quote="{post.poster.username}"]
+{str(post.content)}
+[/quote]
+
+"""
+        
+        # Return quoted content for use in new post
+        return Response({
+            'success': True,
+            'quoted_content': quoted_content,
+            'original_post': {
+                'id': post.id,
+                'poster': {
+                    'username': post.poster.username,
+                    'display_name': post.poster.get_display_name() if hasattr(post.poster, 'get_display_name') else post.poster.username
+                },
+                'created': post.created.isoformat(),
+                'content': str(post.content)[:200] + '...' if len(str(post.content)) > 200 else str(post.content)
+            },
+            'topic': {
+                'id': post.topic.id,
+                'subject': post.topic.subject,
+                'slug': post.topic.slug,
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to quote post: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Dashboard Forum Stats API
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_forum_stats(request):
+    """Get forum statistics for the user dashboard."""
+    try:
+        from machina.apps.forum.models import Forum
+        from machina.apps.forum_conversation.models import Topic, Post
+        from django.contrib.auth import get_user_model
+        from django.db.models import Count, Q
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        User = get_user_model()
+        
+        # Get user's recent activity
+        user_recent_posts = Post.objects.filter(
+            poster=request.user,
+            approved=True
+        ).select_related('topic', 'topic__forum').order_by('-created')[:5]
+        
+        user_recent_topics = Topic.objects.filter(
+            poster=request.user,
+            approved=True
+        ).select_related('forum').order_by('-created')[:5]
+        
+        # Get recent activity data
+        recent_posts_data = []
+        for post in user_recent_posts:
+            recent_posts_data.append({
+                'id': post.id,
+                'content': str(post.content)[:150] + '...' if len(str(post.content)) > 150 else str(post.content),
+                'created': post.created.isoformat(),
+                'topic': {
+                    'id': post.topic.id,
+                    'subject': post.topic.subject,
+                    'slug': post.topic.slug,
+                },
+                'forum': {
+                    'id': post.topic.forum.id,
+                    'name': post.topic.forum.name,
+                    'slug': post.topic.forum.slug,
+                }
+            })
+        
+        recent_topics_data = []
+        for topic in user_recent_topics:
+            recent_topics_data.append({
+                'id': topic.id,
+                'subject': topic.subject,
+                'slug': topic.slug,
+                'created': topic.created.isoformat(),
+                'posts_count': topic.posts_count,
+                'views_count': topic.views_count,
+                'forum': {
+                    'id': topic.forum.id,
+                    'name': topic.forum.name,
+                    'slug': topic.forum.slug,
+                }
+            })
+        
+        # Get overall forum statistics using the centralized service
+        from apps.forum_integration.statistics_service import forum_stats_service
+        overall_stats = forum_stats_service.get_forum_statistics()
+        total_forums = Forum.objects.filter(type=Forum.FORUM_POST).count()
+        
+        # Get recent activity (last 7 days)
+        week_ago = timezone.now() - timedelta(days=7)
+        recent_topics_count = Topic.objects.filter(
+            created__gte=week_ago,
+            approved=True
+        ).count()
+        recent_posts_count = Post.objects.filter(
+            created__gte=week_ago,
+            approved=True
+        ).count()
+        
+        # Get user's forum stats
+        user_topics_count = Topic.objects.filter(
+            poster=request.user,
+            approved=True
+        ).count()
+        user_posts_count = Post.objects.filter(
+            poster=request.user,
+            approved=True
+        ).count()
+        
+        # Get most active forums (by posts in last week)
+        active_forums = Forum.objects.filter(
+            type=Forum.FORUM_POST
+        ).annotate(
+            recent_posts=Count(
+                'topics__posts',
+                filter=Q(
+                    topics__posts__created__gte=week_ago,
+                    topics__posts__approved=True
+                )
+            )
+        ).order_by('-recent_posts')[:5]
+        
+        active_forums_data = []
+        for forum in active_forums:
+            # Get latest topic for this forum
+            latest_topic = Topic.objects.filter(
+                forum=forum,
+                approved=True
+            ).select_related('poster').order_by('-last_post_on').first()
+            
+            latest_topic_data = None
+            if latest_topic:
+                latest_topic_data = {
+                    'id': latest_topic.id,
+                    'subject': latest_topic.subject,
+                    'slug': latest_topic.slug,
+                    'last_post_on': latest_topic.last_post_on.isoformat() if latest_topic.last_post_on else None,
+                    'poster': {
+                        'username': latest_topic.poster.username,
+                    }
+                }
+            
+            active_forums_data.append({
+                'id': forum.id,
+                'name': forum.name,
+                'slug': forum.slug,
+                'description': str(forum.description) if forum.description else '',
+                'topics_count': forum.direct_topics_count,
+                'posts_count': forum.direct_posts_count,
+                'recent_posts': forum.recent_posts,
+                'latest_topic': latest_topic_data
+            })
+        
+        return Response({
+            'user_stats': {
+                'topics_created': user_topics_count,
+                'posts_made': user_posts_count,
+                'recent_posts': recent_posts_data,
+                'recent_topics': recent_topics_data
+            },
+            'forum_stats': {
+                'total_topics': overall_stats['total_topics'],
+                'total_posts': overall_stats['total_posts'],
+                'total_users': overall_stats['total_users'],
+                'online_users': overall_stats['online_users'],
+                'total_forums': total_forums,
+                'recent_topics': recent_topics_count,
+                'recent_posts': recent_posts_count
+            },
+            'active_forums': active_forums_data
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch dashboard stats: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Blog/Wagtail API Views
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def blog_index(request):
+    """Get blog posts for React frontend."""
+    try:
+        from apps.blog.models import BlogPage, BlogCategory
+        
+        # Get query parameters
+        category_slug = request.GET.get('category')
+        tag = request.GET.get('tag')
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 9))
+        
+        # Get all published blog pages
+        blog_pages = BlogPage.objects.live().public().order_by('-first_published_at')
+        
+        # Filter by category if provided
+        if category_slug:
+            blog_pages = blog_pages.filter(categories__slug=category_slug)
+        
+        # Filter by tag if provided
+        if tag:
+            blog_pages = blog_pages.filter(tags__name=tag)
+        
+        # Calculate pagination
+        total_count = blog_pages.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_posts = blog_pages[start:end]
+        
+        # Serialize blog posts
+        posts_data = []
+        for post in paginated_posts:
+            # Get categories
+            categories = [
+                {
+                    'id': cat.id,
+                    'name': cat.name,
+                    'slug': cat.slug,
+                    'color': cat.color
+                }
+                for cat in post.categories.all()
+            ]
+            
+            # Get tags
+            tags = [tag.name for tag in post.tags.all()]
+            
+            # Render body content (simplified for JSON)
+            body_content = []
+            for block in post.body:
+                if block.block_type == 'paragraph':
+                    body_content.append({
+                        'type': 'paragraph',
+                        'value': str(block.value)[:200] + '...' if len(str(block.value)) > 200 else str(block.value)
+                    })
+                elif block.block_type == 'heading':
+                    body_content.append({
+                        'type': 'heading',
+                        'value': str(block.value)
+                    })
+                # Add more block types as needed
+            
+            posts_data.append({
+                'id': post.id,
+                'title': post.title,
+                'slug': post.slug,
+                'intro': post.intro,
+                'url': post.url,
+                'author': {
+                    'username': post.author.username if post.author else 'Anonymous',
+                    'display_name': post.author.get_full_name() if post.author and post.author.get_full_name() else (post.author.username if post.author else 'Anonymous')
+                } if post.author else None,
+                'date': post.date.isoformat() if post.date else None,
+                'reading_time': post.reading_time,
+                'ai_generated': post.ai_generated,
+                'ai_summary': post.ai_summary,
+                'categories': categories,
+                'tags': tags,
+                'featured_image': None,  # TODO: Add image URL if exists
+                'body_preview': body_content[:2]  # First 2 blocks for preview
+            })
+        
+        # Calculate pagination info
+        total_pages = (total_count + page_size - 1) // page_size
+        has_next = page < total_pages
+        has_previous = page > 1
+        
+        return Response({
+            'posts': posts_data,
+            'pagination': {
+                'current_page': page,
+                'total_pages': total_pages,
+                'total_count': total_count,
+                'page_size': page_size,
+                'has_next': has_next,
+                'has_previous': has_previous
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch blog posts: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def blog_post_detail(request, post_slug):
+    """Get individual blog post for React frontend."""
+    try:
+        from apps.blog.models import BlogPage
+        
+        # Get the blog post
+        post = get_object_or_404(BlogPage.objects.live().public(), slug=post_slug)
+        
+        # Get categories
+        categories = [
+            {
+                'id': cat.id,
+                'name': cat.name,
+                'slug': cat.slug,
+                'color': cat.color
+            }
+            for cat in post.categories.all()
+        ]
+        
+        # Get tags
+        tags = [tag.name for tag in post.tags.all()]
+        
+        # Render full body content
+        body_content = []
+        for block in post.body:
+            if block.block_type == 'paragraph':
+                body_content.append({
+                    'type': 'paragraph',
+                    'value': str(block.value)
+                })
+            elif block.block_type == 'heading':
+                body_content.append({
+                    'type': 'heading',
+                    'value': str(block.value)
+                })
+            elif block.block_type == 'code':
+                body_content.append({
+                    'type': 'code',
+                    'value': {
+                        'language': block.value.get('language', 'text'),
+                        'code': block.value.get('code', ''),
+                        'caption': block.value.get('caption', '')
+                    }
+                })
+            elif block.block_type == 'callout':
+                body_content.append({
+                    'type': 'callout',
+                    'value': {
+                        'type': block.value.get('type', 'info'),
+                        'title': block.value.get('title', ''),
+                        'text': str(block.value.get('text', ''))
+                    }
+                })
+            elif block.block_type == 'quote':
+                body_content.append({
+                    'type': 'quote',
+                    'value': {
+                        'text': str(block.value.get('text', '')),
+                        'attribution': block.value.get('attribute_name', '')
+                    }
+                })
+            # Add more block types as needed
+        
+        # Get related posts
+        related_posts = BlogPage.objects.live().public().exclude(
+            id=post.id
+        ).filter(
+            categories__in=post.categories.all()
+        ).distinct().order_by('-first_published_at')[:3]
+        
+        related_posts_data = [
+            {
+                'id': related.id,
+                'title': related.title,
+                'slug': related.slug,
+                'intro': related.intro[:100] + '...' if len(related.intro) > 100 else related.intro,
+                'url': related.url,
+                'date': related.date.isoformat() if related.date else None,
+                'reading_time': related.reading_time
+            }
+            for related in related_posts
+        ]
+        
+        return Response({
+            'id': post.id,
+            'title': post.title,
+            'slug': post.slug,
+            'intro': post.intro,
+            'url': post.url,
+            'author': {
+                'username': post.author.username if post.author else 'Anonymous',
+                'display_name': post.author.get_full_name() if post.author and post.author.get_full_name() else (post.author.username if post.author else 'Anonymous')
+            } if post.author else None,
+            'date': post.date.isoformat() if post.date else None,
+            'reading_time': post.reading_time,
+            'ai_generated': post.ai_generated,
+            'ai_summary': post.ai_summary,
+            'categories': categories,
+            'tags': tags,
+            'featured_image': None,  # TODO: Add image URL if exists
+            'body': body_content,
+            'related_posts': related_posts_data
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch blog post: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def blog_categories(request):
+    """Get blog categories for React frontend."""
+    try:
+        from apps.blog.models import BlogCategory
+        
+        categories = BlogCategory.objects.all().order_by('name')
+        
+        categories_data = [
+            {
+                'id': cat.id,
+                'name': cat.name,
+                'slug': cat.slug,
+                'description': cat.description,
+                'color': cat.color,
+                'post_count': cat.blogpage_set.live().public().count()
+            }
+            for cat in categories
+        ]
+        
+        return Response({'categories': categories_data})
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch blog categories: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def wagtail_homepage(request):
+    """Get Wagtail homepage data for React frontend."""
+    try:
+        from apps.blog.models import HomePage, BlogPage
+        
+        # Get the homepage
+        homepage = HomePage.objects.live().first()
+        if not homepage:
+            return Response({
+                'error': 'Homepage not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get features
+        features = []
+        for block in homepage.features:
+            if block.block_type == 'feature':
+                features.append({
+                    'title': block.value.get('title', ''),
+                    'description': block.value.get('description', ''),
+                    'icon': block.value.get('icon', '')
+                })
+        
+        # Get stats
+        stats = []
+        for block in homepage.stats:
+            if block.block_type == 'stat':
+                stats.append({
+                    'number': block.value.get('number', ''),
+                    'label': block.value.get('label', ''),
+                    'description': block.value.get('description', '')
+                })
+        
+        # Get recent blog posts
+        recent_posts = BlogPage.objects.live().public().order_by('-first_published_at')[:3]
+        recent_posts_data = [
+            {
+                'id': post.id,
+                'title': post.title,
+                'slug': post.slug,
+                'intro': post.intro,
+                'url': post.url,
+                'date': post.date.isoformat() if post.date else None,
+                'reading_time': post.reading_time,
+                'ai_generated': post.ai_generated
+            }
+            for post in recent_posts
+        ]
+        
+        return Response({
+            'title': homepage.title,
+            'hero_title': homepage.hero_title,
+            'hero_subtitle': homepage.hero_subtitle,
+            'hero_description': str(homepage.hero_description) if homepage.hero_description else '',
+            'features_title': homepage.features_title,
+            'features': features,
+            'stats': stats,
+            'recent_posts': recent_posts_data
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch homepage: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================================================
+# WAGTAIL LEARNING CONTENT API ENDPOINTS
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def learning_index(request):
+    """Get learning index page with featured courses."""
+    try:
+        from apps.blog.models import LearningIndexPage, CoursePage, SkillLevel
+        
+        # Get the learning index page
+        learning_page = LearningIndexPage.objects.live().first()
+        if not learning_page:
+            return Response({
+                'error': 'Learning index page not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get featured courses
+        featured_courses = CoursePage.objects.live().public().filter(
+            featured=True
+        ).order_by('-first_published_at')[:6]
+        
+        featured_courses_data = []
+        for course in featured_courses:
+            featured_courses_data.append({
+                'id': course.id,
+                'title': course.title,
+                'slug': course.slug,
+                'url': course.url,
+                'course_code': course.course_code,
+                'short_description': course.short_description,
+                'difficulty_level': course.difficulty_level,
+                'estimated_duration': course.estimated_duration,
+                'is_free': course.is_free,
+                'price': str(course.price) if course.price else None,
+                'skill_level': {
+                    'name': course.skill_level.name,
+                    'slug': course.skill_level.slug,
+                    'color': course.skill_level.color
+                } if course.skill_level else None,
+                'instructor': {
+                    'name': course.instructor.get_full_name(),
+                    'email': course.instructor.email
+                } if course.instructor else None,
+                'course_image': course.course_image.url if course.course_image else None,
+                'categories': [
+                    {
+                        'name': cat.name,
+                        'slug': cat.slug,
+                        'color': cat.color
+                    }
+                    for cat in course.categories.all()
+                ]
+            })
+        
+        # Get skill levels
+        skill_levels = SkillLevel.objects.all()
+        skill_levels_data = [
+            {
+                'id': level.id,
+                'name': level.name,
+                'slug': level.slug,
+                'description': level.description,
+                'color': level.color,
+                'order': level.order
+            }
+            for level in skill_levels
+        ]
+        
+        return Response({
+            'title': learning_page.title,
+            'intro': str(learning_page.intro) if learning_page.intro else '',
+            'featured_courses_title': learning_page.featured_courses_title,
+            'featured_courses': featured_courses_data,
+            'skill_levels': skill_levels_data
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch learning index: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def courses_list(request):
+    """Get list of Wagtail courses with filtering and pagination."""
+    try:
+        from apps.blog.models import CoursePage, SkillLevel, BlogCategory
+        
+        # Get query parameters
+        skill_level_slug = request.GET.get('skill_level')
+        category_slug = request.GET.get('category')
+        difficulty = request.GET.get('difficulty')
+        is_free = request.GET.get('is_free')
+        search = request.GET.get('search')
+        page_num = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 12))
+        
+        # Start with base queryset
+        courses = CoursePage.objects.live().public().order_by('-first_published_at')
+        
+        # Apply filters
+        if skill_level_slug:
+            courses = courses.filter(skill_level__slug=skill_level_slug)
+        
+        if category_slug:
+            courses = courses.filter(categories__slug=category_slug)
+        
+        if difficulty:
+            courses = courses.filter(difficulty_level=difficulty)
+        
+        if is_free is not None:
+            is_free_bool = is_free.lower() in ('true', '1')
+            courses = courses.filter(is_free=is_free_bool)
+        
+        if search:
+            courses = courses.search(search)
+        
+        # Pagination
+        total_count = courses.count()
+        start = (page_num - 1) * page_size
+        end = start + page_size
+        paginated_courses = courses[start:end]
+        
+        # Serialize courses
+        courses_data = []
+        for course in paginated_courses:
+            # Get lesson count
+            lesson_count = course.get_children().live().public().count()
+            
+            courses_data.append({
+                'id': course.id,
+                'title': course.title,
+                'slug': course.slug,
+                'url': course.url,
+                'course_code': course.course_code,
+                'short_description': course.short_description,
+                'difficulty_level': course.difficulty_level,
+                'estimated_duration': course.estimated_duration,
+                'is_free': course.is_free,
+                'price': str(course.price) if course.price else None,
+                'lesson_count': lesson_count,
+                'featured': course.featured,
+                'skill_level': {
+                    'name': course.skill_level.name,
+                    'slug': course.skill_level.slug,
+                    'color': course.skill_level.color
+                } if course.skill_level else None,
+                'instructor': {
+                    'name': course.instructor.get_full_name(),
+                    'email': course.instructor.email
+                } if course.instructor else None,
+                'course_image': course.course_image.url if course.course_image else None,
+                'categories': [
+                    {
+                        'name': cat.name,
+                        'slug': cat.slug,
+                        'color': cat.color
+                    }
+                    for cat in course.categories.all()
+                ],
+                'tags': []  # TODO: Fix tag integration
+            })
+        
+        # Pagination info
+        pagination = {
+            'current_page': page_num,
+            'total_pages': (total_count + page_size - 1) // page_size,
+            'total_count': total_count,
+            'page_size': page_size,
+            'has_next': end < total_count,
+            'has_previous': page_num > 1
+        }
+        
+        return Response({
+            'courses': courses_data,
+            'pagination': pagination
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch courses: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def course_detail(request, course_slug):
+    """Get detailed information about a specific Wagtail course."""
+    try:
+        from apps.blog.models import CoursePage
+        
+        # Get the course
+        course = CoursePage.objects.live().public().filter(slug=course_slug).first()
+        if not course:
+            return Response({
+                'error': 'Course not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get course lessons
+        lessons = course.get_children().live().public().order_by('lessonpage__lesson_number')
+        lessons_data = []
+        for lesson in lessons:
+            lesson_specific = lesson.specific
+            lessons_data.append({
+                'id': lesson.id,
+                'title': lesson.title,
+                'slug': lesson.slug,
+                'url': lesson.url,
+                'lesson_number': lesson_specific.lesson_number,
+                'estimated_duration': lesson_specific.estimated_duration,
+                'intro': str(lesson_specific.intro) if lesson_specific.intro else ''
+            })
+        
+        # Get related courses
+        related_courses = CoursePage.objects.live().public().exclude(
+            id=course.id
+        ).filter(
+            skill_level=course.skill_level
+        ).order_by('-first_published_at')[:3]
+        
+        related_courses_data = []
+        for related in related_courses:
+            related_courses_data.append({
+                'id': related.id,
+                'title': related.title,
+                'slug': related.slug,
+                'url': related.url,
+                'short_description': related.short_description,
+                'difficulty_level': related.difficulty_level,
+                'course_image': related.course_image.url if related.course_image else None
+            })
+        
+        # Serialize syllabus safely
+        syllabus_data = []
+        try:
+            for block in course.syllabus:
+                if block.block_type == 'module':
+                    syllabus_data.append({
+                        'title': str(block.value.get('title', '')),
+                        'description': str(block.value.get('description', '')),
+                        'lessons': [
+                            {
+                                'lesson_title': str(lesson.get('lesson_title', '')),
+                                'lesson_description': str(lesson.get('lesson_description', '')),
+                                'estimated_time': str(lesson.get('estimated_time', ''))
+                            }
+                            for lesson in block.value.get('lessons', [])
+                        ]
+                    })
+        except Exception as e:
+            print(f"Error serializing syllabus: {e}")
+            syllabus_data = []
+        
+        # Serialize features safely
+        features_data = []
+        try:
+            for block in course.features:
+                if block.block_type == 'feature':
+                    features_data.append({
+                        'icon': str(block.value.get('icon', '')),
+                        'title': str(block.value.get('title', '')),
+                        'description': str(block.value.get('description', ''))
+                    })
+        except Exception as e:
+            print(f"Error serializing features: {e}")
+            features_data = []
+        
+        return Response({
+            'id': course.id,
+            'title': course.title,
+            'slug': course.slug,
+            'course_code': course.course_code,
+            'short_description': course.short_description,
+            'detailed_description': str(course.detailed_description),
+            'prerequisites': str(course.prerequisites) if course.prerequisites else '',
+            'estimated_duration': course.estimated_duration,
+            'difficulty_level': course.difficulty_level,
+            'is_free': course.is_free,
+            'price': str(course.price) if course.price else None,
+            'enrollment_limit': course.enrollment_limit,
+            'featured': course.featured,
+            'syllabus': syllabus_data,
+            'features': features_data,
+            'skill_level': {
+                'name': course.skill_level.name,
+                'slug': course.skill_level.slug,
+                'color': course.skill_level.color,
+                'description': course.skill_level.description
+            } if course.skill_level else None,
+            'instructor': {
+                'name': course.instructor.get_full_name(),
+                'email': course.instructor.email
+            } if course.instructor else None,
+            'course_image': course.course_image.url if course.course_image else None,
+            'categories': [
+                {
+                    'name': cat.name,
+                    'slug': cat.slug,
+                    'color': cat.color
+                }
+                for cat in course.categories.all()
+            ],
+            'learning_objectives': [
+                {
+                    'title': obj.title,
+                    'description': obj.description,
+                    'category': obj.category
+                }
+                for obj in course.learning_objectives.all()
+            ],
+            'tags': [],  # TODO: Fix tag integration
+            'lessons': lessons_data,
+            'related_courses': related_courses_data,
+            'meta': {
+                'search_description': course.search_description,
+                'first_published_at': course.first_published_at.isoformat() if course.first_published_at else None,
+                'last_published_at': course.last_published_at.isoformat() if course.last_published_at else None
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch course: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def lesson_detail(request, course_slug, lesson_slug):
+    """Get detailed information about a specific Wagtail lesson."""
+    try:
+        from apps.blog.models import LessonPage, CoursePage
+        
+        # Get the course first
+        course = CoursePage.objects.live().public().filter(slug=course_slug).first()
+        if not course:
+            return Response({
+                'error': 'Course not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get the lesson
+        lesson = course.get_children().live().public().filter(slug=lesson_slug).first()
+        if not lesson:
+            return Response({
+                'error': 'Lesson not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        lesson = lesson.specific
+        
+        # Get lesson content
+        content_data = []
+        for block in lesson.content:
+            block_data = {
+                'type': block.block_type,
+                'value': block.value
+            }
+            
+            # Process specific block types
+            if block.block_type == 'code_example':
+                block_data['value'] = {
+                    'title': block.value.get('title', ''),
+                    'language': block.value.get('language', 'text'),
+                    'code': block.value.get('code', ''),
+                    'explanation': str(block.value.get('explanation', ''))
+                }
+            elif block.block_type == 'interactive_exercise':
+                block_data['value'] = {
+                    'title': block.value.get('title', ''),
+                    'instructions': str(block.value.get('instructions', '')),
+                    'starter_code': block.value.get('starter_code', ''),
+                    'solution': block.value.get('solution', ''),
+                    'hints': block.value.get('hints', [])
+                }
+            elif block.block_type == 'video':
+                block_data['value'] = {
+                    'title': block.value.get('title', ''),
+                    'video_url': block.value.get('video_url', ''),
+                    'description': str(block.value.get('description', ''))
+                }
+            elif block.block_type == 'callout':
+                block_data['value'] = {
+                    'type': block.value.get('type', 'info'),
+                    'title': block.value.get('title', ''),
+                    'text': str(block.value.get('text', ''))
+                }
+            elif block.block_type == 'quiz':
+                block_data['value'] = {
+                    'question': block.value.get('question', ''),
+                    'options': block.value.get('options', []),
+                    'correct_answer': block.value.get('correct_answer', 0),
+                    'explanation': str(block.value.get('explanation', ''))
+                }
+            
+            content_data.append(block_data)
+        
+        # Get lesson objectives
+        objectives_data = []
+        for block in lesson.lesson_objectives:
+            if block.block_type == 'objective':
+                objectives_data.append(block.value)
+        
+        # Get resources
+        resources_data = []
+        for block in lesson.resources:
+            if block.block_type == 'resource':
+                resources_data.append({
+                    'title': block.value.get('title', ''),
+                    'url': block.value.get('url', ''),
+                    'description': block.value.get('description', ''),
+                    'type': block.value.get('type', 'article')
+                })
+        
+        # Get navigation (previous/next lessons)
+        lessons = course.get_children().live().public().order_by('lessonpage__lesson_number')
+        lesson_list = list(lessons)
+        current_index = next((i for i, l in enumerate(lesson_list) if l.id == lesson.id), None)
+        
+        navigation = {}
+        if current_index is not None:
+            if current_index > 0:
+                prev_lesson = lesson_list[current_index - 1]
+                navigation['previous'] = {
+                    'title': prev_lesson.title,
+                    'slug': prev_lesson.slug,
+                    'url': prev_lesson.url
+                }
+            if current_index < len(lesson_list) - 1:
+                next_lesson = lesson_list[current_index + 1]
+                navigation['next'] = {
+                    'title': next_lesson.title,
+                    'slug': next_lesson.slug,
+                    'url': next_lesson.url
+                }
+        
+        # Get lesson exercises
+        exercises = lesson.get_children().live().public()
+        exercises_data = []
+        for exercise in exercises:
+            exercise_specific = exercise.specific
+            exercises_data.append({
+                'id': exercise.id,
+                'title': exercise.title,
+                'slug': exercise.slug,
+                'url': exercise.url,
+                'exercise_type': exercise_specific.exercise_type,
+                'difficulty': exercise_specific.difficulty,
+                'points': exercise_specific.points
+            })
+        
+        return Response({
+            'id': lesson.id,
+            'title': lesson.title,
+            'slug': lesson.slug,
+            'lesson_number': lesson.lesson_number,
+            'estimated_duration': lesson.estimated_duration,
+            'intro': str(lesson.intro),
+            'content': content_data,
+            'objectives': objectives_data,
+            'prerequisites': str(lesson.lesson_prerequisites) if lesson.lesson_prerequisites else '',
+            'resources': resources_data,
+            'course': {
+                'id': course.id,
+                'title': course.title,
+                'slug': course.slug,
+                'url': course.url
+            },
+            'navigation': navigation,
+            'exercises': exercises_data,
+            'meta': {
+                'search_description': lesson.search_description,
+                'first_published_at': lesson.first_published_at.isoformat() if lesson.first_published_at else None,
+                'last_published_at': lesson.last_published_at.isoformat() if lesson.last_published_at else None
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch lesson: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def exercise_detail(request, course_slug, lesson_slug, exercise_slug):
+    """Get detailed information about a specific Wagtail exercise."""
+    try:
+        from apps.blog.models import ExercisePage, LessonPage, CoursePage
+        
+        # Get the course and lesson first
+        course = CoursePage.objects.live().public().filter(slug=course_slug).first()
+        if not course:
+            return Response({
+                'error': 'Course not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        lesson = course.get_children().live().public().filter(slug=lesson_slug).first()
+        if not lesson:
+            return Response({
+                'error': 'Lesson not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get the exercise
+        exercise = lesson.get_children().live().public().filter(slug=exercise_slug).first()
+        if not exercise:
+            return Response({
+                'error': 'Exercise not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        exercise = exercise.specific
+        
+        # Get test cases (only show non-hidden ones to students)
+        test_cases_data = []
+        for block in exercise.test_cases:
+            if block.block_type == 'test_case':
+                test_case = {
+                    'input': block.value.get('input', ''),
+                    'expected_output': block.value.get('expected_output', ''),
+                    'description': block.value.get('description', ''),
+                    'is_hidden': block.value.get('is_hidden', False)
+                }
+                # Only include non-hidden test cases in API response
+                if not test_case['is_hidden']:
+                    test_cases_data.append(test_case)
+        
+        # Get hints
+        hints_data = []
+        for block in exercise.hints:
+            if block.block_type == 'hint':
+                hints_data.append({
+                    'hint_text': str(block.value.get('hint_text', '')),
+                    'reveal_after_attempts': block.value.get('reveal_after_attempts', 3)
+                })
+        
+        return Response({
+            'id': exercise.id,
+            'title': exercise.title,
+            'slug': exercise.slug,
+            'exercise_type': exercise.exercise_type,
+            'difficulty': exercise.difficulty,
+            'points': exercise.points,
+            'description': str(exercise.description),
+            'starter_code': exercise.starter_code,
+            'programming_language': exercise.programming_language,
+            'test_cases': test_cases_data,
+            'hints': hints_data,
+            'question_data': exercise.question_data,
+            'time_limit': exercise.time_limit,
+            'max_attempts': exercise.max_attempts,
+            'course': {
+                'id': course.id,
+                'title': course.title,
+                'slug': course.slug,
+                'url': course.url
+            },
+            'lesson': {
+                'id': lesson.id,
+                'title': lesson.title,
+                'slug': lesson.slug,
+                'url': lesson.url
+            },
+            'meta': {
+                'search_description': exercise.search_description,
+                'first_published_at': exercise.first_published_at.isoformat() if exercise.first_published_at else None,
+                'last_published_at': exercise.last_published_at.isoformat() if exercise.last_published_at else None
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch exercise: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def wagtail_playground(request):
+    """Get Wagtail CodePlaygroundPage data for React frontend."""
+    try:
+        from apps.blog.models import CodePlaygroundPage
+        
+        # Get the playground page
+        playground = CodePlaygroundPage.objects.live().first()
+        if not playground:
+            return Response({
+                'error': 'Playground page not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get features
+        features = []
+        for block in playground.features:
+            if block.block_type == 'feature':
+                features.append({
+                    'title': block.value.get('title', ''),
+                    'description': block.value.get('description', ''),
+                    'icon': block.value.get('icon', '')
+                })
+        
+        # Get code examples
+        code_examples = []
+        for block in playground.code_examples:
+            if block.block_type == 'example':
+                code_examples.append({
+                    'title': block.value.get('title', ''),
+                    'description': block.value.get('description', ''),
+                    'language': block.value.get('language', 'python'),
+                    'code': block.value.get('code', ''),
+                    'category': block.value.get('category', 'basic')
+                })
+        
+        # Get shortcuts
+        shortcuts = []
+        for block in playground.shortcuts:
+            if block.block_type == 'shortcut':
+                shortcuts.append({
+                    'keys': block.value.get('keys', ''),
+                    'description': block.value.get('description', '')
+                })
+        
+        # Get initial code - use default if not set
+        initial_code = playground.default_code
+        if not initial_code:
+            initial_code = '''# Welcome to Python Learning Studio Playground!
+# Write your Python code here and click Run to execute it.
+
+def greet(name):
+    """A simple greeting function"""
+    return f"Hello, {name}! Welcome to Python programming!"
+
+# Try it out
+message = greet("Programmer")
+print(message)
+
+# You can also do calculations
+result = 42 * 2
+print(f"The answer to everything times 2 is: {result}")
+'''
+        
+        return Response({
+            'id': playground.id,
+            'title': playground.title,
+            'slug': playground.slug,
+            'description': str(playground.description),
+            'default_code': initial_code,
+            'programming_language': playground.programming_language,
+            'features': features,
+            'code_examples': code_examples,
+            'shortcuts': shortcuts,
+            'settings': {
+                'enable_file_operations': playground.enable_file_operations,
+                'enable_auto_save': playground.enable_auto_save,
+                'enable_multiple_languages': playground.enable_multiple_languages
+            },
+            'meta': {
+                'search_description': playground.search_description,
+                'first_published_at': playground.first_published_at.isoformat() if playground.first_published_at else None,
+                'last_published_at': playground.last_published_at.isoformat() if playground.last_published_at else None,
+                'url': playground.url
+            }
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch playground: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

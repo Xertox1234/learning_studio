@@ -1,0 +1,340 @@
+{% extends "machina/base.html" %}
+{% load i18n %}
+{% load forum_member_tags %}
+
+{% block forum_title %}{{ profile_user|forum_member_display_name }} - {% trans "Profile" %}{% endblock forum_title %}
+
+{% block forum_breadcrumb %}
+    <li class="breadcrumb-item active">
+        <i class="bi bi-person me-1"></i>{{ profile_user|forum_member_display_name }}
+    </li>
+{% endblock forum_breadcrumb %}
+
+{% block forum_main_content %}
+    <!-- User Profile Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-3 text-center">
+                    <div class="user-avatar mb-3">
+                        {% if profile_user.avatar %}
+                            <img src="{{ profile_user.avatar.url }}" alt="{{ profile_user.username }}" 
+                                 class="rounded-circle" width="120" height="120">
+                        {% else %}
+                            <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto" 
+                                 style="width: 120px; height: 120px;">
+                                <span class="text-white fw-bold fs-1">
+                                    {{ profile_user.username|slice:":1"|upper }}
+                                </span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% if profile_user.is_online %}
+                        <span class="badge bg-success">
+                            <i class="bi bi-circle-fill me-1"></i>{% trans "Online" %}
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-circle me-1"></i>{% trans "Offline" %}
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="col-md-9">
+                    <h2 class="mb-2">{{ profile_user|forum_member_display_name }}</h2>
+                    {% if profile_user.get_full_name %}
+                        <p class="text-muted mb-2">{{ profile_user.get_full_name }}</p>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-5 text-muted">{% trans "Joined:" %}</dt>
+                                <dd class="col-sm-7">{{ profile_user.date_joined|date:"M d, Y" }}</dd>
+                                
+                                <dt class="col-sm-5 text-muted">{% trans "Posts:" %}</dt>
+                                <dd class="col-sm-7">{{ profile_user.posts.count|default:"0" }}</dd>
+                                
+                                <dt class="col-sm-5 text-muted">{% trans "Topics:" %}</dt>
+                                <dd class="col-sm-7">{{ profile_user.topics.count|default:"0" }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row mb-0">
+                                <dt class="col-sm-6 text-muted">{% trans "Last seen:" %}</dt>
+                                <dd class="col-sm-6">
+                                    {% if profile_user.last_login %}
+                                        {{ profile_user.last_login|timesince }} {% trans "ago" %}
+                                    {% else %}
+                                        {% trans "Never" %}
+                                    {% endif %}
+                                </dd>
+                                
+                                {% if profile_user.location %}
+                                    <dt class="col-sm-6 text-muted">{% trans "Location:" %}</dt>
+                                    <dd class="col-sm-6">{{ profile_user.location }}</dd>
+                                {% endif %}
+                                
+                                {% if profile_user.website %}
+                                    <dt class="col-sm-6 text-muted">{% trans "Website:" %}</dt>
+                                    <dd class="col-sm-6">
+                                        <a href="{{ profile_user.website }}" target="_blank" rel="noopener" class="text-decoration-none">
+                                            <i class="bi bi-globe me-1"></i>{% trans "Visit" %}
+                                        </a>
+                                    </dd>
+                                {% endif %}
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Actions -->
+    {% if request.user.is_authenticated and request.user != profile_user %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-envelope me-2"></i>{% trans "Contact" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="btn-group" role="group">
+                    <a href="{% url 'forum_conversation:private_message_create' profile_user.id %}" 
+                       class="btn btn-primary">
+                        <i class="bi bi-envelope me-1"></i>{% trans "Send Private Message" %}
+                    </a>
+                    {% if profile_user.email and profile_user.show_email %}
+                        <a href="mailto:{{ profile_user.email }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-envelope-at me-1"></i>{% trans "Send Email" %}
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- User Biography -->
+    {% if profile_user.biography %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-lines-fill me-2"></i>{% trans "About" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="user-bio">
+                    {{ profile_user.biography|linebreaks }}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- User Signature -->
+    {% if profile_user.signature %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pen me-2"></i>{% trans "Signature" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="user-signature border-start border-primary ps-3">
+                    {{ profile_user.signature|linebreaks }}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Recent Posts -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-chat-dots me-2"></i>{% trans "Recent Posts" %}
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if recent_posts %}
+                {% for post in recent_posts %}
+                    <div class="border-bottom pb-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{% url 'forum_conversation:topic' post.topic.forum.slug post.topic.forum.pk post.topic.slug post.topic.pk %}?post={{ post.pk }}#post-{{ post.pk }}" 
+                                       class="text-decoration-none">
+                                        {{ post.subject }}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">
+                                    {% trans "in" %} 
+                                    <a href="{% url 'forum:forum' post.topic.forum.slug post.topic.forum.pk %}" 
+                                       class="text-decoration-none">{{ post.topic.forum.name }}</a>
+                                </small>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>{{ post.created|timesince }} {% trans "ago" %}
+                            </small>
+                        </div>
+                        <div class="mt-2">
+                            <p class="mb-0 text-muted">{{ post.content.rendered|striptags|truncatewords:20 }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                {% if has_more_posts %}
+                    <div class="text-center">
+                        <a href="{% url 'forum_search:search' %}?q=author:{{ profile_user.username }}" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-search me-1"></i>{% trans "View All Posts" %}
+                        </a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center text-muted">
+                    <i class="bi bi-chat-dots display-4"></i>
+                    <p class="mt-2">{% trans "No posts yet" %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Topics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-chat-square-text me-2"></i>{% trans "Recent Topics" %}
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if recent_topics %}
+                {% for topic in recent_topics %}
+                    <div class="border-bottom pb-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">
+                                    {% if topic.is_sticky %}
+                                        <i class="bi bi-pin-angle-fill text-warning me-1"></i>
+                                    {% elif topic.is_announce %}
+                                        <i class="bi bi-megaphone-fill text-info me-1"></i>
+                                    {% endif %}
+                                    <a href="{% url 'forum_conversation:topic' topic.forum.slug topic.forum.pk topic.slug topic.pk %}" 
+                                       class="text-decoration-none">
+                                        {{ topic.subject }}
+                                    </a>
+                                    {% if topic.is_locked %}
+                                        <i class="bi bi-lock-fill text-warning ms-1" title="{% trans 'Locked' %}"></i>
+                                    {% endif %}
+                                </h6>
+                                <small class="text-muted">
+                                    {% trans "in" %} 
+                                    <a href="{% url 'forum:forum' topic.forum.slug topic.forum.pk %}" 
+                                       class="text-decoration-none">{{ topic.forum.name }}</a>
+                                    <span class="mx-2">•</span>
+                                    <i class="bi bi-chat-dots me-1"></i>{{ topic.posts_count }} {% trans "replies" %}
+                                    <span class="mx-2">•</span>
+                                    <i class="bi bi-eye me-1"></i>{{ topic.views_count }} {% trans "views" %}
+                                </small>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>{{ topic.created|timesince }} {% trans "ago" %}
+                            </small>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                {% if has_more_topics %}
+                    <div class="text-center">
+                        <a href="{% url 'forum_search:search' %}?q=author:{{ profile_user.username }} type:topic" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-search me-1"></i>{% trans "View All Topics" %}
+                        </a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center text-muted">
+                    <i class="bi bi-chat-square-text display-4"></i>
+                    <p class="mt-2">{% trans "No topics yet" %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Forum Statistics -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-bar-chart me-2"></i>{% trans "Forum Activity" %}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="display-6 text-primary">{{ profile_user.posts.count|default:"0" }}</div>
+                        <small class="text-muted">{% trans "Posts" %}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="display-6 text-success">{{ profile_user.topics.count|default:"0" }}</div>
+                        <small class="text-muted">{% trans "Topics Started" %}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="display-6 text-info">
+                            {% if profile_user.posts.count > 0 %}
+                                {{ profile_user.posts.count|floatformat:0 }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">{% trans "Posts per day" %}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="display-6 text-warning">
+                            {% if profile_user.date_joined %}
+                                {{ profile_user.date_joined|timesince|split:" "|first }}
+                            {% else %}
+                                {% trans "N/A" %}
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">{% trans "Days as member" %}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock forum_main_content %}
+
+{% block extra_css %}
+    <style>
+        .user-avatar img {
+            border: 3px solid var(--bs-border-color);
+        }
+        
+        .stat-item {
+            padding: 1rem;
+            border-radius: 0.375rem;
+            background-color: var(--bs-body-bg);
+        }
+        
+        .user-bio,
+        .user-signature {
+            line-height: 1.6;
+        }
+        
+        .user-signature {
+            font-style: italic;
+            color: var(--bs-secondary-color);
+        }
+        
+        @media (max-width: 768px) {
+            .stat-item {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+{% endblock extra_css %}

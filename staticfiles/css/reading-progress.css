@@ -1,0 +1,405 @@
+/* Reading Progress Indicators */
+
+/* Progress Bar */
+.reading-progress-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    height: 3px;
+    background: transparent;
+    pointer-events: none;
+}
+
+.reading-progress-wrapper {
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+[data-bs-theme="dark"] .reading-progress-wrapper {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.reading-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0d6efd, #6610f2);
+    transition: width 0.3s ease-out;
+    box-shadow: 0 0 8px rgba(13, 110, 253, 0.4);
+}
+
+.reading-progress-bar.reading-complete {
+    background: linear-gradient(90deg, #198754, #20c997);
+    box-shadow: 0 0 8px rgba(25, 135, 84, 0.4);
+}
+
+/* Reading Time Display */
+.reading-time-display {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1040;
+    background: var(--bs-dark);
+    color: var(--bs-light);
+    border-radius: 50px;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    opacity: 0.8;
+}
+
+.reading-time-display:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+[data-bs-theme="dark"] .reading-time-display {
+    background: rgba(33, 37, 41, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.reading-time-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.reading-time-wrapper i {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+/* Completion Badge */
+.reading-completion-badge {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    z-index: 1060;
+    background: var(--bs-success);
+    color: white;
+    border-radius: 12px;
+    padding: 20px 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+}
+
+.reading-completion-badge.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.badge-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.badge-content i {
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Reading Stats Widget */
+.reading-stats-widget {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.reading-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+}
+
+.reading-stat-item {
+    text-align: center;
+    padding: 0.75rem;
+    background: var(--bs-secondary-bg);
+    border-radius: 0.375rem;
+    transition: transform 0.2s ease;
+}
+
+.reading-stat-item:hover {
+    transform: translateY(-2px);
+}
+
+.reading-stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--bs-primary);
+    margin-bottom: 0.25rem;
+}
+
+.reading-stat-label {
+    font-size: 0.875rem;
+    color: var(--bs-text-muted);
+    margin: 0;
+}
+
+/* Reading Achievements */
+.reading-achievements {
+    margin: 1.5rem 0;
+}
+
+.achievement-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.achievement-item.unlocked {
+    background: linear-gradient(135deg, rgba(25, 135, 84, 0.1), rgba(32, 201, 151, 0.1));
+    border-color: var(--bs-success);
+}
+
+.achievement-item.unlocked .achievement-icon {
+    color: var(--bs-success);
+    transform: scale(1.1);
+}
+
+.achievement-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bs-secondary-bg);
+    border-radius: 50%;
+    margin-right: 1rem;
+    font-size: 1.2rem;
+    color: var(--bs-text-muted);
+    transition: all 0.3s ease;
+}
+
+.achievement-content h6 {
+    margin: 0 0 0.25rem 0;
+    font-weight: 600;
+}
+
+.achievement-content p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--bs-text-muted);
+}
+
+.achievement-progress {
+    margin-left: auto;
+    text-align: right;
+}
+
+.achievement-progress-bar {
+    width: 60px;
+    height: 4px;
+    background: var(--bs-secondary-bg);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 0.25rem;
+}
+
+.achievement-progress-fill {
+    height: 100%;
+    background: var(--bs-primary);
+    transition: width 0.3s ease;
+}
+
+.achievement-percentage {
+    font-size: 0.75rem;
+    color: var(--bs-text-muted);
+}
+
+/* Reading Milestones */
+.reading-milestones {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--bs-secondary-bg);
+    border-radius: 0.5rem;
+}
+
+.milestone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    flex: 1;
+    position: relative;
+}
+
+.milestone:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 15px;
+    right: -50%;
+    width: 100%;
+    height: 2px;
+    background: var(--bs-border-color);
+    z-index: 1;
+}
+
+.milestone.completed:not(:last-child)::after {
+    background: var(--bs-success);
+}
+
+.milestone-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--bs-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.milestone.completed .milestone-icon {
+    background: var(--bs-success);
+    color: white;
+    transform: scale(1.1);
+}
+
+.milestone-label {
+    font-size: 0.75rem;
+    color: var(--bs-text-muted);
+}
+
+.milestone.completed .milestone-label {
+    color: var(--bs-success);
+    font-weight: 600;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .reading-time-display {
+        bottom: 10px;
+        right: 10px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+    
+    .reading-completion-badge {
+        padding: 16px 24px;
+    }
+    
+    .badge-content {
+        font-size: 1rem;
+        gap: 8px;
+    }
+    
+    .reading-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .reading-milestones {
+        padding: 0.75rem;
+    }
+    
+    .milestone-icon {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .milestone-label {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .reading-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .achievement-item {
+        padding: 0.5rem;
+    }
+    
+    .achievement-icon {
+        width: 32px;
+        height: 32px;
+        margin-right: 0.75rem;
+    }
+    
+    .reading-milestones {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .milestone:not(:last-child)::after {
+        display: none;
+    }
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .reading-time-display {
+    background: rgba(248, 249, 250, 0.1);
+    color: var(--bs-light);
+}
+
+[data-bs-theme="dark"] .achievement-item {
+    background: var(--bs-gray-800);
+    border-color: var(--bs-gray-700);
+}
+
+[data-bs-theme="dark"] .achievement-icon {
+    background: var(--bs-gray-700);
+}
+
+/* Animation for new achievements */
+@keyframes achievement-unlock {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.achievement-item.newly-unlocked {
+    animation: achievement-unlock 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Scroll-triggered animations */
+.reading-stat-item {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reading-stat-item.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Progress bar pulse animation */
+@keyframes progress-pulse {
+    0% { box-shadow: 0 0 8px rgba(13, 110, 253, 0.4); }
+    50% { box-shadow: 0 0 16px rgba(13, 110, 253, 0.8); }
+    100% { box-shadow: 0 0 8px rgba(13, 110, 253, 0.4); }
+}
+
+.reading-progress-bar.reading-complete {
+    animation: progress-pulse 2s ease-in-out;
+}

@@ -302,6 +302,180 @@ class LearningContentAI:
         
         return self._safe_ai_call(_call)
 
+    def contextual_chat_response(self, user_message: str, exercise_context: dict = None, student_code: str = "", conversation_history: list = None) -> str:
+        """Generate contextual AI chat responses for the floating assistant."""
+        def _call():
+            backend = self._get_backend()
+            if not backend:
+                return "I'm sorry, I'm currently unavailable. Please try again later."
+            
+            # Build comprehensive context
+            context_parts = [f"Student question: {user_message}"]
+            
+            if exercise_context:
+                context_parts.append(f"Current exercise: {exercise_context.get('title', 'N/A')}")
+                context_parts.append(f"Exercise description: {exercise_context.get('description', 'N/A')}")
+                context_parts.append(f"Exercise type: {exercise_context.get('type', 'N/A')}")
+                
+            if student_code:
+                context_parts.append(f"Student's current code:\n{student_code}")
+                
+            if conversation_history:
+                context_parts.append("Recent conversation:")
+                for msg in conversation_history[-3:]:  # Last 3 messages
+                    sender = "Student" if msg.get('type') == 'user' else "Assistant"
+                    context_parts.append(f"{sender}: {msg.get('content', '')}")
+            
+            context = "\n\n".join(context_parts)
+            
+            prompt = """You are an expert programming tutor and AI assistant. Provide helpful, encouraging, and educational responses to programming students.
+
+Guidelines:
+1. Be conversational and supportive
+2. Explain concepts clearly for the student's level
+3. Provide specific, actionable advice
+4. Use examples when helpful
+5. Don't just give answers - help students learn
+6. If they're struggling, offer step-by-step guidance
+7. Celebrate their progress and efforts
+8. Connect concepts to real-world applications when relevant
+
+Respond in a friendly, professional tone."""
+
+            response = backend.prompt_with_context(
+                pre_prompt=prompt,
+                context=context
+            )
+            return response.text()
+        
+        return self._safe_ai_call(_call)
+
+    def generate_real_world_examples(self, concept: str, industry_focus: str = "general") -> str:
+        """Generate real-world examples of programming concepts."""
+        def _call():
+            backend = self._get_backend()
+            if not backend:
+                return f"Real-world examples of {concept} are commonly found in web development, data analysis, and software engineering."
+            
+            prompt = f"""Provide 3-4 concrete, real-world examples of how the programming concept "{concept}" is used in the software industry.
+
+Focus on {industry_focus} applications. For each example:
+1. Describe the specific use case
+2. Explain why this concept is important for that use case
+3. Mention what companies or types of projects might use it
+4. Keep explanations accessible for students
+
+Make it engaging and show the practical value of learning this concept."""
+
+            response = backend.prompt_with_context(
+                pre_prompt=prompt,
+                context=f"Concept: {concept}, Industry focus: {industry_focus}"
+            )
+            return response.text()
+        
+        return self._safe_ai_call(_call)
+
+    def analyze_student_struggle(self, exercise_data: dict, time_spent: int, wrong_attempts: int, code_attempts: list = None) -> str:
+        """Analyze student struggle patterns and provide targeted assistance."""
+        def _call():
+            backend = self._get_backend()
+            if not backend:
+                return "Consider taking a break and reviewing the fundamentals. You're making progress!"
+            
+            struggle_indicators = []
+            if time_spent > 300:  # 5+ minutes
+                struggle_indicators.append(f"Time spent: {time_spent // 60} minutes")
+            if wrong_attempts > 3:
+                struggle_indicators.append(f"Multiple attempts: {wrong_attempts}")
+            if code_attempts and len(code_attempts) > 5:
+                struggle_indicators.append(f"Many code revisions: {len(code_attempts)}")
+            
+            context = f"""Exercise: {exercise_data.get('title', 'Programming exercise')}
+Exercise type: {exercise_data.get('type', 'N/A')}
+Difficulty indicators: {', '.join(struggle_indicators) if struggle_indicators else 'Student appears to be progressing normally'}
+Exercise description: {exercise_data.get('description', 'N/A')}"""
+            
+            if code_attempts:
+                context += f"\nRecent code attempts:\n" + "\n---\n".join(code_attempts[-3:])
+            
+            prompt = """Analyze this student's learning situation and provide supportive, targeted guidance.
+
+Consider:
+1. What specific challenges they might be facing
+2. What concepts they might need to review
+3. Motivational support to keep them engaged  
+4. Specific next steps or strategies
+5. Whether they should take a different approach
+
+Be encouraging and provide actionable advice. Don't just identify problems - offer solutions."""
+
+            response = backend.prompt_with_context(
+                pre_prompt=prompt,
+                context=context
+            )
+            return response.text()
+        
+        return self._safe_ai_call(_call)
+
+    def generate_debugging_guidance(self, error_type: str, code_context: str, student_level: str = "beginner") -> str:
+        """Provide step-by-step debugging guidance."""
+        def _call():
+            backend = self._get_backend()
+            if not backend:
+                return "Debugging tip: Read the error message carefully, check your syntax, and test small parts of your code."
+            
+            prompt = f"""Provide step-by-step debugging guidance for a {student_level} level programming student.
+
+Error type: {error_type}
+Student level: {student_level}
+
+Create a structured debugging approach:
+1. Understanding the error
+2. Common causes for this type of error
+3. Step-by-step investigation process
+4. How to fix it
+5. How to prevent it in the future
+
+Make it educational - help them become better at debugging, not just fix this one issue."""
+
+            context = f"Error: {error_type}\nCode context: {code_context}"
+
+            response = backend.prompt_with_context(
+                pre_prompt=prompt,
+                context=context
+            )
+            return response.text()
+        
+        return self._safe_ai_call(_call)
+
+    def suggest_next_learning_step(self, current_progress: dict, skill_assessment: dict) -> str:
+        """Suggest personalized next learning steps based on student progress."""
+        def _call():
+            backend = self._get_backend()
+            if not backend:
+                return "Continue practicing the fundamentals and try building small projects to apply what you've learned."
+            
+            prompt = """Based on this student's progress and skill assessment, suggest the most appropriate next learning step.
+
+Consider:
+1. Their current skill strengths and weaknesses
+2. What they've recently completed successfully
+3. Areas where they're struggling
+4. Appropriate difficulty progression
+5. Variety in learning (concepts, practice, projects)
+
+Provide specific, actionable recommendations with brief explanations of why each step will help them grow."""
+
+            context = f"Current progress: {current_progress}\nSkill assessment: {skill_assessment}"
+
+            response = backend.prompt_with_context(
+                pre_prompt=prompt,
+                context=context
+            )
+            return response.text()
+        
+        return self._safe_ai_call(_call)
+
 
 # Global instance for easy import
 learning_ai = LearningContentAI()

@@ -1,0 +1,381 @@
+/* Lazy Loading and Progressive Image Enhancement */
+
+/* Base lazy image styles */
+img[data-src],
+img[data-lazy-src],
+img[data-blur-src] {
+    background-color: var(--bs-gray-200);
+    background-image: linear-gradient(45deg, 
+        var(--bs-gray-200) 25%, 
+        transparent 25%), 
+        linear-gradient(-45deg, 
+        var(--bs-gray-200) 25%, 
+        transparent 25%), 
+        linear-gradient(45deg, 
+        transparent 75%, 
+        var(--bs-gray-200) 75%), 
+        linear-gradient(-45deg, 
+        transparent 75%, 
+        var(--bs-gray-200) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    animation: shimmer 2s infinite linear;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+[data-bs-theme="dark"] img[data-src],
+[data-bs-theme="dark"] img[data-lazy-src],
+[data-bs-theme="dark"] img[data-blur-src] {
+    background-color: var(--bs-gray-700);
+    background-image: linear-gradient(45deg, 
+        var(--bs-gray-700) 25%, 
+        transparent 25%), 
+        linear-gradient(-45deg, 
+        var(--bs-gray-700) 25%, 
+        transparent 25%), 
+        linear-gradient(45deg, 
+        transparent 75%, 
+        var(--bs-gray-700) 75%), 
+        linear-gradient(-45deg, 
+        transparent 75%, 
+        var(--bs-gray-700) 75%);
+}
+
+/* Shimmer animation for loading placeholders */
+@keyframes shimmer {
+    0% { background-position: 0 0, 0 10px, 10px -10px, -10px 0px; }
+    100% { background-position: 20px 0, 20px 10px, 30px -10px, 10px 0px; }
+}
+
+/* Loading state */
+.lazy-loading {
+    opacity: 0.7;
+    filter: blur(1px);
+    transform: scale(0.95);
+    transition: all 0.3s ease;
+}
+
+.lazy-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid var(--bs-primary);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 1;
+}
+
+/* Loaded state */
+.lazy-loaded {
+    opacity: 1;
+    filter: none;
+    transform: scale(1);
+    background: none;
+    animation: none;
+}
+
+.image-loaded {
+    animation: fadeInScale 0.4s ease;
+}
+
+/* Error state */
+.lazy-error {
+    opacity: 0.5;
+    filter: grayscale(100%);
+    background-color: var(--bs-gray-300);
+    background-image: none;
+    position: relative;
+}
+
+.lazy-error::after {
+    content: '⚠';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    color: var(--bs-warning);
+    z-index: 1;
+}
+
+[data-bs-theme="dark"] .lazy-error {
+    background-color: var(--bs-gray-600);
+}
+
+/* Background image lazy loading */
+[data-bg-src] {
+    background-color: var(--bs-gray-200);
+    background-image: linear-gradient(45deg, 
+        var(--bs-gray-200) 25%, 
+        transparent 25%), 
+        linear-gradient(-45deg, 
+        var(--bs-gray-200) 25%, 
+        transparent 25%), 
+        linear-gradient(45deg, 
+        transparent 75%, 
+        var(--bs-gray-200) 75%), 
+        linear-gradient(-45deg, 
+        transparent 75%, 
+        var(--bs-gray-200) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    animation: shimmer 2s infinite linear;
+    transition: background-image 0.3s ease;
+}
+
+.bg-loaded {
+    background-image: var(--bg-image);
+    animation: none;
+}
+
+/* Blur-up technique */
+.blur-up {
+    filter: blur(20px);
+    transform: scale(1.1);
+    transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.blur-up.loaded {
+    filter: none;
+    transform: scale(1);
+}
+
+/* Avatar-specific lazy loading */
+.lazy-avatar {
+    background: linear-gradient(135deg, var(--bs-primary), var(--bs-secondary));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.lazy-avatar.lazy-loading {
+    background: linear-gradient(135deg, 
+        var(--bs-primary) 0%, 
+        var(--bs-secondary) 50%, 
+        var(--bs-primary) 100%);
+    background-size: 200% 100%;
+    animation: gradientShift 1.5s infinite;
+}
+
+.lazy-avatar.lazy-loaded {
+    background: none;
+}
+
+/* Progressive image enhancement */
+.progressive-image {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+}
+
+.progressive-image .placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    filter: blur(10px);
+    transform: scale(1.1);
+    transition: opacity 0.3s ease;
+    z-index: 1;
+}
+
+.progressive-image .main-image {
+    position: relative;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.progressive-image .main-image.loaded {
+    opacity: 1;
+}
+
+.progressive-image .main-image.loaded + .placeholder {
+    opacity: 0;
+}
+
+/* Responsive image lazy loading */
+.responsive-lazy {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    transition: all 0.3s ease;
+}
+
+.responsive-lazy.lazy-loading {
+    min-height: 200px;
+}
+
+/* Lazy loading for different content types */
+.post-image.lazy-loading {
+    min-height: 200px;
+    border-radius: 0.5rem;
+}
+
+.user-avatar.lazy-loading {
+    border-radius: 50%;
+}
+
+.forum-thumbnail.lazy-loading {
+    min-height: 150px;
+    border-radius: 0.375rem;
+}
+
+/* Fade in animations */
+@keyframes fadeInScale {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes gradientShift {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Performance optimizations */
+.lazy-container {
+    contain: layout style paint;
+}
+
+/* Intersection observer polyfill support */
+.no-intersection-observer img[data-src] {
+    /* Fallback for browsers without Intersection Observer */
+    opacity: 1;
+    background: none;
+    animation: none;
+}
+
+/* Reduce motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    img[data-src],
+    img[data-lazy-src],
+    img[data-blur-src],
+    .lazy-loading,
+    .lazy-loaded,
+    .blur-up {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .lazy-error {
+        border: 2px solid var(--bs-warning);
+    }
+    
+    .lazy-loading::after {
+        border-color: var(--bs-primary);
+        border-top-color: transparent;
+    }
+}
+
+/* Print styles */
+@media print {
+    img[data-src],
+    img[data-lazy-src] {
+        background: none;
+        animation: none;
+    }
+    
+    .lazy-loading::after {
+        display: none;
+    }
+}
+
+/* Focus management for accessibility */
+.lazy-loading:focus {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .lazy-loading {
+        transition-duration: 0.2s;
+    }
+    
+    .image-loaded {
+        animation-duration: 0.3s;
+    }
+}
+
+/* Connection-aware loading */
+.slow-connection .lazy-loading {
+    transition-duration: 0.5s;
+}
+
+.slow-connection .image-loaded {
+    animation-duration: 0.6s;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .lazy-avatar {
+    background: linear-gradient(135deg, 
+        var(--bs-primary) 0%, 
+        var(--bs-info) 100%);
+}
+
+[data-bs-theme="dark"] .lazy-error::after {
+    color: var(--bs-warning);
+}
+
+/* Memory-efficient image containers */
+.image-container {
+    overflow: hidden;
+    background-color: var(--bs-gray-100);
+    position: relative;
+}
+
+[data-bs-theme="dark"] .image-container {
+    background-color: var(--bs-gray-800);
+}
+
+.image-container::before {
+    content: '';
+    display: block;
+    width: 100%;
+    padding-top: 56.25%; /* 16:9 aspect ratio */
+}
+
+.image-container img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Lazy loading success indicators */
+.lazy-loaded.fade-in {
+    animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

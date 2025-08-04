@@ -6,7 +6,7 @@
 {% block breadcrumb %}
 <nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
     <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'wagtail_serve' '' %}">Home</a></li>
         <li class="breadcrumb-item active">Community</li>
     </ol>
 </nav>
@@ -28,26 +28,26 @@
     <div class="row mb-5">
         <div class="col-md-3 text-center mb-3">
             <div class="community-stat">
-                <div class="h2 text-primary">10,000+</div>
-                <div class="text-muted">Active Members</div>
+                <div class="h2 text-primary">{{ total_users }}+</div>
+                <div class="text-muted">Community Members</div>
             </div>
         </div>
         <div class="col-md-3 text-center mb-3">
             <div class="community-stat">
-                <div class="h2 text-success">5,000+</div>
+                <div class="h2 text-success">{{ total_topics }}+</div>
                 <div class="text-muted">Discussions</div>
             </div>
         </div>
         <div class="col-md-3 text-center mb-3">
             <div class="community-stat">
-                <div class="h2 text-info">500+</div>
-                <div class="text-muted">Study Groups</div>
+                <div class="h2 text-info">{{ total_posts }}+</div>
+                <div class="text-muted">Forum Posts</div>
             </div>
         </div>
         <div class="col-md-3 text-center mb-3">
             <div class="community-stat">
-                <div class="h2 text-warning">50+</div>
-                <div class="text-muted">Mentors</div>
+                <div class="h2 text-warning">{{ total_forums }}+</div>
+                <div class="text-muted">Forum Categories</div>
             </div>
         </div>
     </div>
@@ -65,7 +65,7 @@
                         Join conversations about Python concepts, share your code, and get help from 
                         experienced developers and peers.
                     </p>
-                    <a href="#" class="btn btn-primary">Browse Discussions</a>
+                    <a href="{% url 'forum:index' %}" class="btn btn-primary">Browse Discussions</a>
                 </div>
             </div>
         </div>
@@ -81,7 +81,7 @@
                         Form or join study groups to learn together, work on projects, and 
                         stay motivated on your Python journey.
                     </p>
-                    <a href="#" class="btn btn-success">Find Study Groups</a>
+                    <a href="{% url 'forum:index' %}" class="btn btn-success">Join Forum Discussions</a>
                 </div>
             </div>
         </div>
@@ -97,7 +97,7 @@
                         Connect with experienced Python developers who can guide you, 
                         review your code, and help accelerate your learning.
                     </p>
-                    <a href="#" class="btn btn-info">Find a Mentor</a>
+                    <a href="{% url 'forum:index' %}" class="btn btn-info">Connect with Experts</a>
                 </div>
             </div>
         </div>
@@ -113,7 +113,7 @@
                         Submit your code for review by the community and learn best practices 
                         from constructive feedback.
                     </p>
-                    <a href="#" class="btn btn-warning">Request Review</a>
+                    <a href="{% url 'forum:index' %}" class="btn btn-warning">Get Code Review</a>
                 </div>
             </div>
         </div>
@@ -129,7 +129,7 @@
                         Participate in weekly coding challenges, compete with peers, 
                         and showcase your programming skills.
                     </p>
-                    <a href="#" class="btn btn-danger">Join Challenge</a>
+                    <a href="{% url 'forum:index' %}" class="btn btn-danger">Join Discussions</a>
                 </div>
             </div>
         </div>
@@ -145,7 +145,7 @@
                         Attend virtual events, workshops, and webinars hosted by Python 
                         experts and community leaders.
                     </p>
-                    <a href="#" class="btn btn-outline-primary">View Events</a>
+                    <a href="{% url 'forum:index' %}" class="btn btn-outline-primary">Forum Events</a>
                 </div>
             </div>
         </div>
@@ -157,77 +157,42 @@
             <h3 class="mb-4">Recent Discussions</h3>
             <div class="card">
                 <div class="card-body">
-                    <div class="discussion-item border-bottom py-3">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1">
-                                    <a href="#" class="text-decoration-none">Help with Python decorators - confused about syntax</a>
-                                </h6>
-                                <p class="text-muted small mb-2">
-                                    I'm trying to understand how decorators work in Python. Can someone explain the @ syntax?
-                                </p>
-                                <div class="discussion-meta small text-muted">
-                                    <span>Started by <strong>sarah_dev</strong></span>
-                                    <span class="mx-2">•</span>
-                                    <span>2 hours ago</span>
-                                    <span class="mx-2">•</span>
-                                    <span class="text-success">5 replies</span>
+                    {% if recent_topics %}
+                        {% for topic in recent_topics %}
+                        <div class="discussion-item {% if not forloop.last %}border-bottom{% endif %} py-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <a href="{% url 'forum_conversation:topic' topic.forum.slug topic.forum.pk topic.slug topic.pk %}" class="text-decoration-none">{{ topic.subject|truncatechars:80 }}</a>
+                                    </h6>
+                                    <p class="text-muted small mb-2">
+                                        Posted in <strong>{{ topic.forum.name }}</strong>
+                                    </p>
+                                    <div class="discussion-meta small text-muted">
+                                        <span>Started by <strong>{{ topic.poster.get_display_name|default:topic.poster.username }}</strong></span>
+                                        <span class="mx-2">•</span>
+                                        <span>{{ topic.created|timesince }} ago</span>
+                                        <span class="mx-2">•</span>
+                                        <span class="text-success">{{ topic.posts_count }} {% if topic.posts_count == 1 %}reply{% else %}replies{% endif %}</span>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    {% if topic.last_post %}
+                                    <small class="text-muted">Latest reply<br>{{ topic.last_post_on|timesince }} ago</small>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <div class="text-end">
-                                <small class="text-muted">Latest reply<br>30 min ago</small>
-                            </div>
                         </div>
-                    </div>
-
-                    <div class="discussion-item border-bottom py-3">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1">
-                                    <a href="#" class="text-decoration-none">Best practices for organizing Python project structure</a>
-                                </h6>
-                                <p class="text-muted small mb-2">
-                                    What's the recommended way to structure a medium-sized Python project?
-                                </p>
-                                <div class="discussion-meta small text-muted">
-                                    <span>Started by <strong>code_architect</strong></span>
-                                    <span class="mx-2">•</span>
-                                    <span>4 hours ago</span>
-                                    <span class="mx-2">•</span>
-                                    <span class="text-success">12 replies</span>
-                                </div>
-                            </div>
-                            <div class="text-end">
-                                <small class="text-muted">Latest reply<br>1 hour ago</small>
-                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <p class="text-muted">No discussions yet. Be the first to start a conversation!</p>
+                            <a href="{% url 'forum:index' %}" class="btn btn-primary">Start a Discussion</a>
                         </div>
-                    </div>
-
-                    <div class="discussion-item py-3">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1">
-                                    <a href="#" class="text-decoration-none">Django vs Flask - which framework to choose?</a>
-                                </h6>
-                                <p class="text-muted small mb-2">
-                                    I'm starting a new web project and can't decide between Django and Flask...
-                                </p>
-                                <div class="discussion-meta small text-muted">
-                                    <span>Started by <strong>web_learner</strong></span>
-                                    <span class="mx-2">•</span>
-                                    <span>6 hours ago</span>
-                                    <span class="mx-2">•</span>
-                                    <span class="text-success">8 replies</span>
-                                </div>
-                            </div>
-                            <div class="text-end">
-                                <small class="text-muted">Latest reply<br>2 hours ago</small>
-                            </div>
-                        </div>
-                    </div>
+                    {% endif %}
                 </div>
                 <div class="card-footer text-center">
-                    <a href="#" class="btn btn-outline-primary">View All Discussions</a>
+                    <a href="{% url 'forum:index' %}" class="btn btn-outline-primary">View All Discussions</a>
                 </div>
             </div>
         </div>
@@ -246,12 +211,12 @@
                         <i class="bi bi-person-plus me-2"></i>Sign Up Free
                     </a>
                 {% else %}
-                    <a href="#" class="btn btn-light btn-lg me-3">
+                    <a href="{% url 'forum:index' %}" class="btn btn-light btn-lg me-3">
                         <i class="bi bi-chat-dots me-2"></i>Start Discussing
                     </a>
                 {% endif %}
-                <a href="#" class="btn btn-outline-light btn-lg">
-                    <i class="bi bi-info-circle me-2"></i>Learn More
+                <a href="{% url 'forum:index' %}" class="btn btn-outline-light btn-lg">
+                    <i class="bi bi-info-circle me-2"></i>Browse Forums
                 </a>
             </div>
         </div>

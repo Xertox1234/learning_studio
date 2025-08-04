@@ -1,5 +1,7 @@
 # Technical Architecture & Design Decisions
 
+> **Note**: This document has been updated to reflect the current project state and theme system implementation.
+
 ## WordPress Alternatives Analysis
 
 ### Why Not WordPress?
@@ -104,9 +106,8 @@ export async function getStaticPaths() {
 Frontend: Next.js 14+ with TypeScript
 Blog: Next.js + Strapi (self-hosted) or Sanity
 Learning Platform: Next.js + Custom components
-Forum: Discourse (separate service)
 Database: PostgreSQL
-Authentication: NextAuth.js + Discourse SSO
+Authentication: NextAuth.js
 Code Editor: Monaco Editor (VS Code in browser)
 Hosting: Vercel + DigitalOcean
 CDN: CloudFlare
@@ -126,9 +127,8 @@ Analytics: Plausible or Google Analytics
 - **CMS**: Wagtail CMS with wagtail-ai addon
 - **AI Integration**: wagtail-ai for content generation and assistance
 - **Learning Platform**: Django + Custom models
-- **Forum**: Discourse (separate service)
 - **Database**: PostgreSQL
-- **Authentication**: Django-allauth + Discourse SSO
+- **Authentication**: Django-allauth
 
 **Wagtail AI Features:**
 - **AI-Powered Content Creation**: Built-in AI assistance for writing blog posts
@@ -799,3 +799,81 @@ class ExerciseAdmin(admin.ModelAdmin):
 6. **API Endpoints**: RESTful APIs for frontend AI integration
 
 This approach gives you the full power of wagtail-ai's features while maintaining the flexibility of custom Django apps for your learning platform needs.
+
+
+## Theme System Architecture
+
+### Overview
+
+The Python Learning Studio implements a flexible theme system built on Bootstrap 5.3 and Bootswatch, allowing users to toggle between light and dark modes while ensuring a consistent experience across the platform.
+
+### Technical Components
+
+#### 1. Theme Structure
+
+The theme system follows a layered approach:
+
+```
+Bootstrap 5.3 Base
+       ↓
+Bootswatch Theme Layer
+       ↓
+Custom Overrides Layer
+       ↓
+User Preference Layer
+```
+
+#### 2. Implementation Details
+
+**File Organization:**
+```
+/static/css/
+├── themes/
+│   ├── dark.css      # Bootswatch Darkly theme
+│   └── light.css     # Bootswatch Default theme
+├── base.css          # Common styling
+└── variables.css     # CSS custom properties
+
+/static/js/
+└── theme-switcher.js  # Theme toggle functionality
+```
+
+**CSS Variables System:**
+```css
+:root {
+  /* Light theme (default) */
+  --body-bg: #ffffff;
+  --body-color: #212529;
+  --primary-color: #0d6efd;
+  /* ...more variables... */
+}
+
+[data-bs-theme="dark"] {
+  /* Dark theme */
+  --body-bg: #121212;
+  --body-color: #f8f9fa;
+  --primary-color: #0d6efd;
+  /* ...more variables... */
+}
+```
+
+#### 3. Theme Persistence
+
+User theme preferences are stored in browser localStorage:
+
+```javascript
+// Store preference
+localStorage.setItem('user-theme-preference', theme); // 'light' or 'dark'
+
+// Retrieve preference on page load
+const savedTheme = localStorage.getItem('user-theme-preference');
+```
+
+
+### Benefits of This Architecture
+
+1. **Consistency**: Unified appearance across platform
+2. **Flexibility**: Easy to add new theme options
+3. **Performance**: CSS variables for efficient theme switching without page reload
+4. **Accessibility**: Respect for user system preferences and WCAG compliance
+5. **Maintainability**: Clean separation of theme variables and implementation

@@ -1,0 +1,129 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Verify Your Email" %}{% endblock %}
+
+{% block auth_subtitle %}One more step to get started{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="mb-4">
+        <i class="bi bi-envelope-paper display-1 text-primary"></i>
+    </div>
+    
+    <h5 class="mb-3">{% trans "Verification Email Sent!" %}</h5>
+    
+    <div class="alert alert-primary" role="alert">
+        <div class="d-flex">
+            <div class="flex-shrink-0">
+                <i class="bi bi-envelope"></i>
+            </div>
+            <div class="flex-grow-1 ms-3 text-start">
+                <p class="mb-2">
+                    {% trans "We have sent an email to you for verification." %}
+                </p>
+                <p class="mb-0">
+                    {% trans "Follow the link provided to finalize the signup process." %}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card border-0 bg-light">
+        <div class="card-body">
+            <h6 class="card-title">
+                <i class="bi bi-list-check me-2"></i>{% trans "Next Steps:" %}
+            </h6>
+            <ol class="text-start mb-3">
+                <li>Check your email inbox (and spam/junk folder)</li>
+                <li>Click the verification link in the email</li>
+                <li>Complete your account setup</li>
+                <li>Start learning Python!</li>
+            </ol>
+            
+            <div class="text-center">
+                <button id="resendEmail" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-clockwise me-2"></i>{% trans "Resend Email" %}
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <p class="text-muted small">
+            <i class="bi bi-clock me-1"></i>
+            {% trans "Didn't receive the email? Check your spam folder or try resending." %}
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<div class="row text-center">
+    <div class="col-6">
+        <a href="{% url 'account_signup' %}" class="text-decoration-none">
+            <i class="bi bi-arrow-left me-1"></i>{% trans "Back to Signup" %}
+        </a>
+    </div>
+    <div class="col-6">
+        <a href="{% url 'account_login' %}" class="text-decoration-none">
+            <i class="bi bi-box-arrow-in-right me-1"></i>{% trans "Sign In Instead" %}
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let resendCount = 0;
+    const maxResends = 3;
+    
+    document.getElementById('resendEmail').addEventListener('click', function() {
+        if (resendCount >= maxResends) {
+            alert('Maximum resend attempts reached. Please contact support if you continue having issues.');
+            return;
+        }
+        
+        const button = this;
+        const originalText = button.innerHTML;
+        
+        // Disable button and show loading
+        button.disabled = true;
+        button.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Sending...';
+        
+        // Simulate email resend (you'd implement actual resend logic here)
+        setTimeout(function() {
+            resendCount++;
+            button.disabled = false;
+            button.innerHTML = originalText;
+            
+            // Show success message
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success alert-dismissible fade show mt-3';
+            alert.innerHTML = `
+                <i class="bi bi-check-circle me-2"></i>
+                Verification email resent successfully!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const cardBody = document.querySelector('.card-body');
+            cardBody.appendChild(alert);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(function() {
+                alert.remove();
+            }, 5000);
+            
+        }, 2000);
+    });
+    
+    // Check email opening reminder
+    let emailCheckReminder = setTimeout(function() {
+        if (confirm('Still waiting for the verification email? Click OK to get tips on finding it.')) {
+            alert('Tips for finding your verification email:\n\n1. Check your spam/junk folder\n2. Look for emails from Python Learning Studio\n3. Add our email to your contacts\n4. Check any filtered folders\n5. Wait a few more minutes for delivery');
+        }
+    }, 2 * 60 * 1000); // 2 minutes
+});
+</script>
+{% endblock %}

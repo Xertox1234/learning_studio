@@ -1,0 +1,95 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Confirm Email" %}{% endblock %}
+
+{% block auth_subtitle %}Verify your email address{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    {% if confirmation %}
+        <div class="mb-4">
+            <i class="bi bi-envelope-check display-1 text-primary"></i>
+        </div>
+        
+        <h5 class="mb-3">{% trans "Confirm Your Email Address" %}</h5>
+        
+        <p class="text-muted mb-4">
+            {% blocktrans with confirmation.email_address.email as email %}
+            Please confirm that <strong>{{ email }}</strong> is an email address for user {{ confirmation.email_address.user.username }}.
+            {% endblocktrans %}
+        </p>
+        
+        <form method="POST" action="{% url 'account_confirm_email' confirmation.key %}">
+            {% csrf_token %}
+            
+            <div class="d-grid gap-2 mb-3">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-check-circle me-2"></i>{% trans "Confirm Email" %}
+                </button>
+            </div>
+        </form>
+        
+        <div class="alert alert-info" role="alert">
+            <div class="d-flex">
+                <div class="flex-shrink-0">
+                    <i class="bi bi-info-circle"></i>
+                </div>
+                <div class="flex-grow-1 ms-3 text-start">
+                    <strong>Why verify your email?</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Secure your account</li>
+                        <li>Receive important notifications</li>
+                        <li>Reset your password if needed</li>
+                        <li>Get course updates and announcements</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+    {% else %}
+        <div class="mb-4">
+            <i class="bi bi-exclamation-triangle display-1 text-warning"></i>
+        </div>
+        
+        <h5 class="mb-3 text-warning">{% trans "Invalid Confirmation Link" %}</h5>
+        
+        <div class="alert alert-warning" role="alert">
+            <p class="mb-2">
+                {% trans "This email confirmation link is either invalid or has already been used." %}
+            </p>
+            <p class="mb-0">
+                {% trans "Please request a new confirmation email if needed." %}
+            </p>
+        </div>
+        
+        <div class="d-grid gap-2">
+            <a href="{% url 'account_email' %}" class="btn btn-primary">
+                <i class="bi bi-envelope me-2"></i>{% trans "Manage Email Addresses" %}
+            </a>
+            
+            <a href="{% url 'account_login' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>{% trans "Back to Sign In" %}
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+{% if confirmation %}
+    <p class="mb-0">
+        {% trans "Wrong email?" %}
+        <a href="{% url 'account_email' %}" class="text-decoration-none fw-bold">
+            {% trans "Manage your email addresses" %} <i class="bi bi-arrow-right"></i>
+        </a>
+    </p>
+{% else %}
+    <p class="mb-0">
+        {% trans "Need help?" %}
+        <a href="#" class="text-decoration-none fw-bold">
+            {% trans "Contact support" %} <i class="bi bi-arrow-right"></i>
+        </a>
+    </p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,298 @@
+{% extends 'base/base.html' %}
+{% load static wagtailcore_tags wagtailimages_tags %}
+
+{% block title %}{{ page.title }} - Python Learning Studio{% endblock %}
+
+{% block meta_description %}{{ page.intro }}{% endblock %}
+
+{% block content %}
+<!-- Article Header -->
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/" class="text-decoration-none">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{{ page.get_parent.url }}" class="text-decoration-none">Blog</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ page.title }}</li>
+                    </ol>
+                </nav>
+                
+                <!-- Categories -->
+                {% if page.categories.all %}
+                    <div class="mb-3">
+                        {% for category in page.categories.all %}
+                            <a href="{{ page.get_parent.url }}?category={{ category.slug }}" 
+                               class="badge rounded-pill text-decoration-none" 
+                               style="background-color: {{ category.color }};">
+                                {{ category.name }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <!-- Title -->
+                <h1 class="display-5 fw-bold mb-3">{{ page.title }}</h1>
+                
+                <!-- Intro -->
+                {% if page.intro %}
+                    <p class="lead text-muted mb-4">{{ page.intro }}</p>
+                {% endif %}
+                
+                <!-- Meta information -->
+                <div class="d-flex flex-wrap align-items-center gap-3 mb-4 pb-3 border-bottom">
+                    {% if page.author %}
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-person-circle me-2 text-muted"></i>
+                            <span>{{ page.author.get_display_name }}</span>
+                        </div>
+                    {% endif %}
+                    
+                    {% if page.date %}
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calendar me-2 text-muted"></i>
+                            <span>{{ page.date|date:"F j, Y" }}</span>
+                        </div>
+                    {% endif %}
+                    
+                    {% if page.reading_time %}
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-clock me-2 text-muted"></i>
+                            <span>{{ page.reading_time }} min read</span>
+                        </div>
+                    {% endif %}
+                    
+                    {% if page.ai_generated %}
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-gradient bg-info text-dark">
+                                <i class="bi bi-robot me-1"></i>AI-Enhanced Content
+                            </span>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Featured Image -->
+                {% if page.featured_image %}
+                    <div class="mb-5">
+                        {% image page.featured_image fill-800x400 class="img-fluid rounded shadow" %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Article Content -->
+<section class="pb-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <article class="blog-content">
+                    {% for block in page.body %}
+                        {% if block.block_type == 'heading' %}
+                            <h2 class="h3 fw-bold mt-5 mb-3">{{ block.value }}</h2>
+                            
+                        {% elif block.block_type == 'paragraph' %}
+                            <div class="mb-4">{{ block.value|richtext }}</div>
+                            
+                        {% elif block.block_type == 'image' %}
+                            <div class="mb-4 text-center">
+                                {% image block.value fill-700x400 class="img-fluid rounded shadow" %}
+                            </div>
+                            
+                        {% elif block.block_type == 'code' %}
+                            <div class="mb-4">
+                                {% if block.value.caption %}
+                                    <div class="code-caption mb-2">
+                                        <small class="text-muted"><em>{{ block.value.caption }}</em></small>
+                                    </div>
+                                {% endif %}
+                                <div class="code-block-container">
+                                    <div class="code-header d-flex justify-content-between align-items-center px-3 py-2" style="background: #2d3748; color: #e2e8f0;">
+                                        <span class="badge bg-secondary">{{ block.value.language|default:"code" }}</span>
+                                        <button class="btn btn-sm btn-outline-light copy-code-btn" data-bs-toggle="tooltip" title="Copy to clipboard">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <pre class="code-block mb-0 p-3" style="background: #1e1e1e; color: #d4d4d4; font-family: 'Fira Code', monospace; overflow-x: auto;"><code>{{ block.value.code }}</code></pre>
+                                </div>
+                            </div>
+                            
+                        {% elif block.block_type == 'quote' %}
+                            <blockquote class="blockquote border-start border-primary border-4 ps-4 my-4">
+                                <p class="mb-2">{{ block.value.text }}</p>
+                                {% if block.value.attribute_name %}
+                                    <footer class="blockquote-footer">
+                                        <cite>{{ block.value.attribute_name }}</cite>
+                                    </footer>
+                                {% endif %}
+                            </blockquote>
+                            
+                        {% elif block.block_type == 'callout' %}
+                            <div class="alert alert-{% if block.value.type == 'info' %}info{% elif block.value.type == 'warning' %}warning{% elif block.value.type == 'tip' %}success{% elif block.value.type == 'danger' %}danger{% else %}primary{% endif %} mb-4" role="alert">
+                                {% if block.value.title %}
+                                    <h5 class="alert-heading">
+                                        {% if block.value.type == 'info' %}<i class="bi bi-info-circle me-2"></i>
+                                        {% elif block.value.type == 'warning' %}<i class="bi bi-exclamation-triangle me-2"></i>
+                                        {% elif block.value.type == 'tip' %}<i class="bi bi-lightbulb me-2"></i>
+                                        {% elif block.value.type == 'danger' %}<i class="bi bi-exclamation-octagon me-2"></i>
+                                        {% endif %}
+                                        {{ block.value.title }}
+                                    </h5>
+                                {% endif %}
+                                <div>{{ block.value.text|richtext }}</div>
+                            </div>
+                            
+                        {% elif block.block_type == 'embed' %}
+                            <div class="mb-4">
+                                {{ block.value|safe }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </article>
+                
+                <!-- Tags -->
+                {% if page.tags.all %}
+                    <div class="mt-5 pt-4 border-top">
+                        <h6 class="text-muted mb-3">Tags:</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for tag in page.tags.all %}
+                                <a href="{{ page.get_parent.url }}?tag={{ tag.name }}" 
+                                   class="badge bg-light text-dark text-decoration-none border">
+                                    #{{ tag.name }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <!-- AI Summary -->
+                {% if page.ai_summary %}
+                    <div class="mt-5 p-4 bg-light rounded">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-robot me-2 text-primary"></i>AI Summary
+                        </h6>
+                        <p class="mb-0 text-muted">{{ page.ai_summary }}</p>
+                    </div>
+                {% endif %}
+                
+                <!-- Share Buttons -->
+                <div class="mt-5 pt-4 border-top">
+                    <h6 class="text-muted mb-3">Share this article:</h6>
+                    <div class="d-flex gap-2">
+                        <a href="https://twitter.com/intent/tweet?text={{ page.title|urlencode }}&url={{ request.build_absolute_uri }}" 
+                           target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-twitter me-1"></i>Twitter
+                        </a>
+                        <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.build_absolute_uri }}" 
+                           target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-linkedin me-1"></i>LinkedIn
+                        </a>
+                        <button class="btn btn-outline-primary btn-sm copy-url-btn">
+                            <i class="bi bi-link me-1"></i>Copy Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Related Posts -->
+{% if related_posts %}
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h3 class="fw-bold mb-4">Related Articles</h3>
+                <div class="row g-4">
+                    {% for post in related_posts %}
+                        <div class="col-md-4">
+                            <div class="card h-100 border-0 shadow-sm">
+                                {% if post.featured_image %}
+                                    <a href="{{ post.url }}" class="text-decoration-none">
+                                        {% image post.featured_image fill-300x150 class="card-img-top" style="height: 150px; object-fit: cover;" %}
+                                    </a>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <a href="{{ post.url }}" class="text-decoration-none text-dark">
+                                            {{ post.title }}
+                                        </a>
+                                    </h6>
+                                    <p class="card-text small text-muted">{{ post.intro|truncatewords:15 }}</p>
+                                    <small class="text-muted">
+                                        {% if post.date %}{{ post.date|date:"M d" }}{% endif %}
+                                        {% if post.reading_time %} • {{ post.reading_time }} min{% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Newsletter CTA -->
+<section class="py-5 bg-primary text-white">
+    <div class="container">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-6">
+                <h3 class="fw-bold mb-3">Enjoyed this article?</h3>
+                <p class="mb-4">Get more Python tips and tutorials delivered to your inbox weekly.</p>
+                <div class="input-group mb-3">
+                    <input type="email" class="form-control" placeholder="Enter your email address" aria-label="Email">
+                    <button class="btn btn-light" type="button">
+                        <i class="bi bi-envelope me-1"></i>Subscribe
+                    </button>
+                </div>
+                <small class="text-light-emphasis">Join 10,000+ Python developers. No spam, unsubscribe anytime.</small>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Copy code functionality
+    const copyCodeBtns = document.querySelectorAll('.copy-code-btn');
+    copyCodeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const codeBlock = this.closest('.code-block-container').querySelector('code');
+            navigator.clipboard.writeText(codeBlock.textContent).then(() => {
+                this.innerHTML = '<i class="bi bi-check"></i>';
+                setTimeout(() => {
+                    this.innerHTML = '<i class="bi bi-clipboard"></i>';
+                }, 2000);
+            });
+        });
+    });
+    
+    // Copy URL functionality
+    const copyUrlBtn = document.querySelector('.copy-url-btn');
+    if (copyUrlBtn) {
+        copyUrlBtn.addEventListener('click', function() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                this.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
+                setTimeout(() => {
+                    this.innerHTML = '<i class="bi bi-link me-1"></i>Copy Link';
+                }, 2000);
+            });
+        });
+    }
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

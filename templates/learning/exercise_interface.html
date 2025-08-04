@@ -1,0 +1,696 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}{{ exercise.title }} - Code Exercise{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/code-interface.css' %}">
+<!-- CodeMirror 5 CSS with VSCode theme -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+{% endblock %}
+
+{% block body_class %}exercise-page{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="bg-dark">
+    <div class="container-fluid">
+        <ol class="breadcrumb mb-0 py-3">
+            <li class="breadcrumb-item">
+                <a href="{% url 'wagtail_serve' '' %}" class="text-light text-decoration-none">
+                    <i class="bi bi-house"></i> Home
+                </a>
+            </li>
+            {% if exercise.lesson.course %}
+            <li class="breadcrumb-item">
+                <a href="#" class="text-light text-decoration-none">{{ exercise.lesson.course.title }}</a>
+            </li>
+            {% endif %}
+            {% if exercise.lesson %}
+            <li class="breadcrumb-item">
+                <a href="#" class="text-light text-decoration-none">{{ exercise.lesson.title }}</a>
+            </li>
+            {% endif %}
+            <li class="breadcrumb-item active text-warning" aria-current="page">{{ exercise.title }}</li>
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="exercise-interface">
+        <!-- Left Panel: Problem Description -->
+        <div class="exercise-left-panel">
+            <div class="exercise-header">
+                <h2 class="exercise-title">{{ exercise.title }}</h2>
+                <div class="exercise-meta">
+                    <span class="difficulty {{ exercise.difficulty_level }}">{{ exercise.difficulty_level|upper }}</span>
+                    <span class="duration"><i class="bi bi-clock"></i> {{ exercise.estimated_time }} min</span>
+                    <span class="points"><i class="bi bi-award"></i> {{ exercise.points }} points</span>
+                    <span class="language"><i class="bi bi-code"></i> {{ exercise.programming_language.name }}</span>
+                </div>
+            </div>
+
+            <div class="problem-section">
+                <h3><i class="bi bi-file-text"></i> Problem Description</h3>
+                <div class="problem-content">
+                    {{ exercise.description }}
+                </div>
+            </div>
+
+            <div class="instructions-section">
+                <h3><i class="bi bi-list-task"></i> Instructions</h3>
+                <div class="instructions-content">
+                    {{ exercise.instructions }}
+                </div>
+            </div>
+
+            <div class="test-cases-section">
+                <h3><i class="bi bi-check-circle"></i> Sample Test Cases</h3>
+                <div class="test-cases-list">
+                    {% for test in exercise.test_cases.all %}
+                        {% if test.is_sample %}
+                        <div class="test-case">
+                            <h4>Test Case</h4>
+                            <div class="test-input">
+                                <strong>Input:</strong>
+                                <code>{{ test.input_data }}</code>
+                            </div>
+                            <div class="test-output">
+                                <strong>Expected Output:</strong>
+                                <code>{{ test.expected_output }}</code>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% empty %}
+                    <div class="test-case">
+                        <h4>Basic Test</h4>
+                        <div class="test-output">
+                            <strong>Expected Output:</strong>
+                            <code>9</code>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-outline-primary" onclick="showHint()">
+                    <i class="bi bi-lightbulb"></i> Hint
+                </button>
+                <button class="btn btn-outline-info" onclick="showSolution()">
+                    <i class="bi bi-eye"></i> Solution
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Code Editor -->
+        <div class="exercise-right-panel">
+            <div class="editor-header">
+                <div class="editor-title">
+                    <i class="bi bi-code-slash"></i> Code Editor
+                </div>
+                <div class="editor-controls">
+                    <div class="file-tabs">
+                        <div class="file-tab active">
+                            <i class="bi bi-file-earmark-code"></i>
+                            solution.py
+                        </div>
+                    </div>
+                    <div class="editor-actions">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="resetCode()">
+                            Reset
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="runCode()">
+                            <i class="bi bi-play-fill"></i> Run Code
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="submitCode()">
+                            Submit
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="editor-container">
+                <div id="codeEditor"></div>
+            </div>
+
+            <div class="output-section">
+                <div class="output-tabs">
+                    <button class="output-tab active" data-tab="output" onclick="switchTab('output')">
+                        <i class="bi bi-terminal"></i> Output
+                    </button>
+                    <button class="output-tab" data-tab="tests" onclick="switchTab('tests')">
+                        <i class="bi bi-check-circle"></i> Test Results
+                    </button>
+                    <button class="output-tab" data-tab="console" onclick="switchTab('console')">
+                        <i class="bi bi-console"></i> Console
+                    </button>
+                </div>
+                
+                <div class="output-content">
+                    <div class="output-panel active" id="outputPanel">
+                        <div class="output-placeholder">
+                            Run your code to see the output here...
+                        </div>
+                    </div>
+                    <div class="output-panel" id="testsPanel">
+                        <div class="tests-placeholder">
+                            Submit your solution to see test results...
+                        </div>
+                    </div>
+                    <div class="output-panel" id="consolePanel">
+                        <div class="console-placeholder">
+                            Console logs will appear here...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Exercise Data (Hidden) -->
+<script type="application/json" id="exerciseData">
+{
+    "id": {{ exercise.id }},
+    "title": "{{ exercise.title|escapejs }}",
+    "description": "{{ exercise.description|escapejs }}",
+    "instructions": "{{ exercise.instructions|escapejs }}",
+    "difficulty": "{{ exercise.difficulty_level|default:'intermediate' }}",
+    "duration": {{ exercise.estimated_time|default:30 }},
+    "points": {{ exercise.points|default:10 }},
+    "language": "{{ exercise.programming_language.name|default:'Python' }}",
+    "functionName": "{{ exercise.function_name|default:'solution'|escapejs }}",
+    "starterCode": "{{ exercise.starter_code|escapejs }}",
+    "solution": "{{ exercise.solution_code|escapejs }}",
+    "hint": "{{ exercise.hint|escapejs }}",
+    "sampleTests": [
+        {% for test in exercise.test_cases.all %}
+        {% if test.is_sample %}
+        {
+            "input": "{{ test.input_data|escapejs }}",
+            "expectedOutput": "{{ test.expected_output|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endif %}
+        {% endfor %}
+    ]
+}
+</script>
+
+<!-- AI Assistant Modal -->
+<div class="modal fade" id="aiAssistantModal" tabindex="-1" aria-labelledby="aiAssistantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aiAssistantModalLabel">
+                    <i class="bi bi-robot me-2"></i>AI Programming Assistant
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="ai-chat-container">
+                    <div class="ai-chat-messages" id="aiChatMessages">
+                        <div class="ai-message">
+                            <div class="ai-avatar">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                Hi! I'm your AI programming assistant. I can help you understand the problem, 
+                                explain concepts, or provide hints. What would you like help with?
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ai-chat-input">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="aiChatInput" 
+                                   placeholder="Ask me anything about this exercise...">
+                            <button class="btn btn-primary" type="button" id="sendAiMessage">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hint Modal -->
+<div class="modal fade" id="hintModal" tabindex="-1" aria-labelledby="hintModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="hintModalLabel">
+                    <i class="bi bi-lightbulb me-2"></i>Hint
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="hintContent">
+                <!-- Hint content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="getAnotherHint">Get Another Hint</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Solution Modal -->
+<div class="modal fade" id="solutionModal" tabindex="-1" aria-labelledby="solutionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="solutionModalLabel">
+                    <i class="bi bi-eye me-2"></i>Solution
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> Viewing the solution will end your current attempt and may affect your score.
+                </div>
+                <div id="solutionEditor" class="border rounded"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="copySolution">
+                    <i class="bi bi-clipboard me-2"></i>Copy Solution
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="successModalLabel">
+                    <i class="bi bi-check-circle me-2"></i>Congratulations!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-trophy text-warning" style="font-size: 4rem;"></i>
+                </div>
+                <h4>Exercise Completed!</h4>
+                <p class="mb-3">You've successfully solved this coding challenge.</p>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="h5 mb-0 text-success" id="finalScore">100%</div>
+                        <small class="text-muted">Score</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h5 mb-0 text-primary" id="earnedPoints">+10</div>
+                        <small class="text-muted">Points</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h5 mb-0 text-info" id="timeSpent">15m</div>
+                        <small class="text-muted">Time</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Stay Here</button>
+                <a href="#" class="btn btn-primary" id="nextExerciseBtn">
+                    <i class="bi bi-arrow-right me-2"></i>Next Exercise
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- CodeMirror 5 JavaScript with Python mode -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
+
+<script>
+// Simple JavaScript functions for the interface
+function switchTab(tabName) {
+    // Remove active class from all tabs and panels
+    document.querySelectorAll('.output-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.output-panel').forEach(panel => panel.classList.remove('active'));
+    
+    // Add active class to clicked tab and corresponding panel
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(tabName + 'Panel').classList.add('active');
+}
+
+function resetCode() {
+    if (confirm('Reset your code? This will delete all your current work.')) {
+        setEditorContent(`def TODO(numbers):
+    # Find max number
+    pass`);
+    }
+}
+
+async function runCode() {
+    const code = getEditorContent();
+    const outputPanel = document.getElementById('outputPanel');
+    
+    if (!code.trim()) {
+        showOutput(outputPanel, 'Please write some code first!', 'error');
+        return;
+    }
+    
+    // Show loading
+    outputPanel.innerHTML = `
+        <div class="output-loading">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            Running code...
+        </div>
+    `;
+    
+    try {
+        const response = await fetch('/api/v1/execute/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({ code })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showOutput(outputPanel, result.output, 'success');
+        } else {
+            showOutput(outputPanel, result.error, 'error');
+        }
+    } catch (error) {
+        showOutput(outputPanel, `Error: ${error.message}`, 'error');
+    }
+}
+
+function submitCode() {
+    const code = getEditorContent();
+    
+    if (!code.trim()) {
+        alert('Please write some code before submitting!');
+        return;
+    }
+    
+    // Switch to test results tab
+    switchTab('tests');
+    
+    // Show mock test results
+    const testsPanel = document.getElementById('testsPanel');
+    testsPanel.innerHTML = `
+        <div class="test-results">
+            <div class="test-summary">
+                <div class="score success">Score: 100%</div>
+                <div class="tests-passed">1/1 tests passed</div>
+            </div>
+            <div class="test-cases">
+                <div class="test-case passed">
+                    <div class="test-header">
+                        <i class="bi bi-check-circle"></i> Test 1
+                    </div>
+                    <div class="test-details">
+                        <div class="test-input">Input: <code>[1,5,3,9,2]</code></div>
+                        <div class="test-expected">Expected: <code>9</code></div>
+                        <div class="test-actual">Got: <code>9</code></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function showOutput(element, content, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle';
+    const className = type === 'success' ? 'text-success' : type === 'error' ? 'text-danger' : 'text-info';
+    
+    element.innerHTML = `
+        <div class="output-result">
+            <div class="output-header">
+                <i class="bi bi-${icon} ${className}"></i>
+                <span class="output-timestamp">${timestamp}</span>
+            </div>
+            <pre class="output-content">${content}</pre>
+        </div>
+    `;
+}
+
+function getCSRFToken() {
+    const token = document.querySelector('[name=csrfmiddlewaretoken]');
+    return token ? token.value : '';
+}
+
+function showHint() {
+    alert('Hint: Try using the max() function or iterate through the list to find the largest number.');
+}
+
+function showSolution() {
+    if (confirm('Are you sure you want to see the solution? This will end your attempt.')) {
+        alert('Solution:\\n\\ndef TODO(numbers):\\n    return max(numbers)');
+    }
+}
+
+// Initialize CodeMirror editor with VSCode Dark theme
+let codeEditor;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Starting CodeMirror 5 initialization...');
+    
+    // Check if CodeMirror is available
+    if (typeof CodeMirror !== 'undefined') {
+        console.log('✓ CodeMirror 5 loaded successfully');
+        
+        // Create the editor with monokai theme and Python syntax highlighting
+        const startCode = `{{ exercise.starter_code|default:"def TODO(numbers):\n    # Find max number\n    pass"|escapejs }}`;
+        console.log('Creating editor with code:', startCode);
+        
+        codeEditor = CodeMirror(document.getElementById('codeEditor'), {
+            value: startCode,
+            mode: 'python',
+            theme: 'monokai',
+            lineNumbers: true,
+            indentUnit: 4,
+            indentWithTabs: false,
+            styleActiveLine: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            lineWrapping: false,
+            fontSize: '14px',
+            viewportMargin: Infinity,
+            extraKeys: {
+                'Tab': function(cm) {
+                    cm.replaceSelection('    ');
+                },
+                'Shift-Tab': function(cm) {
+                    cm.indentSelection('subtract');
+                }
+            }
+        });
+        
+        // Set editor height
+        codeEditor.setSize(null, '400px');
+        
+        console.log('✅ CodeMirror editor successfully initialized with monokai theme and Python syntax highlighting');
+        console.log('Editor object:', codeEditor);
+        
+    } else {
+        console.error('❌ CodeMirror not found, falling back to textarea...');
+        
+        // Fallback to textarea if CodeMirror fails to load
+        const container = document.getElementById('codeEditor');
+        container.innerHTML = `<textarea class="code-editor" spellcheck="false">${'{{ exercise.starter_code|default:"def TODO(numbers):\n    # Find max number\n    pass"|escapejs }}'}</textarea>`;
+        
+        // Add tab handling for textarea
+        const textarea = container.querySelector('textarea');
+        if (textarea) {
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                    this.selectionStart = this.selectionEnd = start + 4;
+                }
+            });
+        }
+    }
+});
+
+// Helper function to get editor content
+function getEditorContent() {
+    if (codeEditor && typeof codeEditor.getValue === 'function') {
+        return codeEditor.getValue();
+    } else {
+        const textarea = document.querySelector('#codeEditor textarea');
+        return textarea ? textarea.value : '';
+    }
+}
+
+// Helper function to set editor content
+function setEditorContent(content) {
+    if (codeEditor && typeof codeEditor.setValue === 'function') {
+        codeEditor.setValue(content);
+    } else {
+        const textarea = document.querySelector('#codeEditor textarea');
+        if (textarea) textarea.value = content;
+    }
+}
+
+function setupExerciseHandlers(editor, exerciseData) {
+    // AI Assistant functionality
+    document.getElementById('sendAiMessage')?.addEventListener('click', function() {
+        const input = document.getElementById('aiChatInput');
+        const message = input.value.trim();
+        
+        if (message) {
+            addAiMessage(message, 'user');
+            input.value = '';
+            
+            // Simulate AI response (replace with actual AI integration)
+            setTimeout(() => {
+                const response = getAiResponse(message, exerciseData);
+                addAiMessage(response, 'ai');
+            }, 1000);
+        }
+    });
+
+    // Enter key for AI chat
+    document.getElementById('aiChatInput')?.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('sendAiMessage').click();
+        }
+    });
+
+    // Hint functionality
+    window.showHint = function(exerciseData) {
+        const hintContent = document.getElementById('hintContent');
+        hintContent.innerHTML = exerciseData.hint || 'Try breaking down the problem into smaller steps. Think about what the function needs to do and work through it step by step.';
+        
+        const hintModal = new bootstrap.Modal(document.getElementById('hintModal'));
+        hintModal.show();
+    };
+
+    // Solution functionality
+    window.showSolution = function(exerciseData) {
+        const solutionModal = new bootstrap.Modal(document.getElementById('solutionModal'));
+        
+        // Create a read-only editor for the solution
+        setTimeout(() => {
+            if (window.codeMirrorSetup) {
+                window.codeMirrorSetup.createEditor('solutionEditor', {
+                    language: exerciseData.language.toLowerCase(),
+                    initialValue: exerciseData.solution,
+                    readOnly: true
+                });
+            }
+        }, 100);
+        
+        solutionModal.show();
+    };
+
+    // Copy solution functionality
+    document.getElementById('copySolution')?.addEventListener('click', function() {
+        const content = window.codeMirrorSetup.getContent('solutionEditor');
+        navigator.clipboard.writeText(content).then(() => {
+            this.innerHTML = '<i class="bi bi-check me-2"></i>Copied!';
+            setTimeout(() => {
+                this.innerHTML = '<i class="bi bi-clipboard me-2"></i>Copy Solution';
+            }, 2000);
+        });
+    });
+
+    // Success modal handling
+    window.showSuccessModal = function(results) {
+        document.getElementById('finalScore').textContent = results.score + '%';
+        document.getElementById('earnedPoints').textContent = '+' + results.points;
+        document.getElementById('timeSpent').textContent = results.timeSpent;
+        
+        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+        successModal.show();
+    };
+
+    // Auto-save functionality
+    let saveTimeout;
+    function autoSave() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            const content = window.codeMirrorSetup.getContent('exerciseEditor');
+            localStorage.setItem(`exercise_${exerciseData.id}_autosave`, content);
+            
+            // Show save indicator
+            const indicator = document.createElement('div');
+            indicator.className = 'position-fixed top-0 end-0 p-3';
+            indicator.innerHTML = `
+                <div class="toast show" role="alert">
+                    <div class="toast-body">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        Auto-saved
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(indicator);
+            
+            setTimeout(() => {
+                indicator.remove();
+            }, 2000);
+        }, 2000);
+    }
+
+    // Load auto-saved content
+    const autoSaved = localStorage.getItem(`exercise_${exerciseData.id}_autosave`);
+    if (autoSaved && autoSaved !== exerciseData.starterCode) {
+        if (confirm('We found auto-saved work for this exercise. Would you like to restore it?')) {
+            window.codeMirrorSetup.setContent('exerciseEditor', autoSaved);
+        }
+    }
+}
+
+function addAiMessage(message, sender) {
+    const messagesContainer = document.getElementById('aiChatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `ai-message ${sender}`;
+    
+    messageDiv.innerHTML = `
+        <div class="ai-avatar">
+            <i class="bi bi-${sender === 'user' ? 'person-fill' : 'robot'}"></i>
+        </div>
+        <div class="message-content">${message}</div>
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function getAiResponse(message, exerciseData) {
+    // This would integrate with your AI service
+    const responses = [
+        "Let me help you with that! The key is to understand what the function needs to return.",
+        "Great question! Try thinking about this step by step. What's the first thing you need to do?",
+        "I see you're working on finding the maximum. Have you considered using a loop or the built-in max() function?",
+        "That's a good approach! Remember to handle edge cases like empty lists.",
+        "You're on the right track! Don't forget to test your solution with the sample inputs."
+    ];
+    
+    return responses[Math.floor(Math.random() * responses.length)];
+}
+
+// Global functions for the CodeMirror setup to call
+window.showHint = function(exerciseData) {
+    setupExerciseHandlers.showHint(exerciseData);
+};
+
+window.showSolution = function(exerciseData) {
+    setupExerciseHandlers.showSolution(exerciseData);
+};
+</script>
+{% endblock %}

@@ -1,0 +1,225 @@
+{% extends "machina/board_base.html" %}
+{% load i18n %}
+{% load static %}
+{% load forum_conversation_tags %}
+{% load forum_permission_tags %}
+
+{% block sub_title %}{{ forum.name }}{% endblock %}
+
+{% block breadcrumb_items %}
+    {% for ancestor in forum.get_ancestors %}
+        <li class="breadcrumb-item">
+            <a href="{% url 'forum:forum' ancestor.slug ancestor.pk %}">{{ ancestor.name }}</a>
+        </li>
+    {% endfor %}
+    <li class="breadcrumb-item active">{{ forum.name }}</li>
+{% endblock %}
+
+{% block forum_content %}
+<div class="forum-detail">
+    <!-- Forum header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-0">{{ forum.name }}</h1>
+            {% if forum.description %}
+                <p class="text-muted">{{ forum.description }}</p>
+            {% endif %}
+        </div>
+        {% if perms.forum_conversation|can_add_topic:forum %}
+            <a href="{% url 'forum_conversation:topic_create' forum.slug forum.pk %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>New Topic
+            </a>
+        {% endif %}
+    </div>
+    
+    <!-- Sub-forums if any -->
+    {% if sub_forums %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="h5 mb-0"><i class="bi bi-folder2-open me-2"></i>Sub-forums</h3>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for subforum in sub_forums %}
+                    <div class="list-group-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h4 class="h6 mb-1">
+                                    <a href="{% url 'forum:forum' subforum.slug subforum.pk %}">
+                                        {{ subforum.name }}
+                                    </a>
+                                </h4>
+                                {% if subforum.description %}
+                                    <p class="text-muted small mb-0">{{ subforum.description }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <div class="text-muted small">
+                                    <strong>{{ subforum.direct_topics_count }}</strong> topics
+                                </div>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <div class="text-muted small">
+                                    <strong>{{ subforum.direct_posts_count }}</strong> posts
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                {% if subforum.last_post %}
+                                    <div class="text-muted small">
+                                        Last: {{ subforum.last_post.created|timesince }} ago
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- Topics list -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="h5 mb-0"><i class="bi bi-chat-square-text me-2"></i>Topics</h3>
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="?order_by=-last_post_on" class="btn btn-outline-secondary {% if order_by == '-last_post_on' %}active{% endif %}">
+                    Latest
+                </a>
+                <a href="?order_by=-created" class="btn btn-outline-secondary {% if order_by == '-created' %}active{% endif %}">
+                    Newest
+                </a>
+                <a href="?order_by=-posts_count" class="btn btn-outline-secondary {% if order_by == '-posts_count' %}active{% endif %}">
+                    Most Posts
+                </a>
+            </div>
+        </div>
+        
+        {% if topics %}
+            <div class="list-group list-group-flush">
+                {% for topic in topics %}
+                    <div class="list-group-item {% if topic.is_sticky %}bg-light{% endif %}">
+                        <div class="row align-items-center">
+                            <!-- Topic icon and title -->
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="topic-icon me-3">
+                                        {% if topic.is_sticky %}
+                                            <i class="bi bi-pin-angle-fill fs-4 text-danger"></i>
+                                        {% elif topic.is_announce %}
+                                            <i class="bi bi-megaphone-fill fs-4 text-warning"></i>
+                                        {% elif topic.is_locked %}
+                                            <i class="bi bi-lock-fill fs-4 text-secondary"></i>
+                                        {% elif topic|topic_is_read:user %}
+                                            <i class="bi bi-chat-square fs-4 text-muted"></i>
+                                        {% else %}
+                                            <i class="bi bi-chat-square-fill fs-4 text-primary"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h4 class="h6 mb-1">
+                                            <a href="{% url 'forum_conversation:topic' forum.slug forum.pk topic.slug topic.pk %}" 
+                                               class="text-decoration-none {% if not topic|topic_is_read:user %}fw-bold{% endif %}">
+                                                {{ topic.subject }}
+                                            </a>
+                                        </h4>
+                                        <div class="text-muted small">
+                                            by <strong>{{ topic.poster.username }}</strong>
+                                            • {{ topic.created|date:"M d, Y" }}
+                                            {% if topic.tags.exists %}
+                                                •
+                                                {% for tag in topic.tags.all %}
+                                                    <span class="badge bg-secondary">{{ tag }}</span>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Topic stats -->
+                            <div class="col-md-2 text-center">
+                                <div class="text-muted">
+                                    <div class="fw-bold">{{ topic.posts_count|add:"-1" }}</div>
+                                    <small>Replies</small>
+                                </div>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <div class="text-muted">
+                                    <div class="fw-bold">{{ topic.views_count }}</div>
+                                    <small>Views</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Last post info -->
+                            <div class="col-md-2">
+                                {% if topic.last_post %}
+                                    <div class="text-muted small">
+                                        <div>
+                                            by <strong>{{ topic.last_post.poster.username }}</strong>
+                                        </div>
+                                        <div>
+                                            <a href="{% url 'forum_conversation:topic' forum.slug forum.pk topic.slug topic.pk %}?post={{ topic.last_post.pk }}#{{ topic.last_post.pk }}"
+                                               class="text-decoration-none">
+                                                {{ topic.last_post.created|timesince }} ago
+                                            </a>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <div class="card-footer">
+                    <nav aria-label="Topics pagination">
+                        <ul class="pagination pagination-sm mb-0 justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ paginator.num_pages }}">Last</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="card-body text-center py-5">
+                <i class="bi bi-chat-square-text fs-1 text-muted mb-3 d-block"></i>
+                <h5 class="text-muted">No topics yet</h5>
+                <p class="text-muted">Be the first to start a discussion!</p>
+                {% if perms.forum_conversation|can_add_topic:forum %}
+                    <a href="{% url 'forum_conversation:topic_create' forum.slug forum.pk %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Create First Topic
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

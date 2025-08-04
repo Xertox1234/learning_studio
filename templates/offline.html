@@ -1,0 +1,182 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Offline - Python Learning Studio{% endblock %}
+
+{% block extra_css %}
+<style>
+.offline-container {
+    text-align: center;
+    padding: 4rem 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.offline-icon {
+    font-size: 4rem;
+    color: var(--bs-warning);
+    margin-bottom: 2rem;
+}
+
+.offline-message {
+    margin-bottom: 2rem;
+}
+
+.offline-actions {
+    margin-top: 2rem;
+}
+
+.cached-content {
+    margin-top: 3rem;
+    text-align: left;
+}
+
+.cached-item {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--bs-secondary-bg);
+    border-radius: 0.5rem;
+    border: 1px solid var(--bs-border-color);
+}
+
+.offline-tips {
+    margin-top: 3rem;
+    padding: 1.5rem;
+    background: var(--bs-info-bg-subtle);
+    border: 1px solid var(--bs-info-border-subtle);
+    border-radius: 0.5rem;
+    text-align: left;
+}
+
+@media (max-width: 576px) {
+    .offline-container {
+        padding: 2rem 1rem;
+    }
+    
+    .offline-icon {
+        font-size: 3rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="offline-container">
+    <div class="offline-icon">
+        <i class="bi bi-wifi-off"></i>
+    </div>
+    
+    <div class="offline-message">
+        <h1 class="h3 mb-3">You're Offline</h1>
+        <p class="lead text-muted">
+            No internet connection detected. Don't worry - you can still access some content that's been saved on your device.
+        </p>
+    </div>
+    
+    <div class="offline-actions">
+        <button class="btn btn-primary me-2" onclick="window.location.reload()">
+            <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+        </button>
+        <a href="/" class="btn btn-outline-secondary">
+            <i class="bi bi-house me-2"></i>Go Home
+        </a>
+    </div>
+    
+    <div class="cached-content">
+        <h4 class="mb-3">
+            <i class="bi bi-archive me-2"></i>Available Offline Content
+        </h4>
+        
+        <div class="cached-item">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-house-fill me-3 text-primary"></i>
+                <div>
+                    <strong>Homepage</strong>
+                    <div class="small text-muted">Welcome page and getting started</div>
+                </div>
+                <a href="/" class="btn btn-sm btn-outline-primary ms-auto">Visit</a>
+            </div>
+        </div>
+        
+        <div class="cached-item">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-chat-dots-fill me-3 text-success"></i>
+                <div>
+                    <strong>Forum</strong>
+                    <div class="small text-muted">Previously viewed forum topics</div>
+                </div>
+                <a href="/forum/" class="btn btn-sm btn-outline-primary ms-auto">Visit</a>
+            </div>
+        </div>
+        
+        <div class="cached-item">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-book-fill me-3 text-info"></i>
+                <div>
+                    <strong>Courses</strong>
+                    <div class="small text-muted">Course materials you've accessed</div>
+                </div>
+                <a href="/courses/" class="btn btn-sm btn-outline-primary ms-auto">Visit</a>
+            </div>
+        </div>
+        
+        <div class="cached-item">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-person-fill me-3 text-warning"></i>
+                <div>
+                    <strong>Dashboard</strong>
+                    <div class="small text-muted">Your learning progress (may be outdated)</div>
+                </div>
+                <a href="/dashboard/" class="btn btn-sm btn-outline-primary ms-auto">Visit</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="offline-tips">
+        <h5 class="mb-3">
+            <i class="bi bi-lightbulb me-2"></i>Offline Tips
+        </h5>
+        <ul class="mb-0">
+            <li class="mb-2">
+                <strong>Reading continues:</strong> You can still read forum topics and course content you've previously viewed.
+            </li>
+            <li class="mb-2">
+                <strong>Progress tracking:</strong> Your reading time and progress will sync when you're back online.
+            </li>
+            <li class="mb-2">
+                <strong>Drafts saved:</strong> Any forum posts or replies you write will be saved and posted when you reconnect.
+            </li>
+            <li class="mb-0">
+                <strong>Install the app:</strong> For better offline experience, install Python Learning Studio as an app on your device.
+            </li>
+        </ul>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show online status
+    function updateOnlineStatus() {
+        if (navigator.onLine) {
+            // Redirect to home page when back online
+            window.location.href = '/';
+        }
+    }
+    
+    // Listen for online event
+    window.addEventListener('online', updateOnlineStatus);
+    
+    // Check connection periodically
+    setInterval(() => {
+        if (navigator.onLine) {
+            updateOnlineStatus();
+        }
+    }, 5000);
+    
+    // Update last check time
+    const now = new Date();
+    const timeString = now.toLocaleTimeString();
+    console.log('Offline page loaded at:', timeString);
+});
+</script>
+{% endblock %}

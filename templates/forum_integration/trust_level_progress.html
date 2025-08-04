@@ -1,0 +1,52 @@
+{% load trust_level_tags %}
+
+<div class="trust-level-progress mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="trust-level-info">
+            {% trust_level_badge user %}
+            <span class="ms-2 text-muted">
+                {% if trust_level %}
+                    {{ trust_level.level_name }}
+                {% else %}
+                    New User
+                {% endif %}
+            </span>
+        </div>
+        <div class="trust-level-stats small text-muted">
+            {% if trust_level %}
+                {{ trust_level.posts_read }} posts read • {{ trust_level.days_visited }} days visited
+            {% else %}
+                No activity yet
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if next_level and next_level <= 4 %}
+        <div class="progress mb-2" style="height: 8px;">
+            <div class="progress-bar progress-bar-striped" 
+                 role="progressbar" 
+                 style="width: {{ progress_percentage }}%"
+                 aria-valuenow="{{ progress_percentage }}" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+            </div>
+        </div>
+        <div class="small text-muted">
+            {% trust_level_progress_text user %}
+        </div>
+    {% else %}
+        <div class="small text-success">
+            <i class="bi bi-check-circle"></i> Maximum trust level achieved!
+        </div>
+    {% endif %}
+    
+    <div class="trust-level-permissions mt-2">
+        <div class="small text-muted">
+            <strong>Permissions:</strong>
+            {% trust_level_permissions user as permissions %}
+            {% for permission in permissions %}
+                <span class="badge bg-light text-dark me-1">{{ permission }}</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>

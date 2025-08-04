@@ -1,0 +1,459 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Code Playground - Python Learning Studio{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/code-interface.css' %}">
+<!-- CodeMirror 6 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@6.0.1/dist/index.css">
+{% endblock %}
+
+{% block body_class %}playground-page{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="bg-dark">
+    <div class="container-fluid">
+        <ol class="breadcrumb mb-0 py-3">
+            <li class="breadcrumb-item">
+                <a href="{% url 'wagtail_serve' '' %}" class="text-light text-decoration-none">
+                    <i class="bi bi-house"></i> Home
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#" class="text-light text-decoration-none">Practice</a>
+            </li>
+            <li class="breadcrumb-item active text-warning" aria-current="page">Code Playground</li>
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div id="playgroundContainer" class="playground-interface">
+        <!-- This will be populated by JavaScript -->
+    </div>
+</div>
+
+<!-- Code Snippets Library Modal -->
+<div class="modal fade" id="snippetsModal" tabindex="-1" aria-labelledby="snippetsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="snippetsModalLabel">
+                    <i class="bi bi-collection me-2"></i>Code Snippets Library
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="list-group snippet-categories">
+                            <button type="button" class="list-group-item list-group-item-action active" data-category="basics">
+                                <i class="bi bi-play-circle me-2"></i>Basics
+                            </button>
+                            <button type="button" class="list-group-item list-group-item-action" data-category="data-structures">
+                                <i class="bi bi-collection me-2"></i>Data Structures
+                            </button>
+                            <button type="button" class="list-group-item list-group-item-action" data-category="algorithms">
+                                <i class="bi bi-cpu me-2"></i>Algorithms
+                            </button>
+                            <button type="button" class="list-group-item list-group-item-action" data-category="web">
+                                <i class="bi bi-globe me-2"></i>Web Development
+                            </button>
+                            <button type="button" class="list-group-item list-group-item-action" data-category="api">
+                                <i class="bi bi-cloud me-2"></i>APIs & Requests
+                            </button>
+                            <button type="button" class="list-group-item list-group-item-action" data-category="data-science">
+                                <i class="bi bi-graph-up me-2"></i>Data Science
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        <div class="snippet-content" id="snippetContent">
+                            <!-- Snippets will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="settingsModalLabel">
+                    <i class="bi bi-gear me-2"></i>Editor Settings
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="fontSizeRange" class="form-label">Font Size</label>
+                    <input type="range" class="form-range" id="fontSizeRange" min="10" max="24" value="14">
+                    <div class="d-flex justify-content-between">
+                        <small>10px</small>
+                        <small id="fontSizeValue">14px</small>
+                        <small>24px</small>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="fontFamilySelect" class="form-label">Font Family</label>
+                    <select class="form-select" id="fontFamilySelect">
+                        <option value="Fira Code">Fira Code</option>
+                        <option value="JetBrains Mono">JetBrains Mono</option>
+                        <option value="Source Code Pro">Source Code Pro</option>
+                        <option value="Monaco">Monaco</option>
+                        <option value="Consolas">Consolas</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="tabSizeSelect" class="form-label">Tab Size</label>
+                    <select class="form-select" id="tabSizeSelect">
+                        <option value="2">2 spaces</option>
+                        <option value="4" selected>4 spaces</option>
+                        <option value="8">8 spaces</option>
+                    </select>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="wordWrapCheck">
+                    <label class="form-check-label" for="wordWrapCheck">
+                        Word Wrap
+                    </label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="autoSaveCheck" checked>
+                    <label class="form-check-label" for="autoSaveCheck">
+                        Auto Save
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="livePreviewCheck">
+                    <label class="form-check-label" for="livePreviewCheck">
+                        Live Preview (HTML/CSS/JS)
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveSettings">Save Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Code Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareModalLabel">
+                    <i class="bi bi-share me-2"></i>Share Your Code
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="shareTitle" class="form-label">Title (Optional)</label>
+                    <input type="text" class="form-control" id="shareTitle" placeholder="My Awesome Code">
+                </div>
+                <div class="mb-3">
+                    <label for="shareDescription" class="form-label">Description (Optional)</label>
+                    <textarea class="form-control" id="shareDescription" rows="3" placeholder="What does your code do?"></textarea>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="sharePublic">
+                    <label class="form-check-label" for="sharePublic">
+                        Make this code public in the community gallery
+                    </label>
+                </div>
+                <div class="mb-3">
+                    <label for="shareUrl" class="form-label">Share URL</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="shareUrl" readonly placeholder="Share URL will appear here">
+                        <button class="btn btn-outline-secondary" type="button" id="copyShareUrl">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="generateShareLink">Generate Link</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadModalLabel">
+                    <i class="bi bi-upload me-2"></i>Upload Code File
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="fileUpload" class="form-label">Choose File</label>
+                    <input type="file" class="form-control" id="fileUpload" accept=".py,.js,.java,.cpp,.c,.html,.css,.json,.xml,.md">
+                </div>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Supported formats: Python (.py), JavaScript (.js), Java (.java), C++ (.cpp), HTML (.html), CSS (.css), and more.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="uploadFile">Upload</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- CodeMirror 6 JavaScript -->
+<script type="module" src="https://cdn.jsdelivr.net/npm/codemirror@6.0.1/dist/index.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@codemirror/lang-python@6.1.3/dist/index.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@codemirror/lang-javascript@6.2.1/dist/index.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@codemirror/lang-java@6.0.1/dist/index.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@codemirror/lang-cpp@6.0.2/dist/index.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@codemirror/lang-html@6.4.6/dist/index.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@codemirror/lang-css@6.2.1/dist/index.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.1.2/dist/index.js"></script>
+
+<!-- Simple Editor Setup -->
+<script src="{% static 'js/simple-editor.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the playground interface
+    setTimeout(() => {
+        if (window.codeMirrorSetup) {
+            const editor = window.codeMirrorSetup.createPlaygroundInterface('playgroundContainer');
+            setupPlaygroundFeatures(editor);
+        }
+    }, 100);
+});
+
+function setupPlaygroundFeatures(editor) {
+    // Code snippets functionality
+    const snippets = {
+        basics: [
+            {
+                title: 'Hello World',
+                code: 'print("Hello, World!")\n\n# This is your first Python program!\n# Try changing the message and running it again.'
+            },
+            {
+                title: 'Variables and Types',
+                code: '# Variables in Python\nname = "Alice"\nage = 25\nheight = 5.6\nis_student = True\n\nprint(f"Name: {name}")\nprint(f"Age: {age}")\nprint(f"Height: {height} feet")\nprint(f"Is student: {is_student}")'
+            },
+            {
+                title: 'Basic Input/Output',
+                code: '# Getting input from user\nname = input("What\'s your name? ")\nage = int(input("How old are you? "))\n\n# Output with formatting\nprint(f"Hello {name}! You are {age} years old.")\n\nif age >= 18:\n    print("You are an adult!")\nelse:\n    print("You are a minor!")'
+            }
+        ],
+        'data-structures': [
+            {
+                title: 'Lists and Operations',
+                code: '# Creating and manipulating lists\nfruits = ["apple", "banana", "orange"]\nprint("Original list:", fruits)\n\n# Adding elements\nfruits.append("grape")\nfruits.insert(1, "kiwi")\nprint("After adding:", fruits)\n\n# Removing elements\nfruits.remove("banana")\npopped = fruits.pop()\nprint("After removing:", fruits)\nprint("Popped item:", popped)\n\n# List comprehension\nsquares = [x**2 for x in range(1, 6)]\nprint("Squares:", squares)'
+            },
+            {
+                title: 'Dictionaries',
+                code: '# Creating and using dictionaries\nstudent = {\n    "name": "John",\n    "age": 20,\n    "courses": ["Math", "Physics", "Chemistry"]\n}\n\nprint("Student info:", student)\nprint("Name:", student["name"])\nprint("Courses:", student["courses"])\n\n# Adding new key-value pairs\nstudent["grade"] = "A"\nstudent["email"] = "john@email.com"\n\n# Iterating through dictionary\nfor key, value in student.items():\n    print(f"{key}: {value}")'
+            }
+        ],
+        algorithms: [
+            {
+                title: 'Binary Search',
+                code: 'def binary_search(arr, target):\n    left, right = 0, len(arr) - 1\n    \n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    \n    return -1\n\n# Test the function\nnumbers = [1, 3, 5, 7, 9, 11, 13, 15]\ntarget = 7\nresult = binary_search(numbers, target)\n\nif result != -1:\n    print(f"Found {target} at index {result}")\nelse:\n    print(f"{target} not found in the list")'
+            },
+            {
+                title: 'Quick Sort',
+                code: 'def quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    \n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    return quicksort(left) + middle + quicksort(right)\n\n# Test the function\nunsorted_list = [64, 34, 25, 12, 22, 11, 90]\nprint("Original:", unsorted_list)\nsorted_list = quicksort(unsorted_list)\nprint("Sorted:", sorted_list)'
+            }
+        ]
+    };
+
+    // Snippet modal functionality
+    document.querySelectorAll('.snippet-categories button').forEach(button => {
+        button.addEventListener('click', function() {
+            document.querySelectorAll('.snippet-categories button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const category = this.dataset.category;
+            loadSnippets(category, snippets[category] || []);
+        });
+    });
+
+    function loadSnippets(category, snippetList) {
+        const content = document.getElementById('snippetContent');
+        content.innerHTML = '';
+
+        snippetList.forEach(snippet => {
+            const snippetDiv = document.createElement('div');
+            snippetDiv.className = 'snippet-item mb-3 p-3 border rounded';
+            snippetDiv.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">${snippet.title}</h6>
+                    <button class="btn btn-sm btn-primary load-snippet" data-code="${encodeURIComponent(snippet.code)}">
+                        <i class="bi bi-download me-1"></i>Load
+                    </button>
+                </div>
+                <pre class="snippet-preview"><code>${snippet.code.substring(0, 200)}${snippet.code.length > 200 ? '...' : ''}</code></pre>
+            `;
+            content.appendChild(snippetDiv);
+        });
+
+        // Add event listeners to load buttons
+        document.querySelectorAll('.load-snippet').forEach(button => {
+            button.addEventListener('click', function() {
+                const code = decodeURIComponent(this.dataset.code);
+                window.codeMirrorSetup.setContent('playgroundEditor', code);
+                bootstrap.Modal.getInstance(document.getElementById('snippetsModal')).hide();
+            });
+        });
+    }
+
+    // Load default snippets
+    loadSnippets('basics', snippets.basics);
+
+    // Settings functionality
+    document.getElementById('saveSettings')?.addEventListener('click', function() {
+        const settings = {
+            fontSize: document.getElementById('fontSizeRange').value,
+            fontFamily: document.getElementById('fontFamilySelect').value,
+            tabSize: document.getElementById('tabSizeSelect').value,
+            wordWrap: document.getElementById('wordWrapCheck').checked,
+            autoSave: document.getElementById('autoSaveCheck').checked,
+            livePreview: document.getElementById('livePreviewCheck').checked
+        };
+
+        localStorage.setItem('playgroundSettings', JSON.stringify(settings));
+        applySettings(settings);
+        
+        bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+    });
+
+    // File upload functionality
+    document.getElementById('uploadFile')?.addEventListener('click', function() {
+        const fileInput = document.getElementById('fileUpload');
+        const file = fileInput.files[0];
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                window.codeMirrorSetup.setContent('playgroundEditor', e.target.result);
+                bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    // Share functionality
+    document.getElementById('generateShareLink')?.addEventListener('click', function() {
+        const code = window.codeMirrorSetup.getContent('playgroundEditor');
+        const title = document.getElementById('shareTitle').value;
+        const description = document.getElementById('shareDescription').value;
+        const isPublic = document.getElementById('sharePublic').checked;
+
+        // Generate a shareable link (implement your sharing logic here)
+        const shareData = {
+            code: code,
+            title: title,
+            description: description,
+            public: isPublic,
+            timestamp: new Date().getTime()
+        };
+
+        const shareId = btoa(JSON.stringify(shareData)).replace(/[^a-zA-Z0-9]/g, '').substring(0, 10);
+        const shareUrl = `${window.location.origin}/playground/shared/${shareId}`;
+        
+        document.getElementById('shareUrl').value = shareUrl;
+        
+        // Store the shared code (in a real app, this would be sent to your backend)
+        localStorage.setItem(`shared_${shareId}`, JSON.stringify(shareData));
+    });
+
+    // Copy share URL
+    document.getElementById('copyShareUrl')?.addEventListener('click', function() {
+        const shareUrl = document.getElementById('shareUrl');
+        shareUrl.select();
+        document.execCommand('copy');
+        
+        this.innerHTML = '<i class="bi bi-check"></i>';
+        setTimeout(() => {
+            this.innerHTML = '<i class="bi bi-clipboard"></i>';
+        }, 2000);
+    });
+
+    // Font size range display
+    document.getElementById('fontSizeRange')?.addEventListener('input', function() {
+        document.getElementById('fontSizeValue').textContent = this.value + 'px';
+    });
+
+    // Add additional toolbar buttons
+    addToolbarButtons();
+}
+
+function addToolbarButtons() {
+    // Add additional buttons to the playground header
+    const playgroundControls = document.querySelector('.playground-controls');
+    if (playgroundControls) {
+        const additionalButtons = `
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#snippetsModal">
+                <i class="bi bi-collection"></i> Snippets
+            </button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="bi bi-upload"></i> Upload
+            </button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                <i class="bi bi-gear"></i> Settings
+            </button>
+        `;
+        
+        playgroundControls.insertAdjacentHTML('beforeend', additionalButtons);
+    }
+}
+
+function applySettings(settings) {
+    // Apply settings to the editor (this would be implemented in your CodeMirror setup)
+    console.log('Applying settings:', settings);
+    // Implementation would depend on your CodeMirror setup
+}
+
+// Load saved settings on page load
+const savedSettings = localStorage.getItem('playgroundSettings');
+if (savedSettings) {
+    const settings = JSON.parse(savedSettings);
+    
+    // Apply saved settings to form elements
+    if (document.getElementById('fontSizeRange')) {
+        document.getElementById('fontSizeRange').value = settings.fontSize || 14;
+        document.getElementById('fontSizeValue').textContent = (settings.fontSize || 14) + 'px';
+    }
+    if (document.getElementById('fontFamilySelect')) {
+        document.getElementById('fontFamilySelect').value = settings.fontFamily || 'Fira Code';
+    }
+    if (document.getElementById('tabSizeSelect')) {
+        document.getElementById('tabSizeSelect').value = settings.tabSize || 4;
+    }
+    if (document.getElementById('wordWrapCheck')) {
+        document.getElementById('wordWrapCheck').checked = settings.wordWrap || false;
+    }
+    if (document.getElementById('autoSaveCheck')) {
+        document.getElementById('autoSaveCheck').checked = settings.autoSave !== false;
+    }
+    if (document.getElementById('livePreviewCheck')) {
+        document.getElementById('livePreviewCheck').checked = settings.livePreview || false;
+    }
+}
+</script>
+{% endblock %}

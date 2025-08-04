@@ -1,0 +1,129 @@
+{% extends 'machina/board_base.html' %}
+{% load i18n %}
+{% load mptt_tags %}
+{% load forum_tags %}
+{% load forum_stats %}
+
+{% block sub_title %}{% trans "Index" %}{% endblock sub_title %}
+
+{% block forum_content %}
+<!-- CUSTOM FORUM INDEX TEMPLATE LOADED -->
+<div class="mt-3 row">
+  <div class="forumlist-top-controls col-12">
+    {% if request.user.is_authenticated %}
+    <div class="float-right">
+      <a href="{% url 'forum_tracking:mark_all_forums_read' %}" class="d-inline-block"><i class="bi bi-check-circle me-1"></i>{% trans "Mark forums read" %}</a>
+    </div>
+    <a href="{% url 'forum_tracking:unread_topics' %}" class="d-inline-block">{% trans "View unread topics" %}</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Custom forum categories display -->
+{% if forum_categories %}
+    {% for category_data in forum_categories %}
+        <div class="forum-category mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h5 mb-0">
+                        <i class="bi bi-folder2-open me-2"></i>
+                        {{ category_data.category.name }}
+                    </h3>
+                    {% if category_data.category.description %}
+                        <small class="text-white-50">{{ category_data.category.description }}</small>
+                    {% endif %}
+                </div>
+                
+                {% if category_data.subforums %}
+                    <div class="list-group list-group-flush">
+                        {% for subforum in category_data.subforums %}
+                            <div class="list-group-item">
+                                <div class="row align-items-center">
+                                    <!-- Forum icon and info -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-start">
+                                            <div class="forum-icon me-3">
+                                                <i class="bi bi-folder-fill fs-2 text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h4 class="h6 mb-1">
+                                                    <a href="{% url 'forum:forum' subforum.slug subforum.pk %}" class="text-decoration-none">
+                                                        {{ subforum.name }}
+                                                    </a>
+                                                </h4>
+                                                {% if subforum.description %}
+                                                    <p class="text-muted small mb-0">{{ subforum.description }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Forum stats -->
+                                    <div class="col-md-2 text-center">
+                                        <div class="text-muted">
+                                            <div class="fw-bold">{{ subforum.direct_topics_count }}</div>
+                                            <small>Topics</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 text-center">
+                                        <div class="text-muted">
+                                            <div class="fw-bold">{{ subforum.direct_posts_count }}</div>
+                                            <small>Posts</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Last post info -->
+                                    <div class="col-md-2">
+                                        {% subforum|get_forum_last_post as last_post %}
+                                        {% if last_post %}
+                                            <div class="text-muted small">
+                                                <div class="fw-bold">
+                                                    <a href="{% url 'forum_conversation:topic' last_post.topic.slug last_post.topic.pk %}?post={{ last_post.pk }}#{{ last_post.pk }}" 
+                                                       class="text-decoration-none text-primary">
+                                                        {{ last_post.topic.subject|truncatechars:30 }}
+                                                    </a>
+                                                </div>
+                                                <div>
+                                                    by 
+                                                    <a href="{% url 'forum_member:profile' last_post.poster.pk %}" 
+                                                       class="text-decoration-none">
+                                                        {{ last_post.poster.username }}
+                                                    </a>
+                                                </div>
+                                                <div>{{ last_post.created|timesince }} ago</div>
+                                            </div>
+                                        {% elif subforum.last_post_on %}
+                                            <div class="text-muted small">
+                                                <div>{{ subforum.last_post_on|timesince }} ago</div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted small">No posts yet</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        No forum categories found.
+    </div>
+{% endif %}
+
+<div class="my-4 row">
+  <div class="forum-page-statistics col-12">
+    <h4 class="page-header">{% trans "Statistics" %}</h4>
+    <p class="statistics">
+        {% trans "Total posts:" %}&nbsp;<b>{{ total_posts_count }}</b>&nbsp;&#8226;&nbsp;
+        {% trans "Total topics:" %}&nbsp;<b>{{ total_topics_count }}</b>&nbsp;&#8226;&nbsp;
+        {% trans "Total users:" %}&nbsp;<b>{{ total_users_count }}</b>&nbsp;&#8226;&nbsp;
+        {% trans "Online users:" %}&nbsp;<b>{{ online_users_count }}</b>
+    </p>
+  </div>
+</div>
+{% endblock forum_content %}

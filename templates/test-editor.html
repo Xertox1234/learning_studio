@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Editor Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/darkly/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/css/code-interface.css">
+</head>
+<body class="exercise-page">
+    <div class="container-fluid p-0">
+        <div id="exerciseContainer" class="exercise-interface">
+            <!-- This will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <script src="/static/js/simple-editor.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            console.log('SimpleCodeEditor available:', window.SimpleCodeEditor);
+            console.log('codeMirrorSetup available:', window.codeMirrorSetup);
+            
+            const testData = {
+                id: 1,
+                title: 'Find Maximum',
+                description: 'Find the maximum number in a list',
+                instructions: 'Follow these steps to complete the Find Maximum exercise:',
+                difficulty_level: 'intermediate',
+                estimated_time: 29,
+                points: 10,
+                programming_language: { name: 'Python' },
+                starter_code: 'def TODO(numbers):\n    # Find max number\n    pass'
+            };
+            
+            if (window.codeMirrorSetup) {
+                console.log('Creating editor with codeMirrorSetup...');
+                const editor = window.codeMirrorSetup.createExerciseInterface('exerciseContainer', testData);
+                console.log('Editor result:', editor);
+            } else {
+                console.error('codeMirrorSetup not found!');
+            }
+        });
+    </script>
+</body>
+</html>

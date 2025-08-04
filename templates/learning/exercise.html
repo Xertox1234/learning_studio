@@ -6,7 +6,7 @@
 {% block breadcrumb %}
 <nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
     <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'wagtail_serve' '' %}">Home</a></li>
         <li class="breadcrumb-item"><a href="#">{{ exercise.lesson.course.title }}</a></li>
         <li class="breadcrumb-item"><a href="#">{{ exercise.lesson.title }}</a></li>
         <li class="breadcrumb-item active">{{ exercise.title }}</li>

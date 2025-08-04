@@ -1,0 +1,259 @@
+{% extends "machina/board_base.html" %}
+{% load i18n %}
+{% load static %}
+{% load forum_conversation_tags %}
+{% load forum_permission_tags %}
+{% load trust_level_tags %}
+
+{% block sub_title %}{{ topic.subject }}{% endblock %}
+
+{% block extra_css %}
+    <link href="{% static 'css/reading-progress.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block breadcrumb_items %}
+    {% for ancestor in forum.get_ancestors %}
+        <li class="breadcrumb-item">
+            <a href="{% url 'forum:forum' ancestor.slug ancestor.pk %}">{{ ancestor.name }}</a>
+        </li>
+    {% endfor %}
+    <li class="breadcrumb-item">
+        <a href="{% url 'forum:forum' forum.slug forum.pk %}">{{ forum.name }}</a>
+    </li>
+    <li class="breadcrumb-item active text-truncate" style="max-width: 300px;">{{ topic.subject }}</li>
+{% endblock %}
+
+{% block forum_content %}
+<div class="topic-detail post-content" data-content-id="{{ topic.pk }}"  data-content-type="topic">
+    <!-- Topic header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            {% if topic.is_sticky %}
+                <i class="bi bi-pin-angle-fill text-danger me-2"></i>
+            {% elif topic.is_announce %}
+                <i class="bi bi-megaphone-fill text-warning me-2"></i>
+            {% elif topic.is_locked %}
+                <i class="bi bi-lock-fill text-secondary me-2"></i>
+            {% endif %}
+            {{ topic.subject }}
+        </h1>
+        <div class="btn-group" role="group">
+            {% if perms.forum_conversation|can_add_post:topic %}
+                <a href="{% url 'forum_conversation:post_create' forum.slug forum.pk topic.slug topic.pk %}" 
+                   class="btn btn-primary">
+                    <i class="bi bi-reply me-1"></i>Reply
+                </a>
+            {% endif %}
+            {% if perms.forum_moderation|can_lock_topics:forum %}
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-gear"></i>
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <a class="dropdown-item" href="{% url 'forum_moderation:topic_lock' forum.slug forum.pk topic.slug topic.pk %}">
+                            {% if topic.is_locked %}Unlock Topic{% else %}Lock Topic{% endif %}
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'forum_moderation:topic_delete' forum.slug forum.pk topic.slug topic.pk %}">
+                            Delete Topic
+                        </a>
+                    </li>
+                </ul>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Topic info -->
+    <div class="alert alert-light">
+        <div class="row small">
+            <div class="col-md-4">
+                <i class="bi bi-person me-1"></i>Started by: <strong>{{ topic.poster.username }}</strong>
+            </div>
+            <div class="col-md-4">
+                <i class="bi bi-calendar me-1"></i>Created: {{ topic.created|date:"M d, Y g:i A" }}
+            </div>
+            <div class="col-md-4">
+                <i class="bi bi-eye me-1"></i>Views: <strong>{{ topic.views_count }}</strong>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Posts -->
+    <div class="posts-container">
+        {% for post in posts %}
+            <div class="card mb-3 {% if post.is_topic_head %}border-primary{% endif %}" id="post-{{ post.pk }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>
+                            {% if post.is_topic_head %}
+                                <i class="bi bi-star-fill text-warning me-1"></i>
+                            {% endif %}
+                            {{ post.poster.username }}
+                            {% trust_level_badge post.poster %}
+                        </strong>
+                        <span class="text-muted ms-2">
+                            {{ post.created|date:"M d, Y g:i A" }}
+                        </span>
+                    </div>
+                    <div>
+                        <a href="#post-{{ post.pk }}" class="text-decoration-none text-muted">#{{ forloop.counter }}</a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="row">
+                        <!-- User info sidebar -->
+                        <div class="col-md-2 text-center border-end">
+                            <img src="https://via.placeholder.com/80x80.png?text={{ post.poster.username|first|upper }}" 
+                                 class="rounded-circle mb-2" width="80" height="80" alt="{{ post.poster.username }}">
+                            <div class="small text-muted">
+                                <div class="mb-2">
+                                    {% if post.poster.is_staff %}
+                                        <span class="badge bg-danger">Staff</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Member</span>
+                                    {% endif %}
+                                    <div class="mt-1">
+                                        {% trust_level_icon post.poster %}
+                                        <span class="ms-1">TL{{ post.poster.trust_level.level|default:0 }}</span>
+                                    </div>
+                                </div>
+                                <div>Posts: <strong>{{ post.poster.forum_profile.posts_count|default:0 }}</strong></div>
+                                <div>Joined: {{ post.poster.date_joined|date:"M Y" }}</div>
+                                {% if post.poster.trust_level %}
+                                    <div class="mt-2">
+                                        <div class="small">Reading: {{ post.poster.trust_level.posts_read }} posts</div>
+                                        <div class="small">Visits: {{ post.poster.trust_level.days_visited }} days</div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Post content -->
+                        <div class="col-md-10">
+                            {% if post.subject and not post.is_topic_head %}
+                                <h5 class="card-title">{{ post.subject }}</h5>
+                            {% endif %}
+                            
+                            <div class="post-content">
+                                {{ post.content|safe|linebreaks }}
+                            </div>
+                            
+                            {% if post.updates_count > 0 %}
+                                <div class="text-muted small mt-3">
+                                    <em>Last edited: {{ post.updated|date:"M d, Y g:i A" }}</em>
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Post actions -->
+                            <div class="mt-3 pt-3 border-top">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {% if perms.forum_conversation|can_add_post:topic %}
+                                        <a href="{% url 'forum_conversation:post_create' forum.slug forum.pk topic.slug topic.pk %}?quote={{ post.pk }}" 
+                                           class="btn btn-outline-secondary">
+                                            <i class="bi bi-quote me-1"></i>Quote
+                                        </a>
+                                    {% endif %}
+                                    
+                                    {% if post.poster == user or perms.forum_moderation|can_edit_posts:forum %}
+                                        <a href="{% url 'forum_conversation:post_update' forum.slug forum.pk topic.slug topic.pk post.pk %}" 
+                                           class="btn btn-outline-secondary">
+                                            <i class="bi bi-pencil me-1"></i>Edit
+                                        </a>
+                                    {% endif %}
+                                    
+                                    {% if perms.forum_moderation|can_delete_posts:forum %}
+                                        <a href="{% url 'forum_conversation:post_delete' forum.slug forum.pk topic.slug topic.pk post.pk %}" 
+                                           class="btn btn-outline-danger">
+                                            <i class="bi bi-trash me-1"></i>Delete
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+        <nav aria-label="Posts pagination" class="my-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                {% for num in paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ paginator.num_pages }}">Last</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+    
+    <!-- Quick reply -->
+    {% if perms.forum_conversation|can_add_post:topic and not topic.is_locked %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-reply me-2"></i>Quick Reply</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'forum_conversation:post_create' forum.slug forum.pk topic.slug topic.pk %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <textarea name="content" class="form-control" rows="5" placeholder="Write your reply here..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-send me-1"></i>Post Reply
+                    </button>
+                </form>
+            </div>
+        </div>
+    {% elif topic.is_locked %}
+        <div class="alert alert-warning text-center">
+            <i class="bi bi-lock-fill me-2"></i>This topic is locked. You cannot post new replies.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/reading-tracker.js' %}"></script>
+    <script>
+        // Initialize reading tracker for this topic
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.readingTracker) {
+                console.log('Reading tracker already initialized');
+            } else {
+                window.readingTracker = new ReadingTracker({
+                    trackingEndpoint: '{% url "forum_integration:track_reading_time" %}',
+                    contentSelector: '.post-content, .topic-detail'
+                });
+            }
+        });
+    </script>
+{% endblock %}

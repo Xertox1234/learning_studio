@@ -1,0 +1,33 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Python Learning Studio - Authentication{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="{% static 'css/main.css' %}" rel="stylesheet">
+    
+    <!-- Theme Management -->
+    <script>
+        // Initialize theme before page renders
+        const savedTheme = localStorage.getItem('theme') || 'auto';
+        document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    </script>
+</head>
+<body>
+    <!-- React App Container -->
+    <div id="root"></div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- React App Bundle -->
+    <script src="{% static 'js/dist/react-app.bundle.js' %}"></script>
+</body>
+</html>

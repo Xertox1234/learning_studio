@@ -1,0 +1,43 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Sign Out" %}{% endblock %}
+
+{% block auth_subtitle %}Come back soon!{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="mb-4">
+        <i class="bi bi-wave display-1 text-primary"></i>
+    </div>
+    
+    <h5 class="mb-3">{% trans "Are you sure you want to sign out?" %}</h5>
+    
+    <p class="text-muted mb-4">
+        You'll need to sign in again to access your courses, progress, and community features.
+    </p>
+    
+    <form method="POST" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-box-arrow-right me-2"></i>{% trans "Sign Out" %}
+            </button>
+            
+            <a href="{% url 'wagtail_serve' '' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>{% trans "Cancel" %}
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<div class="text-center">
+    <small class="text-muted">
+        <i class="bi bi-shield-check me-1"></i>
+        Your progress and data will be safely saved
+    </small>
+</div>
+{% endblock %}

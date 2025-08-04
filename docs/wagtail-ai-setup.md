@@ -50,7 +50,7 @@ This document outlines the complete setup, configuration, and troubleshooting of
 
 ### Development Server Command
 ```bash
-cd /workspaces/PythonLearningStudio
+cd /workspaces/Python Learning Studio
 export DJANGO_SETTINGS_MODULE=learning_community.settings.development
 python manage.py runserver 0.0.0.0:8000
 ```

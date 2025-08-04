@@ -28,6 +28,7 @@ services:
     networks:
       - python_learning_network
 
+
   # Code execution service (separate container for security)
   code-executor:
     build:

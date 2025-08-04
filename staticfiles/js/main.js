@@ -50,6 +50,20 @@ class PythonLearningStudio {
             searchForm.addEventListener('submit', this.handleSearch.bind(this));
         }
 
+        // Forum interactions
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('.post-action-btn[onclick*="toggleLike"]')) {
+                e.preventDefault();
+                const postId = e.target.getAttribute('onclick').match(/\d+/)[0];
+                this.toggleLike(postId);
+            }
+            if (e.target.matches('.post-action-btn[onclick*="sharePost"]')) {
+                e.preventDefault();
+                const postId = e.target.getAttribute('onclick').match(/\d+/)[0];
+                this.sharePost(postId);
+            }
+        });
+
         // Auto-save code
         document.addEventListener('input', (e) => {
             if (e.target.matches('.code-editor textarea')) {
@@ -74,7 +88,7 @@ class PythonLearningStudio {
         
         const editor = CodeMirror.fromTextArea(element, {
             mode: language,
-            theme: 'material-darker',
+            theme: 'monokai',
             lineNumbers: true,
             autoCloseBrackets: true,
             matchBrackets: true,
@@ -479,6 +493,110 @@ class PythonLearningStudio {
             this.createCodeEditor(textarea);
         }
     }
+
+    // Forum interaction methods
+    async toggleLike(postId) {
+        try {
+            const response = await fetch(`${this.apiBase}posts/${postId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.updateLikeButton(postId, result.liked, result.count);
+            } else {
+                console.error('Failed to toggle like');
+            }
+        } catch (error) {
+            console.error('Error toggling like:', error);
+        }
+    }
+
+    updateLikeButton(postId, liked, count) {
+        const likeBtn = document.querySelector(`[onclick*="${postId}"][onclick*="toggleLike"]`);
+        if (likeBtn) {
+            const icon = likeBtn.querySelector('i');
+            if (liked) {
+                icon.classList.remove('bi-heart');
+                icon.classList.add('bi-heart-fill');
+                likeBtn.classList.add('text-danger');
+            } else {
+                icon.classList.remove('bi-heart-fill');
+                icon.classList.add('bi-heart');
+                likeBtn.classList.remove('text-danger');
+            }
+            
+            // Update count if displayed
+            const countSpan = likeBtn.querySelector('.like-count');
+            if (countSpan) {
+                countSpan.textContent = count;
+            }
+        }
+    }
+
+    sharePost(postId) {
+        const postElement = document.querySelector(`#post-${postId}`);
+        if (postElement) {
+            const postUrl = `${window.location.origin}${window.location.pathname}#post-${postId}`;
+            
+            if (navigator.share) {
+                // Use Web Share API if available
+                navigator.share({
+                    title: document.title,
+                    url: postUrl
+                }).catch(console.error);
+            } else {
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(postUrl).then(() => {
+                    this.showNotification('Link copied to clipboard!', 'success');
+                }).catch(err => {
+                    console.error('Failed to copy link:', err);
+                    this.showNotification('Failed to copy link', 'error');
+                });
+            }
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 150);
+        }, 3000);
+    }
+}
+
+// Forum formatting tools for quick reply
+function insertText(openTag, closeTag = '') {
+    const textarea = document.querySelector('.reply-textarea');
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    const newText = openTag + selectedText + closeTag;
+    
+    textarea.value = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
+    
+    // Set cursor position
+    const newCursorPos = start + openTag.length + selectedText.length + closeTag.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
 }
 
 // Initialize the application

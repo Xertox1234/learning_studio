@@ -1,0 +1,276 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Search Help - Python Learning Studio{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">
+                        <i class="bi bi-question-circle me-2"></i>Search Help & Syntax Guide
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Quick Start -->
+                    <div class="mb-4">
+                        <h4><i class="bi bi-play-circle me-2"></i>Quick Start</h4>
+                        <p>Simply type your search terms in the search box and press Enter. The search will look through forum posts, topics, courses, lessons, and exercises.</p>
+                        
+                        <div class="alert alert-info">
+                            <strong>Example:</strong> <code>python loops</code> - finds content containing both "python" and "loops"
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Syntax -->
+                    <div class="mb-4">
+                        <h4><i class="bi bi-code-slash me-2"></i>Advanced Search Syntax</h4>
+                        
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Syntax</th>
+                                        <th>Description</th>
+                                        <th>Example</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>"exact phrase"</code></td>
+                                        <td>Search for exact phrase</td>
+                                        <td><code>"machine learning"</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>+required</code></td>
+                                        <td>Term must be present</td>
+                                        <td><code>+python programming</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>-excluded</code></td>
+                                        <td>Term must not be present</td>
+                                        <td><code>python -java</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>author:username</code></td>
+                                        <td>Content by specific author</td>
+                                        <td><code>author:instructor</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>date:YYYY-MM-DD</code></td>
+                                        <td>Content from specific date</td>
+                                        <td><code>date:2024-01-15</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>date:>YYYY-MM-DD</code></td>
+                                        <td>Content after specific date</td>
+                                        <td><code>date:>2024-01-01</code></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Search Examples -->
+                    <div class="mb-4">
+                        <h4><i class="bi bi-lightbulb me-2"></i>Search Examples</h4>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Basic Searches</h6>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <code>python basics</code><br>
+                                        <small class="text-muted">Find content about Python basics</small>
+                                    </li>
+                                    <li class="mb-2">
+                                        <code>"for loop"</code><br>
+                                        <small class="text-muted">Find exact phrase "for loop"</small>
+                                    </li>
+                                    <li class="mb-2">
+                                        <code>+django web development</code><br>
+                                        <small class="text-muted">Must contain "django", may contain "web" or "development"</small>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Advanced Searches</h6>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <code>author:instructor machine learning</code><br>
+                                        <small class="text-muted">ML content by instructor</small>
+                                    </li>
+                                    <li class="mb-2">
+                                        <code>python -java -javascript</code><br>
+                                        <small class="text-muted">Python content, excluding Java/JavaScript</small>
+                                    </li>
+                                    <li class="mb-2">
+                                        <code>"data structures" date:>2024-01-01</code><br>
+                                        <small class="text-muted">Recent data structures content</small>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Content Types -->
+                    <div class="mb-4">
+                        <h4><i class="bi bi-collection me-2"></i>Content Types</h4>
+                        <p>You can search across different types of content:</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-primary me-2">
+                                        <i class="bi bi-chat"></i>
+                                    </span>
+                                    <strong>Forum Posts</strong>
+                                </div>
+                                <p class="text-muted small">Individual messages in forum discussions</p>
+                                
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-success me-2">
+                                        <i class="bi bi-chat-dots"></i>
+                                    </span>
+                                    <strong>Forum Topics</strong>
+                                </div>
+                                <p class="text-muted small">Discussion threads and their titles</p>
+                                
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-warning me-2">
+                                        <i class="bi bi-book"></i>
+                                    </span>
+                                    <strong>Courses</strong>
+                                </div>
+                                <p class="text-muted small">Full courses with descriptions and content</p>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-info me-2">
+                                        <i class="bi bi-file-text"></i>
+                                    </span>
+                                    <strong>Lessons</strong>
+                                </div>
+                                <p class="text-muted small">Individual lessons within courses</p>
+                                
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge" style="background-color: #6f42c1;">
+                                        <i class="bi bi-puzzle"></i>
+                                    </span>
+                                    <strong>Exercises</strong>
+                                </div>
+                                <p class="text-muted small">Coding exercises and practice problems</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filters -->
+                    <div class="mb-4">
+                        <h4><i class="bi bi-funnel me-2"></i>Search Filters</h4>
+                        <p>Use the advanced search form to filter results by:</p>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6>Author & Trust Level</h6>
+                                <ul class="small">
+                                    <li>Specific username</li>
+                                    <li>Minimum trust level</li>
+                                    <li>Staff vs regular users</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>Date & Time</h6>
+                                <ul class="small">
+                                    <li>Today, week, month, year</li>
+                                    <li>Custom date ranges</li>
+                                    <li>Before/after specific dates</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>Content Properties</h6>
+                                <ul class="small">
+                                    <li>Difficulty level</li>
+                                    <li>Forum categories</li>
+                                    <li>Has attachments</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tips -->
+                    <div class="mb-4">
+                        <h4><i class="bi bi-star me-2"></i>Search Tips</h4>
+                        
+                        <div class="alert alert-success">
+                            <h6><i class="bi bi-check-circle me-1"></i>Best Practices</h6>
+                            <ul class="mb-0">
+                                <li>Start with simple keywords, then add filters if needed</li>
+                                <li>Use quotes for exact phrases like "machine learning"</li>
+                                <li>Try different word forms (learn, learning, learned)</li>
+                                <li>Use the + operator for essential terms</li>
+                                <li>Check spelling and try synonyms</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <h6><i class="bi bi-exclamation-triangle me-1"></i>Common Issues</h6>
+                            <ul class="mb-0">
+                                <li>Search is case-insensitive (Python = python)</li>
+                                <li>Very short words (1-2 letters) may be ignored</li>
+                                <li>Special characters in search terms may cause issues</li>
+                                <li>Too many filters might return no results</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Trust Levels -->
+                    <div class="mb-4">
+                        <h4><i class="bi bi-shield-check me-2"></i>Trust Level Filtering</h4>
+                        <p>You can filter results by the author's trust level:</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="badge trust-level-0 me-2">TL0</span>
+                                    <span>New User</span>
+                                </div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="badge trust-level-1 me-2">TL1</span>
+                                    <span>Basic User</span>
+                                </div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="badge trust-level-2 me-2">TL2</span>
+                                    <span>Member</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="badge trust-level-3 me-2">TL3</span>
+                                    <span>Regular</span>
+                                </div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="badge trust-level-4 me-2">TL4</span>
+                                    <span>Leader</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p class="small text-muted mt-2">
+                            Higher trust level users typically provide higher quality content.
+                        </p>
+                    </div>
+                    
+                    <!-- Back to Search -->
+                    <div class="text-center">
+                        <a href="{% url 'forum_integration:advanced_search' %}" class="btn btn-primary">
+                            <i class="bi bi-search me-2"></i>Back to Search
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends 'base/base.html' %}
+{% load static wagtailcore_tags wagtailimages_tags %}
+
+{% block title %}{{ page.title }} - Python Learning Studio{% endblock %}
+
+{% block meta_description %}Explore our latest articles, tutorials, and insights about Python programming, web development, and AI-powered learning.{% endblock %}
+
+{% block content %}
+<!-- Blog Header -->
+<section class="bg-primary text-white py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="display-4 fw-bold mb-3">{{ page.title }}</h1>
+                {% if page.intro %}
+                    <div class="lead">{{ page.intro|richtext }}</div>
+                {% else %}
+                    <p class="lead">Explore our latest articles, tutorials, and insights about Python programming, web development, and AI-powered learning.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Categories Filter -->
+{% if categories %}
+<section class="py-4 bg-light border-bottom">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+            <a href="?" class="btn btn-outline-primary btn-sm{% if not request.GET.category %} active{% endif %}">
+                All Posts
+            </a>
+            {% for category in categories %}
+                <a href="?category={{ category.slug }}" 
+                   class="btn btn-outline-primary btn-sm{% if request.GET.category == category.slug %} active{% endif %}"
+                   style="{% if request.GET.category == category.slug %}background-color: {{ category.color }}; border-color: {{ category.color }};{% endif %}">
+                    {{ category.name }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Blog Posts -->
+<section class="py-5">
+    <div class="container">
+        {% if blogpages %}
+            <div class="row g-4">
+                {% for post in blogpages %}
+                    <div class="col-lg-4 col-md-6">
+                        <article class="card h-100 hover-lift">
+                            {% if post.featured_image %}
+                                <a href="{{ post.url }}" class="text-decoration-none">
+                                    {% image post.featured_image fill-400x250 class="card-img-top" style="height: 200px; object-fit: cover;" %}
+                                </a>
+                            {% endif %}
+                            <div class="card-body d-flex flex-column">
+                                <!-- Categories -->
+                                {% if post.categories.all %}
+                                    <div class="mb-2">
+                                        {% for category in post.categories.all %}
+                                            <span class="badge rounded-pill" 
+                                                  style="background-color: {{ category.color }};">
+                                                {{ category.name }}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                
+                                <h5 class="card-title">
+                                    <a href="{{ post.url }}" class="text-decoration-none text-dark">
+                                        {{ post.title }}
+                                    </a>
+                                </h5>
+                                
+                                <p class="card-text text-muted">{{ post.intro }}</p>
+                                
+                                <!-- Meta information -->
+                                <div class="mt-auto">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            {% if post.author %}
+                                                <i class="bi bi-person me-1"></i>{{ post.author.get_display_name }}
+                                            {% endif %}
+                                            {% if post.date %}
+                                                <i class="bi bi-calendar ms-2 me-1"></i>{{ post.date|date:"M d, Y" }}
+                                            {% endif %}
+                                        </small>
+                                        {% if post.reading_time %}
+                                            <small class="text-muted">
+                                                <i class="bi bi-clock me-1"></i>{{ post.reading_time }} min read
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- AI Badge -->
+                                    {% if post.ai_generated %}
+                                        <div class="mt-2">
+                                            <span class="badge bg-gradient bg-info text-dark">
+                                                <i class="bi bi-robot me-1"></i>AI-Enhanced
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <a href="{{ post.url }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-arrow-right me-1"></i>Read More
+                                </a>
+                            </div>
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if blogpages.has_other_pages %}
+                <nav aria-label="Blog pagination" class="mt-5">
+                    <ul class="pagination justify-content-center">
+                        {% if blogpages.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ blogpages.previous_page_number }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">
+                                    <i class="bi bi-chevron-left"></i> Previous
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in blogpages.paginator.page_range %}
+                            {% if num == blogpages.number %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > blogpages.number|add:'-3' and num < blogpages.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if blogpages.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ blogpages.next_page_number }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">
+                                    Next <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <!-- No posts found -->
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-journal-text display-1 text-muted"></i>
+                </div>
+                <h3 class="text-muted mb-3">No blog posts found</h3>
+                <p class="text-muted">
+                    {% if request.GET.category %}
+                        No posts found in this category. <a href="?" class="text-decoration-none">View all posts</a>
+                    {% else %}
+                        Check back soon for our latest articles and tutorials!
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Newsletter Signup -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 text-center">
+                <h3 class="fw-bold mb-3">Stay Updated</h3>
+                <p class="text-muted mb-4">Get the latest Python tutorials and programming tips delivered to your inbox.</p>
+                <div class="input-group mb-3">
+                    <input type="email" class="form-control" placeholder="Enter your email address" aria-label="Email">
+                    <button class="btn btn-primary" type="button">
+                        <i class="bi bi-envelope me-1"></i>Subscribe
+                    </button>
+                </div>
+                <small class="text-muted">We respect your privacy. Unsubscribe anytime.</small>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Smooth scrolling for category filter
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryLinks = document.querySelectorAll('a[href*="?category="]');
+    categoryLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Add smooth transition effect
+            document.body.style.opacity = '0.8';
+            setTimeout(() => {
+                document.body.style.opacity = '1';
+            }, 200);
+        });
+    });
+});
+</script>
+{% endblock %}

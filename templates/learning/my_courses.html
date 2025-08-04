@@ -1,0 +1,356 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}My Courses - Python Learning Studio{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'wagtail_serve' '' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">My Courses</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">My Learning Journey</h1>
+                    <p class="text-muted">Track your progress and continue learning</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'course_list' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-circle me-2"></i>Browse Courses
+                    </a>
+                    <a href="{% url 'exercises_list' %}" class="btn btn-primary">
+                        <i class="bi bi-puzzle me-2"></i>Practice Exercises
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Learning Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-primary">{{ courses.count }}</div>
+                    <div class="text-muted">Enrolled Courses</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-success">0</div>
+                    <div class="text-muted">Completed</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-warning">0</div>
+                    <div class="text-muted">In Progress</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-info">0</div>
+                    <div class="text-muted">Total Hours</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Tabs -->
+    <div class="row">
+        <div class="col">
+            <ul class="nav nav-tabs" id="courseTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="in-progress-tab" data-bs-toggle="tab" data-bs-target="#in-progress" type="button" role="tab">
+                        <i class="bi bi-play-circle me-2"></i>In Progress
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab">
+                        <i class="bi bi-check-circle me-2"></i>Completed
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="all-courses-tab" data-bs-toggle="tab" data-bs-target="#all-courses" type="button" role="tab">
+                        <i class="bi bi-collection me-2"></i>All Courses
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content mt-4" id="courseTabContent">
+        <!-- In Progress Tab -->
+        <div class="tab-pane fade show active" id="in-progress" role="tabpanel">
+            <div class="row g-4">
+                {% for course in courses %}
+                {% if not course.is_user_completed %}
+                <div class="col-lg-6 col-xl-4">
+                    <div class="card course-card h-100 hover-lift">
+                        <div class="position-relative">
+                            {% if course.thumbnail %}
+                                <img src="{{ course.thumbnail.url }}" class="card-img-top" alt="{{ course.title }}" style="height: 180px; object-fit: cover;">
+                            {% else %}
+                                <img src="https://via.placeholder.com/400x180?text={{ course.title|truncatewords:2 }}" class="card-img-top" alt="{{ course.title }}" style="height: 180px; object-fit: cover;">
+                            {% endif %}
+                            <span class="badge difficulty-{{ course.difficulty_level }} position-absolute top-0 end-0 m-2">
+                                {{ course.get_difficulty_level_display }}
+                            </span>
+                        </div>
+                        
+                        <div class="card-body d-flex flex-column">
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-tag me-1"></i>{{ course.category.name }}
+                                </small>
+                            </div>
+                            
+                            <h5 class="card-title">{{ course.title }}</h5>
+                            <p class="card-text flex-grow-1">{{ course.short_description }}</p>
+                            
+                            <!-- Progress Bar -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">Progress</small>
+                                    <small class="text-muted">0% Complete</small>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Course Meta -->
+                            <div class="course-meta small text-muted mb-3">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <i class="bi bi-clock me-1"></i>{{ course.estimated_duration }} hours
+                                    </div>
+                                    <div class="col-6">
+                                        <i class="bi bi-bookmark me-1"></i>{{ course.lessons.count }} lessons
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'course_detail' course.slug %}" class="btn btn-primary flex-grow-1">
+                                    Continue Learning
+                                </a>
+                                <button class="btn btn-outline-secondary" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{% url 'course_detail' course.slug %}">View Details</a></li>
+                                    <li><a class="dropdown-item" href="#">Download Materials</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#">Unenroll</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% empty %}
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="bi bi-play-circle display-1 text-muted"></i>
+                        <h3 class="mt-3">No courses in progress</h3>
+                        <p class="text-muted">Start learning by enrolling in a course below.</p>
+                        <a href="{% url 'course_list' %}" class="btn btn-primary">Browse Courses</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Completed Tab -->
+        <div class="tab-pane fade" id="completed" role="tabpanel">
+            <div class="row g-4">
+                {% for course in courses %}
+                {% if course.is_user_completed %}
+                <div class="col-lg-6 col-xl-4">
+                    <div class="card course-card h-100">
+                        <div class="position-relative">
+                            {% if course.thumbnail %}
+                                <img src="{{ course.thumbnail.url }}" class="card-img-top" alt="{{ course.title }}" style="height: 180px; object-fit: cover;">
+                            {% else %}
+                                <img src="https://via.placeholder.com/400x180?text={{ course.title|truncatewords:2 }}" class="card-img-top" alt="{{ course.title }}" style="height: 180px; object-fit: cover;">
+                            {% endif %}
+                            <span class="badge bg-success position-absolute top-0 end-0 m-2">
+                                <i class="bi bi-check-circle me-1"></i>Completed
+                            </span>
+                        </div>
+                        
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ course.title }}</h5>
+                            <p class="card-text flex-grow-1">{{ course.short_description }}</p>
+                            
+                            <div class="course-meta small text-muted mb-3">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <i class="bi bi-calendar-check me-1"></i>Completed
+                                    </div>
+                                    <div class="col-6">
+                                        <i class="bi bi-trophy me-1"></i>Certificate
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'course_detail' course.slug %}" class="btn btn-outline-primary flex-grow-1">
+                                    Review Course
+                                </a>
+                                <button class="btn btn-success">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% empty %}
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="bi bi-trophy display-1 text-muted"></i>
+                        <h3 class="mt-3">No completed courses yet</h3>
+                        <p class="text-muted">Complete your first course to earn certificates and track achievements.</p>
+                        <a href="{% url 'course_list' %}" class="btn btn-primary">Start Learning</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- All Courses Tab -->
+        <div class="tab-pane fade" id="all-courses" role="tabpanel">
+            <div class="row g-4">
+                {% for course in courses %}
+                <div class="col-lg-6 col-xl-4">
+                    <div class="card course-card h-100 hover-lift">
+                        <div class="position-relative">
+                            {% if course.thumbnail %}
+                                <img src="{{ course.thumbnail.url }}" class="card-img-top" alt="{{ course.title }}" style="height: 180px; object-fit: cover;">
+                            {% else %}
+                                <img src="https://via.placeholder.com/400x180?text={{ course.title|truncatewords:2 }}" class="card-img-top" alt="{{ course.title }}" style="height: 180px; object-fit: cover;">
+                            {% endif %}
+                            <span class="badge difficulty-{{ course.difficulty_level }} position-absolute top-0 end-0 m-2">
+                                {{ course.get_difficulty_level_display }}
+                            </span>
+                            {% if course.is_free %}
+                                <span class="badge bg-success position-absolute top-0 start-0 m-2">Free</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="card-body d-flex flex-column">
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-tag me-1"></i>{{ course.category.name }}
+                                </small>
+                            </div>
+                            
+                            <h5 class="card-title">{{ course.title }}</h5>
+                            <p class="card-text flex-grow-1">{{ course.short_description }}</p>
+                            
+                            <!-- Progress Bar for enrolled courses -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">Progress</small>
+                                    <small class="text-muted">0% Complete</small>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="course-meta small text-muted mb-3">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <i class="bi bi-clock me-1"></i>{{ course.estimated_duration }} hours
+                                    </div>
+                                    <div class="col-6">
+                                        <i class="bi bi-bookmark me-1"></i>{{ course.lessons.count }} lessons
+                                    </div>
+                                </div>
+                                <div class="row mt-1">
+                                    <div class="col-6">
+                                        <i class="bi bi-people me-1"></i>{{ course.enrolled_count }} students
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-warning">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= course.average_rating %}
+                                                    <i class="bi bi-star-fill"></i>
+                                                {% else %}
+                                                    <i class="bi bi-star"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                            <span class="ms-1">{{ course.average_rating|floatformat:1 }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <a href="{% url 'course_detail' course.slug %}" class="btn btn-primary">
+                                Continue Learning
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="bi bi-book display-1 text-muted"></i>
+                        <h3 class="mt-3">No courses enrolled</h3>
+                        <p class="text-muted">Start your learning journey by enrolling in courses.</p>
+                        <a href="{% url 'course_list' %}" class="btn btn-primary">Browse Courses</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab activation handling
+    const triggerTabList = document.querySelectorAll('#courseTabs button');
+    triggerTabList.forEach(triggerEl => {
+        const tabTrigger = new bootstrap.Tab(triggerEl);
+        
+        triggerEl.addEventListener('click', event => {
+            event.preventDefault();
+            tabTrigger.show();
+        });
+    });
+    
+    // Course card hover effects
+    document.querySelectorAll('.course-card').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+{% endblock %}

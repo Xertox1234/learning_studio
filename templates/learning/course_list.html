@@ -4,11 +4,17 @@
 {% block title %}Courses - Python Learning Studio{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
-    <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-        <li class="breadcrumb-item active">Courses</li>
-    </ol>
+<nav aria-label="breadcrumb" class="bg-dark">
+    <div class="container-fluid">
+        <ol class="breadcrumb mb-0 py-3">
+            <li class="breadcrumb-item">
+                <a href="{% url 'wagtail_serve' '' %}" class="text-light text-decoration-none">
+                    <i class="bi bi-house"></i> Home
+                </a>
+            </li>
+            <li class="breadcrumb-item active text-warning" aria-current="page">Courses</li>
+        </ol>
+    </div>
 </nav>
 {% endblock %}
 
@@ -114,7 +120,7 @@
                     
                     <!-- Progress Bar (if user is enrolled) -->
                     {% if user.is_authenticated %}
-                        {% with course.get_user_progress as progress %}
+                        {% with course.user_progress as progress %}
                             {% if progress %}
                                 <div class="progress mb-2" style="height: 6px;">
                                     <div class="progress-bar" style="width: {{ progress.progress_percentage }}%"></div>
@@ -133,7 +139,7 @@
                             <span class="h6 mb-0">${{ course.price }}</span>
                         {% endif %}
                         <a href="{% url 'course_detail' course.slug %}" class="btn btn-primary">
-                            {% if user.is_authenticated and course.is_user_enrolled %}
+                            {% if user.is_authenticated and course.user_enrolled %}
                                 Continue Learning
                             {% else %}
                                 Learn More
@@ -253,6 +259,355 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/code-interface.css' %}">
+<style>
+/* Modern Dark Theme Course List Interface */
+body {
+    background: #1a1a1a;
+    color: #e2e8f0;
+}
+
+.container-fluid {
+    background: #1a1a1a;
+}
+
+/* Page Header */
+.container-fluid h1 {
+    color: #e2e8f0;
+}
+
+/* Modern Card Styling */
+.card {
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.course-card:hover {
+    transform: translateY(-4px);
+    border-color: #68d391;
+    box-shadow: 0 8px 25px rgba(104, 211, 145, 0.15);
+}
+
+.card-body {
+    background: #2d3748;
+    color: #cbd5e0;
+}
+
+.card-footer {
+    background: #2d3748 !important;
+    border-top: 1px solid #4a5568;
+}
+
+.card-title {
+    color: #e2e8f0;
+    font-weight: 600;
+}
+
+.card-text {
+    color: #cbd5e0;
+    line-height: 1.5;
+}
+
+/* Modern Badge Styling */
+.badge {
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 6px 12px;
+}
+
+.badge.bg-success {
+    background: #48bb78 !important;
+    color: #1a202c;
+}
+
+.difficulty-beginner {
+    background: #48bb78;
+    color: #1a202c;
+}
+
+.difficulty-intermediate {
+    background: #ed8936;
+    color: #1a202c;
+}
+
+.difficulty-advanced {
+    background: #e53e3e;
+    color: white;
+}
+
+/* Enhanced Buttons */
+.btn-primary {
+    background: #68d391;
+    border-color: #68d391;
+    color: #1a202c;
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background: #48bb78;
+    border-color: #48bb78;
+    color: #1a202c;
+}
+
+.btn-outline-primary {
+    border-color: #68d391;
+    color: #68d391;
+}
+
+.btn-outline-primary:hover {
+    background: #68d391;
+    border-color: #68d391;
+    color: #1a202c;
+}
+
+.btn-outline-primary.active {
+    background: #68d391;
+    border-color: #68d391;
+    color: #1a202c;
+}
+
+.btn-outline-secondary {
+    border-color: #a0aec0;
+    color: #a0aec0;
+}
+
+.btn-outline-secondary:hover {
+    background: #a0aec0;
+    border-color: #a0aec0;
+    color: #1a202c;
+}
+
+.btn-secondary {
+    background: #4a5568;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+.btn-secondary:hover {
+    background: #718096;
+    border-color: #718096;
+    color: #e2e8f0;
+}
+
+/* Dropdown Styling */
+.dropdown-menu {
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown-item {
+    color: #cbd5e0;
+    padding: 8px 16px;
+}
+
+.dropdown-item:hover {
+    background: #4a5568;
+    color: #e2e8f0;
+}
+
+/* Progress Bars */
+.progress {
+    background: #4a5568;
+}
+
+.progress-bar {
+    background: #68d391;
+}
+
+/* Text Colors */
+.text-muted {
+    color: #a0aec0 !important;
+}
+
+.text-success {
+    color: #68d391 !important;
+}
+
+.text-warning {
+    color: #ed8936 !important;
+}
+
+.text-warning i {
+    color: #ed8936 !important;
+}
+
+/* Course Meta Colors */
+.course-meta {
+    color: #a0aec0;
+}
+
+.course-meta i {
+    color: #68d391;
+}
+
+/* Price Display */
+.h6 {
+    color: #e2e8f0;
+}
+
+.h6.text-success {
+    color: #68d391 !important;
+}
+
+/* Breadcrumb Styling */
+.breadcrumb {
+    background: #2d3748;
+    border-radius: 0;
+}
+
+.breadcrumb-item a {
+    color: #68d391;
+    text-decoration: none;
+}
+
+.breadcrumb-item.active {
+    color: #e2e8f0;
+}
+
+/* Modal Styling */
+.modal-content {
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+}
+
+.modal-header {
+    background: #4a5568;
+    border-bottom: 1px solid #718096;
+    color: #e2e8f0;
+}
+
+.modal-body {
+    background: #2d3748;
+    color: #cbd5e0;
+}
+
+.modal-footer {
+    background: #2d3748;
+    border-top: 1px solid #4a5568;
+}
+
+.modal-title {
+    color: #e2e8f0;
+}
+
+/* Form Controls */
+.form-select,
+.form-control {
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    color: #e2e8f0;
+}
+
+.form-select:focus,
+.form-control:focus {
+    background: #2d3748;
+    border-color: #68d391;
+    box-shadow: 0 0 0 0.2rem rgba(104, 211, 145, 0.25);
+    color: #e2e8f0;
+}
+
+.form-label {
+    color: #e2e8f0;
+    font-weight: 600;
+}
+
+.form-check-label {
+    color: #cbd5e0;
+}
+
+.form-check-input:checked {
+    background-color: #68d391;
+    border-color: #68d391;
+}
+
+.form-check-input:focus {
+    border-color: #68d391;
+    box-shadow: 0 0 0 0.2rem rgba(104, 211, 145, 0.25);
+}
+
+/* Pagination */
+.pagination .page-link {
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    color: #cbd5e0;
+}
+
+.pagination .page-link:hover {
+    background: #4a5568;
+    border-color: #68d391;
+    color: #e2e8f0;
+}
+
+.pagination .page-item.active .page-link {
+    background: #68d391;
+    border-color: #68d391;
+    color: #1a202c;
+}
+
+/* Empty State */
+.bi.display-1 {
+    color: #4a5568 !important;
+}
+
+/* Card Image Styling */
+.card-img-top {
+    border-radius: 8px 8px 0 0;
+}
+
+/* Hover Effects */
+.hover-lift {
+    transition: all 0.3s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+}
+
+/* Course Card Enhancements */
+.course-card-container {
+    transition: opacity 0.3s ease;
+}
+
+/* Category Tags */
+.course-meta small i {
+    color: #68d391;
+}
+
+/* Filter Button Row */
+.d-flex.gap-2.flex-wrap {
+    background: #2d3748;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #4a5568;
+}
+
+/* Page Header Enhancement */
+.d-flex.justify-content-between.align-items-center {
+    background: #2d3748;
+    padding: 24px;
+    border-radius: 8px;
+    border: 1px solid #4a5568;
+    margin-bottom: 2rem;
+}
+
+.d-flex.justify-content-between.align-items-center h1 {
+    margin-bottom: 0.5rem;
+}
+
+.d-flex.justify-content-between.align-items-center p {
+    margin-bottom: 0;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}

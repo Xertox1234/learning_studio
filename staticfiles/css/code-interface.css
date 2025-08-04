@@ -1,0 +1,832 @@
+/* Code Interface Styles - Matching the Screenshot Design */
+
+/* Exercise Interface Layout */
+.exercise-interface {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 0;
+    height: calc(100vh - 100px);
+    background: #1a1a1a;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Left Panel - Problem Description */
+.exercise-left-panel {
+    background: #2d3748;
+    border-right: 1px solid #4a5568;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.exercise-header {
+    padding: 24px 24px 16px 24px;
+    border-bottom: 1px solid #4a5568;
+}
+
+.exercise-title {
+    color: #e2e8f0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    line-height: 1.3;
+}
+
+.exercise-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.exercise-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.875rem;
+    color: #a0aec0;
+}
+
+.difficulty {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.difficulty.intermediate {
+    background: #ed8936;
+    color: #1a202c;
+}
+
+.difficulty.beginner {
+    background: #0d6efd;
+    color: #ffffff;
+}
+
+.difficulty.advanced {
+    background: #e53e3e;
+    color: white;
+}
+
+/* Problem Section */
+.problem-section,
+.instructions-section,
+.test-cases-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid #4a5568;
+}
+
+.problem-section h3,
+.instructions-section h3,
+.test-cases-section h3 {
+    color: #e2e8f0;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.problem-content,
+.instructions-content {
+    color: #cbd5e0;
+    line-height: 1.6;
+}
+
+/* Sample Test Cases */
+.test-cases-list {
+    space-y: 16px;
+}
+
+.test-case {
+    background: #1a202c;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border-left: 4px solid #805ad5;
+}
+
+.test-case h4 {
+    color: #e2e8f0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.test-input,
+.test-output {
+    margin-bottom: 8px;
+}
+
+.test-input strong,
+.test-output strong {
+    color: #a0aec0;
+    font-size: 0.8rem;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.test-case code {
+    background: #2d3748;
+    color: #0d6efd;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.875rem;
+    display: block;
+    margin-top: 4px;
+}
+
+/* Action Buttons */
+.action-buttons {
+    padding: 20px 24px;
+    display: flex;
+    gap: 12px;
+    margin-top: auto;
+}
+
+.action-buttons .btn {
+    flex: 1;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    padding: 8px 16px;
+}
+
+/* Right Panel - Code Editor */
+.exercise-right-panel {
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+}
+
+.editor-header {
+    background: #2d3748;
+    border-bottom: 1px solid #4a5568;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.editor-title {
+    color: #e2e8f0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.editor-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.file-tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.file-tab {
+    background: #4a5568;
+    color: #a0aec0;
+    padding: 8px 16px;
+    border-radius: 6px 6px 0 0;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-tab.active {
+    background: #1a1a1a;
+    color: #e2e8f0;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.editor-actions .btn {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    border-radius: 6px;
+}
+
+/* CodeMirror Container - VSCode Dark Theme */
+.editor-container {
+    flex: 1;
+    position: relative;
+    background: #1e1e1e;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* CodeMirror Editor Styling */
+.editor-container .cm-editor {
+    height: 100%;
+    min-height: 400px;
+    background: transparent;
+    border: none;
+}
+
+.editor-container .cm-content {
+    min-height: 400px;
+}
+
+.editor-container .cm-scroller {
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+}
+
+/* Code Editor Textarea - VSCode Dark Theme */
+.code-editor {
+    width: 100%;
+    height: 100%;
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    border: none !important;
+    resize: none !important;
+    padding: 20px !important;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, 'Courier New', monospace !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    tab-size: 4 !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    min-height: 300px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+}
+
+/* VSCode Dark Theme Colors */
+.code-editor:focus {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    outline: 1px solid #007acc !important;
+    outline-offset: -1px;
+}
+
+.editor-container .cm-editor {
+    height: 100%;
+    background: transparent;
+}
+
+.editor-container .cm-content {
+    padding: 20px;
+    min-height: 100%;
+}
+
+.editor-container .cm-focused {
+    outline: none;
+}
+
+/* Output Section */
+.output-section {
+    background: #2d3748;
+    border-top: 1px solid #4a5568;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.output-tabs {
+    display: flex;
+    border-bottom: 1px solid #4a5568;
+    background: #2d3748;
+}
+
+.output-tab {
+    background: transparent;
+    border: none;
+    color: #a0aec0;
+    padding: 12px 20px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.output-tab:hover {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.output-tab.active {
+    color: #0d6efd;
+    background: #1a1a1a;
+    border-bottom: 2px solid #0d6efd;
+}
+
+.output-content {
+    flex: 1;
+    position: relative;
+}
+
+.output-panel {
+    display: none;
+    height: 100%;
+    padding: 16px 20px;
+    overflow-y: auto;
+}
+
+.output-panel.active {
+    display: block;
+}
+
+.output-placeholder,
+.tests-placeholder,
+.console-placeholder {
+    color: #718096;
+    font-style: italic;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+/* Output Results */
+.output-result {
+    color: #e2e8f0;
+}
+
+.output-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+}
+
+.output-timestamp {
+    color: #718096;
+    margin-left: auto;
+}
+
+.output-content {
+    background: #1a202c;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 12px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+/* Test Results */
+.test-results {
+    color: #e2e8f0;
+}
+
+.test-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #1a202c;
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.score {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.score.success {
+    color: #0d6efd;
+}
+
+.score.partial {
+    color: #ed8936;
+}
+
+.tests-passed {
+    color: #a0aec0;
+}
+
+.test-cases .test-case {
+    margin-bottom: 12px;
+}
+
+.test-case.passed {
+    border-left-color: #0d6efd;
+}
+
+.test-case.failed {
+    border-left-color: #e53e3e;
+}
+
+.test-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.test-case.passed .test-header {
+    color: #0d6efd;
+}
+
+.test-case.failed .test-header {
+    color: #fc8181;
+}
+
+.test-details {
+    font-size: 0.875rem;
+    space-y: 4px;
+}
+
+.test-error {
+    color: #fc8181;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+/* Playground Interface - Modern Layout */
+.playground-interface {
+    background: #1a1a1a;
+    border-radius: 8px;
+    overflow: hidden;
+    height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.playground-header {
+    background: #2d3748;
+    border-bottom: 1px solid #4a5568;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.playground-title {
+    color: #e2e8f0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.playground-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.playground-controls .form-select {
+    background: #4a5568;
+    border: 1px solid #718096;
+    color: #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+}
+
+.playground-controls .btn {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    border-radius: 6px;
+}
+
+.playground-content {
+    flex: 1;
+    display: grid;
+    grid-template-rows: 1fr 300px;
+    gap: 0;
+}
+
+.playground-editor {
+    background: #1a1a1a;
+    position: relative;
+}
+
+.playground-output {
+    background: #2d3748;
+    border-top: 1px solid #4a5568;
+    display: flex;
+    flex-direction: column;
+}
+
+.playground-output .output-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid #4a5568;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.playground-output .output-content {
+    flex: 1;
+    padding: 16px 20px;
+    overflow-y: auto;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.875rem;
+    color: #e2e8f0;
+}
+
+/* Enhanced Playground Editor */
+.playground-editor {
+    background: #1e1e1e;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #3c3c3c;
+}
+
+.playground-editor .editor-header {
+    background: #2d3748;
+    border-bottom: 1px solid #4a5568;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #e2e8f0;
+    font-size: 0.875rem;
+}
+
+.editor-stats {
+    color: #a0aec0;
+    font-family: 'Cascadia Code', monospace;
+    font-size: 0.8rem;
+}
+
+/* Advanced Output Panel */
+.output-footer {
+    background: #2d3748;
+    border-top: 1px solid #4a5568;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Zebra Stripes Enhancement */
+.CodeMirror.zebra-stripes .CodeMirror-line:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.CodeMirror.zebra-stripes .CodeMirror-line:nth-child(odd) {
+    background: transparent !important;
+}
+
+/* Enhanced Active Line */
+.CodeMirror-activeline-background {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-left: 3px solid #4fc3f7 !important;
+}
+
+/* Enhanced Autocomplete */
+.CodeMirror-hints {
+    background: #263238 !important;
+    border: 1px solid #455a64 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.CodeMirror-hint {
+    color: #e0e0e0 !important;
+    padding: 10px 14px !important;
+    border-bottom: 1px solid #37474f;
+    font-family: 'Cascadia Code', monospace;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.CodeMirror-hint:last-child {
+    border-bottom: none;
+}
+
+.CodeMirror-hint:hover {
+    background: #37474f !important;
+}
+
+.CodeMirror-hint-active {
+    background: #4fc3f7 !important;
+    color: #263238 !important;
+    font-weight: 600;
+}
+
+/* Code Folding */
+.CodeMirror-foldgutter {
+    width: 16px;
+}
+
+.CodeMirror-foldgutter-open,
+.CodeMirror-foldgutter-folded {
+    cursor: pointer;
+    color: #90a4ae;
+}
+
+.CodeMirror-foldgutter-open:hover,
+.CodeMirror-foldgutter-folded:hover {
+    color: #4fc3f7;
+}
+
+/* Search Dialog */
+.CodeMirror-dialog {
+    background: #263238;
+    border: 1px solid #455a64;
+    color: #e0e0e0;
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.CodeMirror-dialog input {
+    background: #37474f;
+    border: 1px solid #546e7a;
+    color: #e0e0e0;
+    padding: 6px;
+    border-radius: 3px;
+}
+
+/* Enhanced scroll bars */
+.CodeMirror-scrollbar-filler {
+    background: #2d3748;
+}
+
+.CodeMirror-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.CodeMirror-scroll::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
+.CodeMirror-scroll::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 4px;
+}
+
+.CodeMirror-scroll::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+/* Loading States */
+.output-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0d6efd;
+    padding: 20px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .exercise-interface {
+        grid-template-columns: 350px 1fr;
+    }
+}
+
+@media (max-width: 992px) {
+    .exercise-interface {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+        min-height: calc(100vh - 100px);
+    }
+    
+    .exercise-left-panel {
+        border-right: none;
+        border-bottom: 1px solid #4a5568;
+        max-height: 400px;
+    }
+    
+    .playground-content {
+        grid-template-rows: 400px 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .editor-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .playground-controls {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .exercise-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
+/* Custom Scrollbars */
+.exercise-left-panel::-webkit-scrollbar,
+.output-panel::-webkit-scrollbar,
+.playground-output .output-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.exercise-left-panel::-webkit-scrollbar-track,
+.output-panel::-webkit-scrollbar-track,
+.playground-output .output-content::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
+.exercise-left-panel::-webkit-scrollbar-thumb,
+.output-panel::-webkit-scrollbar-thumb,
+.playground-output .output-content::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 3px;
+}
+
+.exercise-left-panel::-webkit-scrollbar-thumb:hover,
+.output-panel::-webkit-scrollbar-thumb:hover,
+.playground-output .output-content::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+/* Animation and Transitions */
+.file-tab,
+.output-tab,
+.btn {
+    transition: all 0.2s ease;
+}
+
+.test-case,
+.output-result {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* CodeMirror Theme Overrides */
+.cm-editor.cm-focused .cm-cursor {
+    border-left-color: #0d6efd;
+}
+
+.cm-editor .cm-activeLine {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.cm-editor .cm-selectionBackground {
+    background-color: rgba(13, 110, 253, 0.2);
+}
+
+/* Syntax highlighting for the dark theme */
+.cm-editor .cm-content {
+    color: #e2e8f0;
+}
+
+.cm-editor .tok-keyword {
+    color: #805ad5;
+}
+
+.cm-editor .tok-string {
+    color: #0d6efd;
+}
+
+.cm-editor .tok-comment {
+    color: #718096;
+    font-style: italic;
+}
+
+.cm-editor .tok-number {
+    color: #63b3ed;
+}
+
+.cm-editor .tok-operator {
+    color: #ed8936;
+}
+
+.cm-editor .tok-function {
+    color: #f6e05e;
+}
+
+.cm-editor .tok-variable {
+    color: #9f7aea;
+}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/darkly/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .exercise-interface {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 0;
+            height: calc(100vh - 100px);
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .exercise-left-panel {
+            background: #2d3748;
+            border-right: 1px solid #4a5568;
+            padding: 20px;
+            color: #e2e8f0;
+        }
+        
+        .exercise-right-panel {
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .editor-header {
+            background: #2d3748;
+            border-bottom: 1px solid #4a5568;
+            padding: 16px 20px;
+            color: #e2e8f0;
+        }
+        
+        .editor-container {
+            flex: 1;
+            position: relative;
+            background: #1a1a1a;
+        }
+        
+        .code-editor {
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+            color: #e2e8f0;
+            border: none;
+            resize: none;
+            padding: 20px;
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            tab-size: 4;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid p-0">
+        <div class="exercise-interface">
+            <!-- Left Panel -->
+            <div class="exercise-left-panel">
+                <h2>Find Maximum</h2>
+                <p>Find the maximum number in a list</p>
+                <button class="btn btn-primary">Run Code</button>
+            </div>
+            
+            <!-- Right Panel -->
+            <div class="exercise-right-panel">
+                <div class="editor-header">
+                    <strong>Code Editor</strong>
+                </div>
+                <div class="editor-container">
+                    <textarea class="code-editor" placeholder="Write your code here...">def TODO(numbers):
+    # Find max number
+    pass</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

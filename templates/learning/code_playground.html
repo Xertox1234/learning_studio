@@ -1,0 +1,605 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Code Playground - Python Learning Studio{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="container-fluid py-2 bg-light">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'wagtail_serve' '' %}">Home</a></li>
+        <li class="breadcrumb-item active">Code Playground</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/codemirror6/codemirror.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/codemirror6/one-dark.css' %}">
+<style>
+.playground-container {
+    height: calc(100vh - 200px);
+    min-height: 600px;
+}
+
+.code-editor {
+    height: 100%;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.output-panel {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 0.375rem;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    padding: 1rem;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.output-panel.error {
+    color: #f85149;
+}
+
+.output-panel.success {
+    color: #7ee787;
+}
+
+.toolbar {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem 0.375rem 0 0;
+}
+
+.editor-panel {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.run-button {
+    min-width: 100px;
+}
+
+.run-button:disabled {
+    cursor: not-allowed;
+}
+
+.execution-status {
+    font-size: 0.875rem;
+    margin-left: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">Code Playground</h1>
+                    <p class="text-muted">Write, test, and experiment with Python code in real-time</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" onclick="clearCode()">
+                        <i class="bi bi-trash me-2"></i>Clear
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="loadExample()">
+                        <i class="bi bi-lightbulb me-2"></i>Example
+                    </button>
+                    <a href="{% url 'exercises_list' %}" class="btn btn-primary">
+                        <i class="bi bi-puzzle me-2"></i>Practice Exercises
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Playground Area -->
+    <div class="row playground-container">
+        <!-- Code Editor Panel -->
+        <div class="col-lg-8 mb-3">
+            <div class="editor-panel">
+                <div class="toolbar">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-code-slash me-2"></i>
+                            <span class="fw-medium">Python Editor</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <button id="runButton" class="btn btn-success run-button" onclick="executeCode()">
+                                <i class="bi bi-play-fill me-2"></i>Run Code
+                            </button>
+                            <div id="executionStatus" class="execution-status text-muted">
+                                Ready to execute
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="editor" class="code-editor flex-grow-1"></div>
+            </div>
+        </div>
+
+        <!-- Output Panel -->
+        <div class="col-lg-4 mb-3">
+            <div class="h-100">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">
+                            <i class="bi bi-terminal me-2"></i>Output
+                        </h5>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearOutput()">
+                            <i class="bi bi-x-circle me-1"></i>Clear
+                        </button>
+                    </div>
+                    <div id="output" class="output-panel">
+                        <div class="text-muted">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Click "Run Code" to see the output of your Python program here.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tips and Features -->
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-lightbulb text-warning me-2"></i>
+                        Playground Features
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-primary">Real-time Execution</h6>
+                            <p class="small text-muted">Your code runs in a secure, isolated environment with instant feedback.</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-primary">Syntax Highlighting</h6>
+                            <p class="small text-muted">Advanced Python syntax highlighting with error detection.</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-primary">Code Examples</h6>
+                            <p class="small text-muted">Load pre-built examples to learn Python concepts quickly.</p>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6 class="text-success">Keyboard Shortcuts</h6>
+                            <ul class="small text-muted list-unstyled">
+                                <li><kbd>Ctrl/Cmd + Enter</kbd> - Run code</li>
+                                <li><kbd>Ctrl/Cmd + S</kbd> - Save to browser</li>
+                                <li><kbd>Tab</kbd> - Auto-indent</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">Supported Features</h6>
+                            <ul class="small text-muted list-unstyled">
+                                <li>✓ Standard Python libraries</li>
+                                <li>✓ Error handling and debugging</li>
+                                <li>✓ Multiple print statements</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Enhanced CodeMirror 6 Setup -->
+<script src="{% static 'js/codemirror-loader.js' %}"></script>
+<script src="{% static 'js/codemirror-setup.js' %}"></script>
+<script>
+let editor;
+let isExecuting = false;
+
+// Initialize enhanced CodeMirror editor
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        // Wait for CodeMirror setup to be ready
+        if (window.codeMirrorSetup) {
+            await window.codeMirrorSetup.initialize();
+            
+            // Create advanced playground editor
+            editor = await window.codeMirrorSetup.createEditor('editor', {
+                initialValue: `# Welcome to the Python Playground!
+# Write your Python code here and click "Run Code" to execute it.
+
+def greet(name):
+    return f"Hello, {name}! Welcome to Python Learning Studio!"
+
+# Try running this example
+name = "Student"
+message = greet(name)
+print(message)
+
+# Try some basic Python operations
+numbers = [1, 2, 3, 4, 5]
+sum_numbers = sum(numbers)
+print(f"Sum of {numbers} = {sum_numbers}")
+
+# Create a simple loop
+for i in range(3):
+    print(f"Loop iteration: {i + 1}")`,
+                language: 'python',
+                type: 'ai-enhanced', // Use AI-enhanced features
+                placeholder: 'Write your Python code here...'
+            });
+
+            // Add real-time AI features
+            if (editor) {
+                // Set up periodic AI suggestions (every 3 seconds when idle)
+                let suggestionTimeout;
+                let errorCheckTimeout;
+                
+                const scheduleAISuggestions = () => {
+                    clearTimeout(suggestionTimeout);
+                    suggestionTimeout = setTimeout(async () => {
+                        try {
+                            const suggestions = await editor.getSuggestions();
+                            if (suggestions.length > 0) {
+                                console.log('AI suggestions available:', suggestions.length);
+                            }
+                        } catch (error) {
+                            console.debug('AI suggestions not available:', error.message);
+                        }
+                    }, 3000);
+                };
+
+                const scheduleErrorCheck = () => {
+                    clearTimeout(errorCheckTimeout);
+                    errorCheckTimeout = setTimeout(async () => {
+                        try {
+                            await editor.highlightErrors();
+                        } catch (error) {
+                            console.debug('Error highlighting not available:', error.message);
+                        }
+                    }, 1500); // Check for errors faster than suggestions
+                };
+
+                // Listen for code changes
+                if (editor.view) {
+                    // Use CodeMirror's update listener for real-time analysis
+                    scheduleAISuggestions();
+                    scheduleErrorCheck();
+                    
+                    // Add update listener if available
+                    if (window.codeMirrorSetup.modules && window.codeMirrorSetup.modules.view) {
+                        const updateListener = window.codeMirrorSetup.modules.view.EditorView.updateListener.of((update) => {
+                            if (update.docChanged) {
+                                scheduleAISuggestions();
+                                scheduleErrorCheck();
+                            }
+                        });
+                        
+                        // Add to editor extensions
+                        if (editor.view.dispatch) {
+                            editor.view.dispatch({
+                                effects: window.codeMirrorSetup.modules.state.StateEffect.appendConfig.of(updateListener)
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            console.warn('CodeMirror setup not available, using fallback');
+            initializeFallbackEditor();
+        }
+    } catch (error) {
+        console.error('Error initializing enhanced editor:', error);
+        initializeFallbackEditor();
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            executeCode();
+        } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
+            e.preventDefault();
+            formatCode();
+        }
+    });
+});
+
+function initializeFallbackEditor() {
+    const editorContainer = document.getElementById('editor');
+    editorContainer.innerHTML = `
+        <textarea id="codeTextarea" class="form-control h-100" style="border: none; resize: none; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 14px;"
+                  placeholder="Write your Python code here..."># Welcome to the Python Playground!
+# Write your Python code here and click "Run Code" to execute it.
+
+def greet(name):
+    return f"Hello, {name}! Welcome to Python Learning Studio!"
+
+# Try running this example
+name = "Student"
+message = greet(name)
+print(message)
+
+# Try some basic Python operations
+numbers = [1, 2, 3, 4, 5]
+sum_numbers = sum(numbers)
+print(f"Sum of {numbers} = {sum_numbers}")
+
+# Create a simple loop
+for i in range(3):
+    print(f"Loop iteration: {i + 1}")</textarea>
+    `;
+    
+    editor = {
+        getValue: () => document.getElementById('codeTextarea').value,
+        setValue: (value) => document.getElementById('codeTextarea').value = value
+    };
+}
+
+function getCode() {
+    if (editor && typeof editor.getValue === 'function') {
+        return editor.getValue();
+    }
+    return '';
+}
+
+function setCode(code) {
+    if (editor && typeof editor.setValue === 'function') {
+        editor.setValue(code);
+    }
+}
+
+async function executeCode() {
+    if (isExecuting) return;
+    
+    const code = getCode().trim();
+    if (!code) {
+        showOutput('No code to execute. Please write some Python code first.', 'error');
+        return;
+    }
+
+    isExecuting = true;
+    updateExecutionStatus('Executing...', 'text-primary');
+    updateRunButton(true);
+
+    try {
+        const response = await fetch('{% url "execute_code" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ code: code })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const output = result.output || 'Code executed successfully (no output)';
+            const executionTime = result.execution_time ? ` (${result.execution_time.toFixed(3)}s)` : '';
+            showOutput(output + executionTime, 'success');
+            updateExecutionStatus('Execution completed', 'text-success');
+        } else {
+            const error = result.error || 'Unknown execution error occurred';
+            showOutput(error, 'error');
+            updateExecutionStatus('Execution failed', 'text-danger');
+        }
+    } catch (error) {
+        console.error('Execution error:', error);
+        showOutput('Network error: Unable to execute code. Please try again.', 'error');
+        updateExecutionStatus('Network error', 'text-danger');
+    } finally {
+        isExecuting = false;
+        updateRunButton(false);
+        
+        // Reset status after 3 seconds
+        setTimeout(() => {
+            updateExecutionStatus('Ready to execute', 'text-muted');
+        }, 3000);
+    }
+}
+
+function showOutput(text, type = 'normal') {
+    const outputElement = document.getElementById('output');
+    outputElement.className = `output-panel ${type}`;
+    
+    if (type === 'error') {
+        outputElement.innerHTML = `<div><i class="bi bi-exclamation-triangle me-2"></i>Error:</div><div class="mt-1">${escapeHtml(text)}</div>`;
+    } else if (type === 'success') {
+        outputElement.innerHTML = `<div><i class="bi bi-check-circle me-2"></i>Output:</div><pre class="mt-1 mb-0">${escapeHtml(text)}</pre>`;
+    } else {
+        outputElement.innerHTML = `<div class="text-muted">${escapeHtml(text)}</div>`;
+    }
+}
+
+function clearOutput() {
+    showOutput('Output cleared. Run your code to see results here.', 'normal');
+}
+
+function clearCode() {
+    if (confirm('Are you sure you want to clear all code? This action cannot be undone.')) {
+        setCode('# Write your Python code here\n\n');
+        clearOutput();
+        updateExecutionStatus('Ready to execute', 'text-muted');
+    }
+}
+
+function loadExample() {
+    const exampleCode = `# Python Learning Examples
+
+# 1. Basic data types and operations
+name = "Python Learner"
+age = 25
+height = 5.8
+is_student = True
+
+print(f"Name: {name}")
+print(f"Age: {age}")
+print(f"Height: {height} feet")
+print(f"Is student: {is_student}")
+
+# 2. Lists and loops
+fruits = ["apple", "banana", "orange", "grape"]
+print("\\nFruits in my basket:")
+for i, fruit in enumerate(fruits, 1):
+    print(f"{i}. {fruit.title()}")
+
+# 3. Functions and logic
+def calculate_bmi(weight, height_meters):
+    bmi = weight / (height_meters ** 2)
+    if bmi < 18.5:
+        category = "Underweight"
+    elif bmi < 25:
+        category = "Normal weight"
+    elif bmi < 30:
+        category = "Overweight"
+    else:
+        category = "Obese"
+    return bmi, category
+
+# Test the function
+weight = 70  # kg
+height_m = 1.75  # meters
+bmi, category = calculate_bmi(weight, height_m)
+print(f"\\nBMI: {bmi:.1f} ({category})")
+
+# 4. Dictionary operations
+student_grades = {
+    "Alice": 95,
+    "Bob": 87,
+    "Charlie": 92,
+    "Diana": 98
+}
+
+print("\\nStudent Grades:")
+for name, grade in student_grades.items():
+    print(f"{name}: {grade}%")
+
+average_grade = sum(student_grades.values()) / len(student_grades)
+print(f"\\nClass Average: {average_grade:.1f}%")`;
+
+    setCode(exampleCode);
+    showOutput('Example code loaded! Click "Run Code" to execute it.', 'normal');
+}
+
+function updateRunButton(disabled) {
+    const button = document.getElementById('runButton');
+    button.disabled = disabled;
+    
+    if (disabled) {
+        button.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Running...';
+    } else {
+        button.innerHTML = '<i class="bi bi-play-fill me-2"></i>Run Code';
+    }
+}
+
+function updateExecutionStatus(message, className) {
+    const statusElement = document.getElementById('executionStatus');
+    statusElement.textContent = message;
+    statusElement.className = `execution-status ${className}`;
+}
+
+function getCsrfToken() {
+    const token = document.querySelector('[name=csrfmiddlewaretoken]');
+    return token ? token.value : '';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Enhanced playground features
+async function formatCode() {
+    if (editor && window.codeMirrorSetup) {
+        try {
+            updateExecutionStatus('Formatting code...', 'text-primary');
+            const success = await window.codeMirrorSetup.formatCode(editor, 'python');
+            if (success) {
+                updateExecutionStatus('Code formatted', 'text-success');
+            } else {
+                updateExecutionStatus('Formatting unavailable', 'text-warning');
+            }
+        } catch (error) {
+            console.error('Code formatting error:', error);
+            updateExecutionStatus('Formatting failed', 'text-danger');
+        }
+        
+        // Reset status after 2 seconds
+        setTimeout(() => {
+            updateExecutionStatus('Ready to execute', 'text-muted');
+        }, 2000);
+    }
+}
+
+async function getAIHelp() {
+    if (editor && window.codeMirrorSetup) {
+        try {
+            const code = getCode();
+            if (!code.trim()) {
+                showOutput('Write some code first to get AI assistance!', 'error');
+                return;
+            }
+            
+            updateExecutionStatus('Getting AI suggestions...', 'text-primary');
+            const suggestions = await editor.getSuggestions();
+            
+            if (suggestions.length > 0) {
+                const helpText = suggestions.map(s => `• ${s.text}`).join('\n');
+                showOutput(`AI Suggestions:\n${helpText}`, 'success');
+                updateExecutionStatus('AI suggestions ready', 'text-success');
+            } else {
+                showOutput('No AI suggestions available at the moment.', 'normal');
+                updateExecutionStatus('No suggestions', 'text-warning');
+            }
+        } catch (error) {
+            console.error('AI help error:', error);
+            showOutput('AI assistance is currently unavailable.', 'error');
+            updateExecutionStatus('AI unavailable', 'text-danger');
+        }
+        
+        // Reset status after 3 seconds
+        setTimeout(() => {
+            updateExecutionStatus('Ready to execute', 'text-muted');
+        }, 3000);
+    }
+}
+
+function addAIHelpButton() {
+    // Add AI help button to the toolbar
+    const toolbar = document.querySelector('.toolbar .d-flex.align-items-center:last-child');
+    if (toolbar) {
+        const aiButton = document.createElement('button');
+        aiButton.className = 'btn btn-outline-info btn-sm ms-2';
+        aiButton.innerHTML = '<i class="bi bi-robot me-1"></i>AI Help';
+        aiButton.onclick = getAIHelp;
+        aiButton.title = 'Get AI-powered suggestions and help';
+        toolbar.insertBefore(aiButton, toolbar.lastElementChild);
+        
+        const formatButton = document.createElement('button');
+        formatButton.className = 'btn btn-outline-secondary btn-sm ms-2';
+        formatButton.innerHTML = '<i class="bi bi-code me-1"></i>Format';
+        formatButton.onclick = formatCode;
+        formatButton.title = 'Format code (Ctrl+Shift+F)';
+        toolbar.insertBefore(formatButton, toolbar.lastElementChild);
+    }
+}
+
+// Add enhanced features when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Add AI help button after a short delay
+    setTimeout(addAIHelpButton, 1000);
+});
+</script>
+{% endblock %}

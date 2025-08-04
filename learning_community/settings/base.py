@@ -48,6 +48,9 @@ THIRD_PARTY_APPS = [
     # Wagtail AI
     'wagtail_ai',
     
+    # Real-time WebSocket support
+    'channels',
+    
     # Authentication
     'allauth',
     'allauth.account',
@@ -56,10 +59,29 @@ THIRD_PARTY_APPS = [
     # API
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     
     # Security
     'corsheaders',
+    
+    # Forum dependencies
+    'mptt',
+    'haystack',
+    'widget_tweaks',
+    
+    # Django-machina apps
+    'machina',
+    'machina.apps.forum',
+    'machina.apps.forum_conversation',
+    'machina.apps.forum_conversation.forum_attachments',
+    'machina.apps.forum_conversation.forum_polls',
+    'machina.apps.forum_feeds',
+    'machina.apps.forum_member',
+    'machina.apps.forum_moderation',
+    'machina.apps.forum_permission',
+    'machina.apps.forum_search',
+    'machina.apps.forum_tracking',
 ]
 
 LOCAL_APPS = [
@@ -69,7 +91,8 @@ LOCAL_APPS = [
     'apps.community',
     'apps.api',
     'apps.blog',
-    'apps.discourse_sso',
+    'apps.forum_integration',
+    'apps.frontend',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -85,15 +108,22 @@ MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'machina.apps.forum_permission.middleware.ForumPermissionMiddleware',
+    'apps.forum_integration.middleware.TrustLevelTrackingMiddleware',
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
 ]
 
 ROOT_URLCONF = 'learning_community.urls'
 
+from machina import MACHINA_MAIN_TEMPLATE_DIR
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [
+            BASE_DIR / 'templates',  # Your custom templates FIRST
+            MACHINA_MAIN_TEMPLATE_DIR,  # Machina templates as fallback
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -102,6 +132,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'wagtail.contrib.settings.context_processors.settings',
+                'machina.core.context_processors.metadata',
+                'apps.forum_integration.context_processors.forum_stats',
             ],
         },
     },
@@ -165,6 +197,7 @@ SITE_ID = 1
 
 # Django Allauth Configuration
 AUTHENTICATION_BACKENDS = [
+    'apps.users.backends.EmailOrUsernameModelBackend',  # Our custom backend first
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
@@ -172,8 +205,17 @@ AUTHENTICATION_BACKENDS = [
 # Updated Allauth settings (new format)
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'none'
-ACCOUNT_EMAIL_REQUIRED = False
+ACCOUNT_EMAIL_VERIFICATION = config('ACCOUNT_EMAIL_VERIFICATION', default='mandatory')
+ACCOUNT_EMAIL_REQUIRED = True
+
+# Email Configuration
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='localhost')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@pythonlearning.studio')
 
 # Login/Logout URLs
 LOGIN_URL = '/accounts/login/'
@@ -192,6 +234,56 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# JWT Configuration
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    # Token lifetimes
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Short-lived access tokens
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Weekly refresh tokens
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+    
+    # Token rotation and blacklisting
+    'ROTATE_REFRESH_TOKENS': True,                   # Generate new refresh token on refresh
+    'BLACKLIST_AFTER_ROTATION': True,               # Blacklist old refresh tokens
+    'UPDATE_LAST_LOGIN': True,                       # Update user's last_login field
+    
+    # Signing settings
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'JSON_ENCODER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
+    
+    # Token structure
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+    
+    # Token classes
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    
+    # Claims
+    'JTI_CLAIM': 'jti',
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    
+    # Token validation
+    'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
+    'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
+    'TOKEN_VERIFY_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenVerifySerializer',
+    'TOKEN_BLACKLIST_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenBlacklistSerializer',
+    'SLIDING_TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainSlidingSerializer',
+    'SLIDING_TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer',
 }
 
 # API Documentation
@@ -262,6 +354,21 @@ CACHES = {
     }
 }
 
+# Rate Limiting Configuration
+RATELIMIT_ENABLE = config('RATELIMIT_ENABLE', default=True, cast=bool)
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_VIEW = 'apps.api.views.ratelimited'
+
+# Rate limiting settings
+RATE_LIMIT_SETTINGS = {
+    'LOGIN_ATTEMPTS': config('RATE_LIMIT_LOGIN', default='5/m', cast=str),  # 5 attempts per minute
+    'REGISTRATION_ATTEMPTS': config('RATE_LIMIT_REGISTER', default='3/m', cast=str),  # 3 attempts per minute
+    'API_CALLS': config('RATE_LIMIT_API', default='100/m', cast=str),  # 100 API calls per minute
+    'FORUM_POSTS': config('RATE_LIMIT_FORUM_POSTS', default='10/m', cast=str),  # 10 posts per minute
+    'CODE_EXECUTION': config('RATE_LIMIT_CODE_EXEC', default='20/m', cast=str),  # 20 code executions per minute
+    'AI_REQUESTS': config('RATE_LIMIT_AI', default='30/h', cast=str),  # 30 AI requests per hour
+}
+
 # Email Configuration (will be overridden in environment-specific settings)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
@@ -291,6 +398,64 @@ WAGTAIL_AI = {
     "IMAGE_DESCRIPTION_PROMPT": "Generate a concise, educational alt-text description for this programming-related image.",
 }
 
-# Discourse SSO Configuration
-DISCOURSE_BASE_URL = config('DISCOURSE_BASE_URL', default='')
-DISCOURSE_SSO_SECRET = config('DISCOURSE_SSO_SECRET', default='')
+# Django-Machina Configuration
+
+# Anonymous (non-authenticated) users can only read
+MACHINA_DEFAULT_ANONYMOUS_USER_FORUM_PERMISSIONS = [
+    'can_see_forum',
+    'can_read_forum',
+]
+
+# Authenticated users get full permissions
+MACHINA_DEFAULT_AUTHENTICATED_USER_FORUM_PERMISSIONS = [
+    'can_see_forum',
+    'can_read_forum',
+    'can_start_new_topics',
+    'can_reply_to_topics',
+    'can_edit_own_posts',
+    'can_post_without_approval',
+    'can_create_polls',
+    'can_vote_in_polls',
+    'can_download_file',
+]
+
+
+# Forum markup settings
+MACHINA_MARKUP_LANGUAGE = None  # Disable markup for now, can enable later
+MACHINA_MARKUP_WIDGET = None  # Disable markup widget to avoid circular imports
+
+# Forum attachment settings
+MACHINA_ATTACHMENT_CACHE_NAME = 'default'
+MACHINA_ATTACHMENT_FILE_UPLOAD_TO = 'machina/attachments/%Y/%m/%d/'
+
+# Custom machina template settings
+MACHINA_BASE_TEMPLATE_NAME = 'base/base.html'
+MACHINA_FORUM_NAME = 'Python Learning Studio Forum'
+
+# Haystack configuration for forum search (using simple backend for compatibility)
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.simple_backend.SimpleEngine',
+    },
+}
+
+# Django Channels Configuration for Real-time Updates
+ASGI_APPLICATION = 'learning_community.asgi.application'
+
+# Channel Layers (Redis backend for production, in-memory for development)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [(config('REDIS_HOST', default='127.0.0.1'), config('REDIS_PORT', default=6379, cast=int))],
+            'capacity': 1500,  # Maximum messages to store
+            'expiry': 60,      # Message expiry in seconds
+        },
+    },
+}
+
+# WebSocket settings
+WEBSOCKET_ACCEPT_ALL = config('WEBSOCKET_ACCEPT_ALL', default=True, cast=bool)
+WEBSOCKET_HEARTBEAT_INTERVAL = config('WEBSOCKET_HEARTBEAT_INTERVAL', default=30, cast=int)
+WEBSOCKET_MESSAGE_MAX_SIZE = config('WEBSOCKET_MESSAGE_MAX_SIZE', default=64 * 1024, cast=int)  # 64KB
+

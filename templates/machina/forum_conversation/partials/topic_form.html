@@ -1,0 +1,234 @@
+{% load i18n %}
+{% load widget_tweaks %}
+
+<form method="post" action="." class="form" enctype="multipart/form-data" novalidate>{% csrf_token %}
+  {% for error in post_form.non_field_errors %}
+  <div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle me-1"></i> {{ error }}
+  </div>
+  {% endfor %}
+
+  <!-- Subject Field -->
+  <div class="mb-3">
+    <label for="{{ post_form.subject.id_for_label }}" class="form-label">
+      {{ post_form.subject.label }}
+      {% if post_form.subject.field.required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    {% render_field post_form.subject class="form-control" placeholder="Enter a descriptive title for your topic" %}
+    {% if post_form.subject.errors %}
+      <div class="text-danger small mt-1">{{ post_form.subject.errors }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Content Field -->
+  <div class="mb-3">
+    <label for="{{ post_form.content.id_for_label }}" class="form-label">
+      {{ post_form.content.label }}
+      {% if post_form.content.field.required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    {% render_field post_form.content class="form-control" rows="10" placeholder="Write your post content here..." %}
+    {% if post_form.content.errors %}
+      <div class="text-danger small mt-1">{{ post_form.content.errors }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Username Field (for anonymous users) -->
+  {% if post_form.username %}
+  <div class="mb-3">
+    <label for="{{ post_form.username.id_for_label }}" class="form-label">
+      {{ post_form.username.label }}
+      {% if post_form.username.field.required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    {% render_field post_form.username class="form-control" %}
+    {% if post_form.username.errors %}
+      <div class="text-danger small mt-1">{{ post_form.username.errors }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Update Reason Field (for editing) -->
+  {% if post_form.update_reason %}
+  <div class="mb-3">
+    <label for="{{ post_form.update_reason.id_for_label }}" class="form-label">
+      {{ post_form.update_reason.label }}
+    </label>
+    {% render_field post_form.update_reason class="form-control" placeholder="Optional: explain what you changed" %}
+    {% if post_form.update_reason.errors %}
+      <div class="text-danger small mt-1">{{ post_form.update_reason.errors }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Additional Options Tabs -->
+  {% if poll_option_formset or attachment_formset or post_form.topic_type or post_form.enable_signature %}
+  <div class="card mb-3">
+    <div class="card-header">
+      <h5 class="mb-0">Additional Options</h5>
+    </div>
+    <div class="card-body">
+      <!-- Tab Navigation -->
+      <ul class="nav nav-tabs mb-3" id="optionsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+            <i class="bi bi-gear me-1"></i>General
+          </button>
+        </li>
+        {% if poll_option_formset %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="poll-tab" data-bs-toggle="tab" data-bs-target="#poll" type="button" role="tab">
+            <i class="bi bi-bar-chart me-1"></i>Poll
+          </button>
+        </li>
+        {% endif %}
+        {% if attachment_formset %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments" type="button" role="tab">
+            <i class="bi bi-paperclip me-1"></i>Attachments
+          </button>
+        </li>
+        {% endif %}
+      </ul>
+      
+      <!-- Tab Content -->
+      <div class="tab-content" id="optionsTabContent">
+        <!-- General Options Tab -->
+        <div class="tab-pane fade show active" id="general" role="tabpanel">
+          {% if post_form.topic_type %}
+          <div class="mb-3">
+            <label for="{{ post_form.topic_type.id_for_label }}" class="form-label">
+              {{ post_form.topic_type.label }}
+            </label>
+            {% render_field post_form.topic_type class="form-select" %}
+          </div>
+          {% endif %}
+          
+          {% if post_form.enable_signature %}
+          <div class="form-check mb-3">
+            {% render_field post_form.enable_signature class="form-check-input" %}
+            <label class="form-check-label" for="{{ post_form.enable_signature.id_for_label }}">
+              {{ post_form.enable_signature.label }}
+            </label>
+          </div>
+          {% endif %}
+          
+          {% if post_form.lock_topic %}
+          <div class="form-check mb-3">
+            {% render_field post_form.lock_topic class="form-check-input" %}
+            <label class="form-check-label" for="{{ post_form.lock_topic.id_for_label }}">
+              {{ post_form.lock_topic.label }}
+            </label>
+          </div>
+          {% endif %}
+        </div>
+        
+        <!-- Poll Tab -->
+        {% if poll_option_formset %}
+        <div class="tab-pane fade" id="poll" role="tabpanel">
+          {% if poll_option_formset.non_form_errors %}
+            <div class="alert alert-danger">{{ poll_option_formset.non_form_errors }}</div>
+          {% endif %}
+          
+          <div class="row">
+            <div class="col-md-6">
+              {% if post_form.poll_question %}
+              <div class="mb-3">
+                <label for="{{ post_form.poll_question.id_for_label }}" class="form-label">
+                  {{ post_form.poll_question.label }}
+                </label>
+                {% render_field post_form.poll_question class="form-control" placeholder="Enter your poll question" %}
+              </div>
+              {% endif %}
+              
+              {% if post_form.poll_max_options %}
+              <div class="mb-3">
+                <label for="{{ post_form.poll_max_options.id_for_label }}" class="form-label">
+                  {{ post_form.poll_max_options.label }}
+                </label>
+                {% render_field post_form.poll_max_options class="form-control" %}
+              </div>
+              {% endif %}
+              
+              {% if post_form.poll_duration %}
+              <div class="mb-3">
+                <label for="{{ post_form.poll_duration.id_for_label }}" class="form-label">
+                  {{ post_form.poll_duration.label }}
+                </label>
+                {% render_field post_form.poll_duration class="form-control" %}
+              </div>
+              {% endif %}
+              
+              {% if post_form.poll_user_changes %}
+              <div class="form-check mb-3">
+                {% render_field post_form.poll_user_changes class="form-check-input" %}
+                <label class="form-check-label" for="{{ post_form.poll_user_changes.id_for_label }}">
+                  {{ post_form.poll_user_changes.label }}
+                </label>
+              </div>
+              {% endif %}
+              
+              {% if post_form.poll_hide_results %}
+              <div class="form-check mb-3">
+                {% render_field post_form.poll_hide_results class="form-check-input" %}
+                <label class="form-check-label" for="{{ post_form.poll_hide_results.id_for_label }}">
+                  {{ post_form.poll_hide_results.label }}
+                </label>
+              </div>
+              {% endif %}
+            </div>
+            
+            <div id="poll_formset" class="col-md-6">
+              {% include "machina/forum_conversation/forum_polls/poll_option_formset.html" %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- Attachments Tab -->
+        {% if attachment_formset %}
+        <div class="tab-pane fade" id="attachments" role="tabpanel">
+          <div id="attachment_formset">
+            {% include "machina/forum_conversation/forum_attachments/attachment_formset.html" %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Form Actions -->
+  <div class="d-flex justify-content-end gap-2">
+    <input type="submit" name="preview" class="btn btn-outline-primary" value="{% trans "Preview" %}" />
+    <input type="submit" class="btn btn-primary" value="{% trans "Submit" %}" />
+  </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Topic type change handling
+    const topicTypeSelect = document.querySelector('select[name="topic_type"]');
+    if (topicTypeSelect) {
+        topicTypeSelect.addEventListener('change', function(e) {
+            const selectedType = e.target.value;
+            
+            // Show/hide poll tab based on topic type
+            const pollTab = document.getElementById('poll-tab');
+            if (pollTab) {
+                if (selectedType === 'poll') {
+                    pollTab.style.display = 'block';
+                    // Auto-switch to poll tab
+                    const pollTabTrigger = new bootstrap.Tab(pollTab.querySelector('button'));
+                    pollTabTrigger.show();
+                } else {
+                    // Hide poll tab if not poll type
+                    const generalTab = document.getElementById('general-tab');
+                    if (generalTab && pollTab.querySelector('button').classList.contains('active')) {
+                        const generalTabTrigger = new bootstrap.Tab(generalTab.querySelector('button'));
+                        generalTabTrigger.show();
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
