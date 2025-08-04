@@ -374,7 +374,7 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 DATABASE_URL=postgresql://user:pass@localhost/dbname
 
 # AI Integration
-OPENAI_API_KEY=your-openai-key
+OPENAI_API_KEY=your-openai-api-key-here
 
 # Redis (for caching)
 REDIS_URL=redis://localhost:6379/0
