@@ -8,6 +8,7 @@ from wagtail.fields import RichTextField, StreamField
 from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
 from wagtail.search import index
+from wagtail.images.blocks import ImageChooserBlock
 from machina.core.db.models import get_model
 from machina.apps.forum.models import Forum
 from machina.apps.forum_conversation.models import Topic, Post
@@ -1012,3 +1013,169 @@ class ForumLandingPage(Page):
     class Meta:
         verbose_name = "Forum Landing Page"
         verbose_name_plural = "Forum Landing Pages"
+
+
+# Forum Content Blocks for Rich Posts
+class ForumCodeBlock(blocks.StructBlock):
+    """Code block with syntax highlighting for forum posts"""
+    language = blocks.ChoiceBlock(
+        choices=[
+            ('python', 'Python'),
+            ('javascript', 'JavaScript'),
+            ('html', 'HTML'),
+            ('css', 'CSS'),
+            ('sql', 'SQL'),
+            ('bash', 'Bash'),
+            ('json', 'JSON'),
+            ('yaml', 'YAML'),
+            ('cpp', 'C++'),
+            ('java', 'Java'),
+            ('go', 'Go'),
+            ('rust', 'Rust'),
+            ('php', 'PHP'),
+            ('ruby', 'Ruby'),
+        ],
+        default='python'
+    )
+    code = blocks.TextBlock(help_text="Your code here...")
+    caption = blocks.CharBlock(required=False, help_text="Optional caption or title")
+    
+    class Meta:
+        template = 'forum_integration/blocks/code_block.html'
+        icon = 'code'
+        label = 'Code Block'
+
+
+class ForumVideoBlock(blocks.StructBlock):
+    """Video block for embedding videos in forum posts"""
+    video_url = blocks.URLBlock(
+        help_text="YouTube, Vimeo, or direct video URL. YouTube URLs will be auto-embedded."
+    )
+    title = blocks.CharBlock(required=False, help_text="Optional video title")
+    description = blocks.RichTextBlock(required=False, help_text="Optional video description")
+    
+    class Meta:
+        template = 'forum_integration/blocks/video_block.html'
+        icon = 'media'
+        label = 'Video'
+
+
+class ForumQuoteBlock(blocks.StructBlock):
+    """Quote block for highlighting quotes or citations"""
+    text = blocks.TextBlock(help_text="The quote text")
+    source = blocks.CharBlock(required=False, help_text="Source or attribution")
+    
+    class Meta:
+        template = 'forum_integration/blocks/quote_block.html'
+        icon = 'openquote'
+        label = 'Quote'
+
+
+class ForumCalloutBlock(blocks.StructBlock):
+    """Callout/alert block for important information"""
+    type = blocks.ChoiceBlock(
+        choices=[
+            ('info', 'Info'),
+            ('warning', 'Warning'),
+            ('success', 'Success'),
+            ('danger', 'Important/Danger'),
+            ('tip', 'Tip'),
+            ('note', 'Note'),
+        ],
+        default='info'
+    )
+    title = blocks.CharBlock(required=False, help_text="Optional title")
+    text = blocks.RichTextBlock(help_text="Callout content")
+    
+    class Meta:
+        template = 'forum_integration/blocks/callout_block.html'
+        icon = 'warning'
+        label = 'Callout/Alert'
+
+
+class ForumEmbedBlock(blocks.StructBlock):
+    """Block for embedding external content"""
+    embed_code = blocks.RawHTMLBlock(
+        help_text="Paste embed code from YouTube, CodePen, JSFiddle, etc."
+    )
+    caption = blocks.CharBlock(required=False, help_text="Optional caption")
+    
+    class Meta:
+        template = 'forum_integration/blocks/embed_block.html'
+        icon = 'site'
+        label = 'Embed Code'
+
+
+class ForumListBlock(blocks.StructBlock):
+    """Numbered or bulleted list block"""
+    list_type = blocks.ChoiceBlock(
+        choices=[
+            ('ul', 'Bulleted List'),
+            ('ol', 'Numbered List'),
+        ],
+        default='ul'
+    )
+    items = blocks.ListBlock(blocks.CharBlock(label="List item"))
+    
+    class Meta:
+        template = 'forum_integration/blocks/list_block.html'
+        icon = 'list-ul'
+        label = 'List'
+
+
+# Define the StreamField blocks available for forum posts
+FORUM_CONTENT_BLOCKS = [
+    ('paragraph', blocks.RichTextBlock(
+        features=['bold', 'italic', 'link', 'ol', 'ul', 'hr', 'code', 'superscript', 'subscript'],
+        help_text="Rich text paragraph with basic formatting"
+    )),
+    ('heading', blocks.CharBlock(
+        form_classname="title",
+        help_text="Section heading"
+    )),
+    ('image', ImageChooserBlock(
+        help_text="Upload or select an image"
+    )),
+    ('code', ForumCodeBlock()),
+    ('video', ForumVideoBlock()),
+    ('quote', ForumQuoteBlock()),
+    ('callout', ForumCalloutBlock()),
+    ('embed', ForumEmbedBlock()),
+    ('list', ForumListBlock()),
+]
+
+
+class RichForumPost(models.Model):
+    """
+    Model to store rich content for forum posts using StreamField.
+    This extends the basic machina Post model with rich content capabilities.
+    """
+    post = models.OneToOneField(
+        Post, 
+        on_delete=models.CASCADE, 
+        related_name='rich_content'
+    )
+    content = StreamField(
+        FORUM_CONTENT_BLOCKS,
+        blank=True,
+        use_json_field=True,
+        help_text="Rich content for this forum post"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Rich Forum Post"
+        verbose_name_plural = "Rich Forum Posts"
+    
+    def __str__(self):
+        return f"Rich content for post {self.post.id}"
+    
+    def render_content(self):
+        """Render the StreamField content to HTML"""
+        return str(self.content)
+    
+    @property
+    def has_content(self):
+        """Check if this post has any rich content"""
+        return len(self.content) > 0

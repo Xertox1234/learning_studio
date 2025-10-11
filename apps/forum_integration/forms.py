@@ -299,3 +299,131 @@ class SavedSearchForm(forms.Form):
         }),
         help_text="Allow other users to see and use this search"
     )
+
+
+# Rich Forum Post Forms
+from machina.apps.forum_conversation.forms import PostForm
+from .models import RichForumPost, FORUM_CONTENT_BLOCKS
+
+
+class RichPostForm(PostForm):
+    """
+    Enhanced forum post form with Wagtail StreamField for rich content.
+    This form extends machina's PostForm to include rich content capabilities.
+    """
+    
+    # Rich content field using StreamField
+    rich_content = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=False,
+        help_text="Rich content data (JSON)"
+    )
+    
+    # Content type choice
+    content_type = forms.ChoiceField(
+        choices=[
+            ('simple', 'Simple Text'),
+            ('rich', 'Rich Content'),
+        ],
+        initial='rich',
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-check-input',
+        }),
+        help_text="Choose how you want to create your post"
+    )
+    
+    class Meta(PostForm.Meta):
+        fields = PostForm.Meta.fields + ['content_type', 'rich_content']
+    
+    def __init__(self, *args, **kwargs):
+        self.post_instance = kwargs.pop('post_instance', None)
+        super().__init__(*args, **kwargs)
+        
+        # If editing an existing post with rich content, populate the field
+        if self.post_instance and hasattr(self.post_instance, 'rich_content'):
+            try:
+                rich_post = self.post_instance.rich_content
+                if rich_post.has_content:
+                    self.fields['rich_content'].initial = rich_post.content.stream_data
+                    self.fields['content_type'].initial = 'rich'
+            except RichForumPost.DoesNotExist:
+                pass
+        
+        # Update the content field to be optional when using rich content
+        self.fields['content'].required = False
+        self.fields['content'].help_text = "Use this for simple text, or switch to Rich Content mode for advanced formatting"
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        content_type = cleaned_data.get('content_type')
+        simple_content = cleaned_data.get('content')
+        rich_content = cleaned_data.get('rich_content')
+        
+        # Ensure at least one type of content is provided
+        if content_type == 'simple':
+            if not simple_content or simple_content.strip() == '':
+                raise forms.ValidationError("Please provide content for your post.")
+        elif content_type == 'rich':
+            if not rich_content:
+                raise forms.ValidationError("Please add some rich content blocks to your post.")
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        post = super().save(commit=commit)
+        
+        if commit:
+            content_type = self.cleaned_data.get('content_type')
+            rich_content_data = self.cleaned_data.get('rich_content')
+            
+            if content_type == 'rich' and rich_content_data:
+                # Create or update RichForumPost
+                rich_post, created = RichForumPost.objects.get_or_create(
+                    post=post,
+                    defaults={'content': rich_content_data}
+                )
+                if not created:
+                    rich_post.content = rich_content_data
+                    rich_post.save()
+                
+                # If using rich content, clear the simple content to avoid duplication
+                if post.content.strip():
+                    post.content = "[This post contains rich content - please view in the forum]"
+                    post.save()
+            
+            elif content_type == 'simple':
+                # Remove any existing rich content if switching to simple
+                try:
+                    rich_post = post.rich_content
+                    rich_post.delete()
+                except RichForumPost.DoesNotExist:
+                    pass
+        
+        return post
+
+
+class RichTopicForm(RichPostForm):
+    """
+    Form for creating new topics with rich content support.
+    Inherits from RichPostForm and adds topic-specific fields.
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Topic forms always need a subject
+        self.fields['subject'].required = True
+        self.fields['subject'].help_text = "Choose a clear, descriptive title for your topic"
+
+
+class RichReplyForm(RichPostForm):
+    """
+    Form for replying to topics with rich content support.
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Replies don't need a subject
+        if 'subject' in self.fields:
+            del self.fields['subject']

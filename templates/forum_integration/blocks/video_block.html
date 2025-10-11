@@ -1,0 +1,79 @@
+{% load static %}
+
+<div class="video-block mb-4">
+    {% if value.title %}
+        <h5 class="video-title mb-3">
+            <i class="bi bi-play-circle text-primary"></i> {{ value.title }}
+        </h5>
+    {% endif %}
+    
+    <div class="video-container mb-3">
+        {% with video_url=value.video_url %}
+            {% if 'youtube.com/watch' in video_url or 'youtu.be/' in video_url %}
+                <!-- YouTube embed -->
+                {% if 'youtube.com/watch' in video_url %}
+                    {% with video_id=video_url|cut:'https://www.youtube.com/watch?v=' %}
+                        <div class="ratio ratio-16x9">
+                            <iframe 
+                                src="https://www.youtube.com/embed/{{ video_id }}" 
+                                title="YouTube video" 
+                                allowfullscreen
+                                class="rounded"
+                            ></iframe>
+                        </div>
+                    {% endwith %}
+                {% elif 'youtu.be/' in video_url %}
+                    {% with video_id=video_url|cut:'https://youtu.be/' %}
+                        <div class="ratio ratio-16x9">
+                            <iframe 
+                                src="https://www.youtube.com/embed/{{ video_id }}" 
+                                title="YouTube video" 
+                                allowfullscreen
+                                class="rounded"
+                            ></iframe>
+                        </div>
+                    {% endwith %}
+                {% endif %}
+            {% elif 'vimeo.com/' in video_url %}
+                <!-- Vimeo embed -->
+                {% with video_id=video_url|cut:'https://vimeo.com/' %}
+                    <div class="ratio ratio-16x9">
+                        <iframe 
+                            src="https://player.vimeo.com/video/{{ video_id }}" 
+                            title="Vimeo video" 
+                            allowfullscreen
+                            class="rounded"
+                        ></iframe>
+                    </div>
+                {% endwith %}
+            {% else %}
+                <!-- Direct video link or unknown format -->
+                <div class="d-flex align-items-center justify-content-center bg-light rounded p-4">
+                    <div class="text-center">
+                        <i class="bi bi-play-circle fs-1 text-primary mb-2"></i>
+                        <p class="mb-2">
+                            <a href="{{ video_url }}" target="_blank" class="btn btn-primary">
+                                <i class="bi bi-box-arrow-up-right"></i> Watch Video
+                            </a>
+                        </p>
+                        <small class="text-muted">{{ video_url }}</small>
+                    </div>
+                </div>
+            {% endif %}
+        {% endwith %}
+    </div>
+    
+    {% if value.description %}
+        <div class="video-description">
+            <div class="border-start border-primary border-3 ps-3">
+                {{ value.description|linebreaks }}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.video-container iframe {
+    border: none;
+}
+</style>

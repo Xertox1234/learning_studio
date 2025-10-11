@@ -5,10 +5,13 @@ Wagtail page models for Python Learning Studio blog and learning content.
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django import forms
 import json
+import logging
 
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel, InlinePanel
 from wagtail.fields import RichTextField, StreamField
@@ -20,6 +23,12 @@ from wagtail.images.blocks import ImageChooserBlock
 from modelcluster.fields import ParentalKey, ParentalManyToManyField
 from modelcluster.contrib.taggit import ClusterTaggableManager
 from taggit.models import TaggedItemBase
+
+# Import machina models for forum integration
+try:
+    from machina.apps.forum.models import Forum
+except ImportError:
+    Forum = None
 
 User = get_user_model()
 
@@ -777,6 +786,50 @@ class LessonPage(Page):
             ('correct_answer', blocks.IntegerBlock(help_text="Index of correct option (0-based)")),
             ('explanation', blocks.RichTextBlock(required=False)),
         ])),
+        ('runnable_code_example', blocks.StructBlock([
+            ('title', blocks.CharBlock(required=False, help_text="Optional title for the code example")),
+            ('language', blocks.ChoiceBlock(choices=[
+                ('python', 'Python'),
+                ('javascript', 'JavaScript'),
+                ('html', 'HTML'),
+                ('css', 'CSS'),
+                ('java', 'Java'),
+                ('cpp', 'C++'),
+            ], default='python')),
+            ('code', blocks.TextBlock(help_text="Code to display and run")),
+            ('mock_output', blocks.TextBlock(required=False, help_text="Expected output when code is run")),
+            ('ai_explanation', blocks.TextBlock(required=False, help_text="AI explanation of the code")),
+        ], icon='code', help_text="Interactive code example with Run button")),
+        ('fill_blank_code', blocks.StructBlock([
+            ('title', blocks.CharBlock(required=False, help_text="Optional title for the exercise")),
+            ('language', blocks.ChoiceBlock(choices=[
+                ('python', 'Python'),
+                ('javascript', 'JavaScript'),
+                ('html', 'HTML'),
+                ('css', 'CSS'),
+                ('java', 'Java'),
+                ('cpp', 'C++'),
+            ], default='python')),
+            ('template', blocks.TextBlock(help_text="Code template with {{BLANK_1}}, {{BLANK_2}} etc. placeholders")),
+            ('solutions', blocks.TextBlock(help_text="JSON object with solutions: {\"1\": \"answer1\", \"2\": \"answer2\"}")),
+            ('alternative_solutions', blocks.TextBlock(required=False, help_text="JSON object with alternative answers: {\"1\": [\"alt1\", \"alt2\"]}")),
+            ('ai_hints', blocks.TextBlock(required=False, help_text="JSON object with hints: {\"1\": \"hint for blank 1\"}")),
+        ], icon='form', help_text="Fill-in-the-blank coding exercise")),
+        ('multiple_choice_code', blocks.StructBlock([
+            ('title', blocks.CharBlock(required=False, help_text="Optional title for the exercise")),
+            ('language', blocks.ChoiceBlock(choices=[
+                ('python', 'Python'),
+                ('javascript', 'JavaScript'),
+                ('html', 'HTML'),
+                ('css', 'CSS'),
+                ('java', 'Java'),
+                ('cpp', 'C++'),
+            ], default='python')),
+            ('template', blocks.TextBlock(help_text="Code template with {{CHOICE_1}}, {{CHOICE_2}} etc. placeholders")),
+            ('choices', blocks.TextBlock(help_text="JSON object with choices: {\"1\": [\"option1\", \"option2\"], \"2\": [\"optionA\", \"optionB\"]}")),
+            ('solutions', blocks.TextBlock(help_text="JSON object with correct answers: {\"1\": \"option1\", \"2\": \"optionA\"}")),
+            ('ai_explanations', blocks.TextBlock(required=False, help_text="JSON object with explanations: {\"1\": \"explanation for choice 1\"}")),
+        ], icon='list-ol', help_text="Multiple choice coding exercise with dropdowns")),
     ], use_json_field=True)
     
     # Learning objectives for this specific lesson
@@ -856,7 +909,7 @@ class LessonPage(Page):
 class ExercisePage(Page):
     """
     Interactive coding exercise page with validation and hints.
-    Complements the existing Exercise Django model.
+    Enhanced for headless CMS with fill-in-blank templates and progressive hints.
     """
     template = 'blog/exercise_page.html'
     
@@ -888,6 +941,30 @@ class ExercisePage(Page):
         help_text="Points awarded for completing this exercise"
     )
     
+    # Layout configuration
+    layout_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('standard', 'Standard Layout'),
+            ('fullscreen', 'Fullscreen Editor'),
+            ('split', 'Split View'),
+            ('step_by_step', 'Step by Step'),
+        ],
+        default='standard',
+        help_text="Choose how the exercise should be displayed"
+    )
+    
+    show_sidebar = models.BooleanField(
+        default=True,
+        help_text="Show instructions sidebar"
+    )
+    
+    code_editor_height = models.CharField(
+        max_length=20,
+        default='400px',
+        help_text="Height of the code editor (e.g., 400px, 60vh)"
+    )
+    
     # Exercise content
     description = RichTextField(
         help_text="Clear explanation of what the student needs to do"
@@ -902,6 +979,34 @@ class ExercisePage(Page):
     solution_code = models.TextField(
         blank=True,
         help_text="Complete solution (hidden from students)"
+    )
+    
+    # Fill-in-blank template system
+    template_code = models.TextField(
+        blank=True,
+        help_text="Code template with {{BLANK_N}} placeholders for fill-in-blank exercises"
+    )
+    
+    solutions = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"1": "answer1", "2": "answer2"} - Solutions for each blank'
+    )
+    
+    alternative_solutions = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"1": ["answer1", "alt1"], "2": ["answer2", "alt2"]} - Alternative correct answers'
+    )
+    
+    # Progressive hints system
+    progressive_hints = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="""[
+            {"level": 1, "type": "conceptual", "title": "Think About It", 
+             "content": "Hint text", "triggerTime": 30, "triggerAttempts": 0}
+        ] - Time and attempt-based hints"""
     )
     
     programming_language = models.CharField(
@@ -947,6 +1052,32 @@ class ExercisePage(Page):
         help_text="Structured data for quizzes, multiple choice, etc."
     )
     
+    # Exercise content blocks
+    exercise_content = StreamField([
+        ('instruction', blocks.RichTextBlock(
+            help_text="Detailed instructions for the exercise"
+        )),
+        ('code_example', blocks.StructBlock([
+            ('title', blocks.CharBlock(required=False)),
+            ('language', blocks.ChoiceBlock(choices=[
+                ('python', 'Python'),
+                ('javascript', 'JavaScript'),
+                ('html', 'HTML'),
+                ('css', 'CSS'),
+            ])),
+            ('code', blocks.TextBlock()),
+            ('explanation', blocks.RichTextBlock(required=False)),
+        ])),
+        ('hint_block', blocks.StructBlock([
+            ('hint_type', blocks.ChoiceBlock(choices=[
+                ('general', 'General Hint'),
+                ('syntax', 'Syntax Hint'),
+                ('logic', 'Logic Hint'),
+            ])),
+            ('content', blocks.RichTextBlock()),
+        ])),
+    ], blank=True, use_json_field=True)
+    
     # Exercise constraints
     time_limit = models.PositiveIntegerField(
         null=True,
@@ -973,13 +1104,23 @@ class ExercisePage(Page):
             FieldPanel('points'),
             FieldPanel('programming_language'),
         ], heading="Exercise Information"),
+        MultiFieldPanel([
+            FieldPanel('layout_type'),
+            FieldPanel('show_sidebar'),
+            FieldPanel('code_editor_height'),
+        ], heading="Layout Configuration"),
         FieldPanel('description'),
         MultiFieldPanel([
             FieldPanel('starter_code'),
             FieldPanel('solution_code'),
+            FieldPanel('template_code'),
+            FieldPanel('solutions'),
+            FieldPanel('alternative_solutions'),
         ], heading="Code Content"),
+        FieldPanel('exercise_content'),
         FieldPanel('test_cases'),
         FieldPanel('hints'),
+        FieldPanel('progressive_hints'),
         MultiFieldPanel([
             FieldPanel('question_data'),
         ], heading="Non-Coding Exercise Data"),
@@ -1013,6 +1154,138 @@ class ExercisePage(Page):
                 raise ValidationError('Programming language is required for coding exercises')
             if not self.starter_code and not self.solution_code:
                 raise ValidationError('Either starter code or solution code is required for coding exercises')
+
+
+class StepBasedExercisePage(Page):
+    """
+    Multi-step exercise page for progressive learning experiences.
+    Each step can be a different exercise type with its own validation.
+    """
+    template = 'blog/step_based_exercise_page.html'
+    
+    # Overall exercise configuration
+    require_sequential = models.BooleanField(
+        default=True,
+        help_text="Must complete steps in order"
+    )
+    
+    total_points = models.PositiveIntegerField(
+        default=100,
+        help_text="Total points for completing all steps"
+    )
+    
+    difficulty = models.CharField(
+        max_length=20,
+        choices=[
+            ('easy', 'Easy'),
+            ('medium', 'Medium'),
+            ('hard', 'Hard'),
+        ],
+        default='medium'
+    )
+    
+    estimated_time = models.PositiveIntegerField(
+        default=30,
+        help_text="Estimated time to complete in minutes"
+    )
+    
+    # Exercise steps
+    exercise_steps = StreamField([
+        ('exercise_step', blocks.StructBlock([
+            ('step_number', blocks.IntegerBlock(
+                help_text="Step order number"
+            )),
+            ('title', blocks.CharBlock(
+                help_text="Step title"
+            )),
+            ('description', blocks.RichTextBlock(
+                help_text="Step instructions and context"
+            )),
+            ('exercise_type', blocks.ChoiceBlock(choices=[
+                ('code', 'Code Editor'),
+                ('fill_blank', 'Fill in the Blanks'),
+                ('multiple_choice', 'Multiple Choice'),
+                ('quiz', 'Quiz'),
+            ])),
+            ('template', blocks.TextBlock(
+                required=False,
+                help_text="Code template with {{BLANK_N}} for fill-in-blank"
+            )),
+            ('solutions', blocks.TextBlock(
+                required=False,
+                help_text='JSON solutions: {"1": "answer1", "2": "answer2"}'
+            )),
+            ('points', blocks.IntegerBlock(
+                default=10,
+                help_text="Points for this step"
+            )),
+            ('success_message', blocks.TextBlock(
+                default="Great job! You've completed this step.",
+                help_text="Message shown on step completion"
+            )),
+            ('hint', blocks.TextBlock(
+                required=False,
+                help_text="Optional hint for this step"
+            )),
+        ])),
+    ], use_json_field=True)
+    
+    # Overall hints and guidance
+    general_hints = StreamField([
+        ('hint', blocks.StructBlock([
+            ('hint_text', blocks.RichTextBlock()),
+            ('show_after_step', blocks.IntegerBlock(
+                default=1,
+                help_text="Show this hint after completing step N"
+            )),
+        ])),
+    ], blank=True, use_json_field=True)
+    
+    # Completion configuration
+    completion_message = RichTextField(
+        default="Congratulations! You've completed all steps.",
+        help_text="Message shown when all steps are completed"
+    )
+    
+    show_completion_certificate = models.BooleanField(
+        default=False,
+        help_text="Show a completion certificate"
+    )
+    
+    search_fields = Page.search_fields + [
+        index.SearchField('exercise_steps'),
+    ]
+    
+    content_panels = Page.content_panels + [
+        MultiFieldPanel([
+            FieldPanel('difficulty'),
+            FieldPanel('total_points'),
+            FieldPanel('estimated_time'),
+            FieldPanel('require_sequential'),
+        ], heading="Exercise Configuration"),
+        FieldPanel('exercise_steps'),
+        FieldPanel('general_hints'),
+        MultiFieldPanel([
+            FieldPanel('completion_message'),
+            FieldPanel('show_completion_certificate'),
+        ], heading="Completion Settings"),
+    ]
+    
+    # Parent page rules
+    parent_page_types = ['blog.LessonPage', 'blog.CoursePage']
+    
+    def get_context(self, request):
+        context = super().get_context(request)
+        
+        # Add parent context
+        parent = self.get_parent().specific
+        if hasattr(parent, 'get_parent'):
+            course = parent.get_parent().specific if parent.__class__.__name__ == 'LessonPage' else parent
+            context['course'] = course
+            if parent.__class__.__name__ == 'LessonPage':
+                context['lesson'] = parent
+        
+        return context
 
 
 class CodePlaygroundPage(Page):
@@ -1182,6 +1455,346 @@ print(f"The answer to everything times 2 is: {result}")
                 {'keys': 'Tab', 'description': 'Indent'},
                 {'keys': 'Shift+Tab', 'description': 'Unindent'}
             ]
+        
+        return context
+
+
+# ============================================================================
+# WAGTAIL COURSE ENROLLMENT MODEL
+# ============================================================================
+
+class WagtailCourseEnrollment(models.Model):
+    """
+    User enrollment in Wagtail courses.
+    """
+    user = models.ForeignKey(
+        'users.User', 
+        on_delete=models.CASCADE, 
+        related_name='wagtail_enrollments'
+    )
+    course = models.ForeignKey(
+        CoursePage, 
+        on_delete=models.CASCADE, 
+        related_name='enrollments'
+    )
+    
+    # Enrollment status
+    enrolled_at = models.DateTimeField(auto_now_add=True)
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Progress tracking
+    progress_percentage = models.PositiveIntegerField(
+        default=0, 
+        validators=[MaxValueValidator(100)]
+    )
+    last_accessed_lesson = models.ForeignKey(
+        LessonPage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='last_accessed_by'
+    )
+    last_activity = models.DateTimeField(auto_now=True)
+    
+    # Completion tracking
+    total_time_spent = models.PositiveIntegerField(
+        default=0, 
+        help_text="Total time in minutes"
+    )
+    
+    class Meta:
+        unique_together = ['user', 'course']
+        ordering = ['-enrolled_at']
+        verbose_name = 'Wagtail Course Enrollment'
+        verbose_name_plural = 'Wagtail Course Enrollments'
+    
+    def __str__(self):
+        return f"{self.user.username} enrolled in {self.course.title}"
+    
+    def calculate_progress(self):
+        """Calculate progress based on completed lessons."""
+        total_lessons = self.course.get_children().live().count()
+        if total_lessons == 0:
+            return 0
+        
+        # This would need to be implemented with lesson completion tracking
+        # For now, return the stored progress
+        return self.progress_percentage
+    
+    def mark_completed(self):
+        """Mark the enrollment as completed."""
+        if not self.completed:
+            self.completed = True
+            self.completed_at = timezone.now()
+            self.progress_percentage = 100
+            self.save()
+
+
+logger = logging.getLogger(__name__)
+
+
+class ForumIntegratedBlogPage(BlogPage):
+    """
+    Blog page that integrates with forum discussions.
+    Extends BlogPage to automatically create forum topics for community discussion.
+    """
+    
+    # Forum integration fields
+    create_forum_topic = models.BooleanField(
+        default=True,
+        help_text="Automatically create a forum topic for this post"
+    )
+    
+    forum_topic_id = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="ID of the associated forum topic"
+    )
+    
+    discussion_forum = models.ForeignKey(
+        Forum,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Forum where the discussion topic will be created"
+    )
+    
+    forum_topic_title = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Custom title for forum topic (defaults to blog post title)"
+    )
+    
+    forum_discussion_intro = models.TextField(
+        blank=True,
+        help_text="Introduction text for the forum discussion (optional)"
+    )
+    
+    enable_rich_forum_content = models.BooleanField(
+        default=True,
+        help_text="Use rich content blocks in forum posts"
+    )
+    
+    # Trust level requirements
+    min_trust_level_to_post = models.IntegerField(
+        default=0,
+        choices=[
+            (0, 'TL0 - New Users'),
+            (1, 'TL1 - Basic Users'),
+            (2, 'TL2 - Members'),
+            (3, 'TL3 - Regular Users'),
+            (4, 'TL4 - Leaders'),
+        ],
+        help_text="Minimum trust level required to participate in discussion"
+    )
+    
+    content_panels = BlogPage.content_panels + [
+        MultiFieldPanel([
+            FieldPanel('create_forum_topic'),
+            FieldPanel('discussion_forum'),
+            FieldPanel('forum_topic_title'),
+            FieldPanel('forum_discussion_intro'),
+            FieldPanel('enable_rich_forum_content'),
+            FieldPanel('min_trust_level_to_post'),
+        ], heading="Forum Integration", classname="collapsible"),
+    ]
+    
+    class Meta:
+        verbose_name = "Forum-Integrated Blog Post"
+        verbose_name_plural = "Forum-Integrated Blog Posts"
+    
+    def save(self, *args, **kwargs):
+        """Override save to handle forum topic creation."""
+        is_new = self.pk is None
+        was_live = False
+        
+        if not is_new:
+            # Check if page was previously live
+            try:
+                old_instance = ForumIntegratedBlogPage.objects.get(pk=self.pk)
+                was_live = old_instance.live
+            except ForumIntegratedBlogPage.DoesNotExist:
+                pass
+        
+        # Call parent save first
+        super().save(*args, **kwargs)
+        
+        # Create forum topic if conditions are met
+        if (self.create_forum_topic and 
+            self.live and 
+            not self.forum_topic_id and 
+            (is_new or not was_live)):
+            self._create_forum_topic()
+    
+    def _create_forum_topic(self):
+        """Create associated forum topic."""
+        try:
+            from machina.apps.forum.models import Forum
+            from machina.apps.forum_conversation.models import Topic, Post
+            
+            # Use specified forum or get default discussion forum
+            forum = self.discussion_forum
+            if not forum:
+                # Try to get a default "Blog Discussions" forum
+                try:
+                    forum = Forum.objects.get(name="Blog Discussions")
+                except Forum.DoesNotExist:
+                    # Create default forum if it doesn't exist
+                    logger.warning("No discussion forum found for blog integration")
+                    return
+            
+            # Check if forum allows posting
+            if forum.type != Forum.FORUM_POST:
+                logger.warning(f"Forum {forum.name} doesn't allow posting")
+                return
+            
+            # Prepare topic title and content
+            topic_title = self.forum_topic_title or f"Discussion: {self.title}"
+            
+            # Create forum content
+            forum_content = self._generate_forum_content()
+            
+            # Create topic
+            topic = Topic.objects.create(
+                forum=forum,
+                subject=topic_title,
+                poster=self.author or self.owner,
+                type=Topic.TOPIC_POST,
+                status=Topic.TOPIC_UNLOCKED,
+                approved=True,
+                created=timezone.now(),
+                updated=timezone.now()
+            )
+            
+            # Create first post
+            post = Post.objects.create(
+                topic=topic,
+                poster=self.author or self.owner,
+                subject=topic_title,
+                content=forum_content,
+                approved=True,
+                enable_signature=False,
+                created=timezone.now(),
+                updated=timezone.now()
+            )
+            
+            # Update topic references
+            topic.first_post = post
+            topic.last_post = post
+            topic.last_post_on = post.created
+            topic.posts_count = 1
+            topic.save()
+            
+            # Save the topic ID to this blog post
+            self.forum_topic_id = topic.id
+            ForumIntegratedBlogPage.objects.filter(pk=self.pk).update(
+                forum_topic_id=topic.id
+            )
+            
+            logger.info(f"Created forum topic {topic.id} for blog post {self.title}")
+            
+        except Exception as e:
+            logger.error(f"Failed to create forum topic for blog post {self.title}: {e}")
+    
+    def _generate_forum_content(self):
+        """Generate forum post content from blog content."""
+        if not self.enable_rich_forum_content:
+            # Simple format
+            content = f"**New Blog Post: {self.title}**\n\n"
+            content += f"{self.intro}\n\n"
+            if self.forum_discussion_intro:
+                content += f"{self.forum_discussion_intro}\n\n"
+            content += f"[Read the full post]({self.full_url})\n\n"
+            content += "What are your thoughts on this topic? Share your experience and ask questions below!"
+            return content
+        
+        # Rich format with StreamField content
+        content = f"**📝 New Blog Post: {self.title}**\n\n"
+        content += f"*{self.intro}*\n\n"
+        
+        if self.forum_discussion_intro:
+            content += f"{self.forum_discussion_intro}\n\n"
+        
+        # Add preview of blog content
+        if self.body:
+            content += "**Preview:**\n\n"
+            preview_blocks = 0
+            for block in self.body:
+                if preview_blocks >= 2:  # Limit preview
+                    break
+                
+                if block.block_type == 'paragraph':
+                    # Extract plain text from rich text
+                    block_text = str(block.value.source) if hasattr(block.value, 'source') else str(block.value)
+                    content += f"{block_text}\n\n"
+                    preview_blocks += 1
+                elif block.block_type == 'heading':
+                    content += f"## {block.value}\n\n"
+                    preview_blocks += 1
+                elif block.block_type == 'code':
+                    lang = block.value.get('language', 'python')
+                    code = block.value.get('code', '')
+                    content += f"```{lang}\n{code}\n```\n\n"
+                    preview_blocks += 1
+            
+            if len(self.body) > 2:
+                content += "*[... continued in full post]*\n\n"
+        
+        content += f"[**📖 Read the Full Post**]({self.full_url})\n\n"
+        content += "---\n\n"
+        content += "**💬 Discussion Questions:**\n"
+        content += "- What are your thoughts on this topic?\n"
+        content += "- Have you encountered similar challenges?\n"
+        content += "- Any questions or suggestions to share?\n\n"
+        content += f"*Minimum trust level to participate: TL{self.min_trust_level_to_post}*"
+        
+        return content
+    
+    def get_forum_topic(self):
+        """Get the associated forum topic."""
+        if not self.forum_topic_id:
+            return None
+        
+        try:
+            from machina.apps.forum_conversation.models import Topic
+            return Topic.objects.get(id=self.forum_topic_id)
+        except Topic.DoesNotExist:
+            return None
+    
+    def get_forum_url(self):
+        """Get URL to the forum discussion."""
+        topic = self.get_forum_topic()
+        if not topic:
+            return None
+        
+        # Generate forum topic URL
+        return reverse('machina:forum_conversation:topic_detail', kwargs={
+            'forum_slug': topic.forum.slug,
+            'forum_pk': topic.forum.pk,
+            'slug': topic.slug,
+            'pk': topic.pk,
+        })
+    
+    def get_context(self, request):
+        """Add forum context to template."""
+        context = super().get_context(request)
+        
+        # Add forum topic information
+        context['forum_topic'] = self.get_forum_topic()
+        context['forum_url'] = self.get_forum_url()
+        
+        # Add recent forum posts for this topic
+        if self.forum_topic_id:
+            try:
+                from machina.apps.forum_conversation.models import Post
+                recent_posts = Post.objects.filter(
+                    topic_id=self.forum_topic_id,
+                    approved=True
+                ).select_related('poster').order_by('-created')[:5]
+                context['recent_forum_posts'] = recent_posts
+            except Exception:
+                context['recent_forum_posts'] = []
         
         return context
 

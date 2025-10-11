@@ -13,6 +13,7 @@ import {
   X,
   LogOut,
   LayoutDashboard,
+  Target,
   Terminal,
   ChevronDown,
   Settings,
@@ -31,7 +32,7 @@ export default function Navbar() {
   const navigation = [
     { name: 'Home', href: '/', icon: Code2 },
     { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Wagtail Courses', href: '/learning/courses', icon: BookOpen },
+    { name: 'Exercises', href: '/exercises', icon: Target },
     { name: 'Blog', href: '/blog', icon: FileText },
     { name: 'Forum', href: '/forum', icon: MessageSquare },
     { name: 'Playground', href: '/playground', icon: Terminal },

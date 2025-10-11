@@ -1,0 +1,164 @@
+{% extends "machina/board_base.html" %}
+{% load static %}
+{% load rich_content_tags %}
+
+{% block sub_title %}Rich Content Editor Demo{% endblock %}
+
+{% block extra_css %}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <style>
+        .block-showcase {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+        }
+        .block-title {
+            color: #0d6efd;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #0d6efd;
+        }
+    </style>
+{% endblock %}
+
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item">
+        <a href="{% url 'forum:index' %}">Forum</a>
+    </li>
+    <li class="breadcrumb-item active">Rich Content Demo</li>
+{% endblock %}
+
+{% block forum_content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <h1 class="h2 mb-4">
+                    <i class="bi bi-palette text-primary"></i>
+                    Rich Content Editor Demo
+                </h1>
+                
+                <div class="alert alert-info mb-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Welcome to the Rich Forum Editor!</strong> 
+                    This page demonstrates the various content blocks available when creating forum posts. 
+                    You can now create posts with code blocks, videos, quotes, callouts, and more!
+                </div>
+
+                <!-- Available Block Types -->
+                <div class="row mb-5">
+                    <div class="col-12">
+                        <h3 class="h4 mb-3">Available Content Blocks</h3>
+                        <div class="row">
+                            {% for block_name, block_class in available_blocks %}
+                                <div class="col-md-3 col-sm-6 mb-3">
+                                    <div class="card h-100 border-0 shadow-sm">
+                                        <div class="card-body text-center">
+                                            <div class="mb-2">
+                                                {% if block_name == 'paragraph' %}
+                                                    <i class="bi bi-paragraph fs-1 text-primary"></i>
+                                                {% elif block_name == 'heading' %}
+                                                    <i class="bi bi-type-h1 fs-1 text-primary"></i>
+                                                {% elif block_name == 'code' %}
+                                                    <i class="bi bi-code-slash fs-1 text-primary"></i>
+                                                {% elif block_name == 'image' %}
+                                                    <i class="bi bi-image fs-1 text-primary"></i>
+                                                {% elif block_name == 'video' %}
+                                                    <i class="bi bi-play-circle fs-1 text-primary"></i>
+                                                {% elif block_name == 'quote' %}
+                                                    <i class="bi bi-quote fs-1 text-primary"></i>
+                                                {% elif block_name == 'callout' %}
+                                                    <i class="bi bi-exclamation-triangle fs-1 text-primary"></i>
+                                                {% elif block_name == 'embed' %}
+                                                    <i class="bi bi-code-square fs-1 text-primary"></i>
+                                                {% elif block_name == 'list' %}
+                                                    <i class="bi bi-list-ul fs-1 text-primary"></i>
+                                                {% else %}
+                                                    <i class="bi bi-plus-circle fs-1 text-primary"></i>
+                                                {% endif %}
+                                            </div>
+                                            <h6 class="card-title">{{ block_name|title }}</h6>
+                                            <small class="text-muted">
+                                                {% if block_name == 'paragraph' %}Rich text with formatting
+                                                {% elif block_name == 'heading' %}Section headings
+                                                {% elif block_name == 'code' %}Syntax highlighted code
+                                                {% elif block_name == 'image' %}Upload images
+                                                {% elif block_name == 'video' %}Embed videos
+                                                {% elif block_name == 'quote' %}Highlight quotes
+                                                {% elif block_name == 'callout' %}Important alerts
+                                                {% elif block_name == 'embed' %}External embeds
+                                                {% elif block_name == 'list' %}Bulleted/numbered lists
+                                                {% else %}Content block
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Content Showcase -->
+                <div class="row">
+                    <div class="col-12">
+                        <h3 class="h4 mb-4">Sample Rich Content</h3>
+                        <p class="text-muted mb-4">
+                            Here's how different content blocks look when rendered in forum posts:
+                        </p>
+
+                        {% for sample in sample_blocks %}
+                            <div class="block-showcase">
+                                <div class="block-title">
+                                    <i class="bi bi-{{ sample.type }} me-2"></i>
+                                    {{ sample.type|title }} Block
+                                </div>
+                                
+                                <!-- Render the actual block -->
+                                {% if sample.type == 'paragraph' %}
+                                    <div class="content-block mb-4">
+                                        <p>{{ sample.value.text|linebreaks }}</p>
+                                    </div>
+                                {% elif sample.type == 'code' %}
+                                    {% include 'forum_integration/blocks/code_block.html' with value=sample.value %}
+                                {% elif sample.type == 'quote' %}
+                                    {% include 'forum_integration/blocks/quote_block.html' with value=sample.value %}
+                                {% elif sample.type == 'callout' %}
+                                    {% include 'forum_integration/blocks/callout_block.html' with value=sample.value %}
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+
+                        <!-- Try It Out Section -->
+                        <div class="bg-primary bg-gradient rounded-lg p-4 text-white mt-5">
+                            <h4 class="h5 mb-3">
+                                <i class="bi bi-rocket me-2"></i>
+                                Ready to Try It Out?
+                            </h4>
+                            <p class="mb-3">
+                                Create your first rich content forum post using all these amazing blocks!
+                            </p>
+                            <div class="d-flex gap-3">
+                                <a href="{% url 'forum:index' %}" class="btn btn-light">
+                                    <i class="bi bi-arrow-left me-2"></i>Go to Forum
+                                </a>
+                                <a href="#" class="btn btn-outline-light">
+                                    <i class="bi bi-plus-circle me-2"></i>Create Rich Post
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+{% endblock %}

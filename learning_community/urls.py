@@ -27,7 +27,7 @@ from apps.learning.views import (
 from apps.users.views import dashboard_view
 from apps.community.views import community_index_view
 from apps.frontend.views import react_login_view, react_register_view
-from apps.api.views import ratelimited
+from apps.api.mixins import ratelimited
 
 urlpatterns = [
     # Django Admin (moved to different URL)

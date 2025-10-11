@@ -11,7 +11,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('forum_conversation', '0014_alter_post_id_alter_topic_id'),
+        ('forum_conversation', '0013_auto_20201220_1745'),
         ('forum_integration', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

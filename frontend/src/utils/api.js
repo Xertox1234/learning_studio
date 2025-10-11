@@ -30,7 +30,7 @@ export const getAuthHeaders = () => {
  */
 const getApiBaseUrl = () => {
   // Check if we're in development and need to proxy to Django
-  if (window.location.port === '3000') {
+  if (window.location.port === '3000' || window.location.port === '3001' || window.location.port === '3002') {
     // React dev server - proxy to Django
     return 'http://localhost:8000'
   }
@@ -238,7 +238,13 @@ export const api = {
     })
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      const error = new Error(`HTTP error! status: ${response.status}`)
+      error.response = {
+        status: response.status,
+        statusText: response.statusText,
+        data: await response.text().catch(() => 'Unable to read response')
+      }
+      throw error
     }
     
     return {

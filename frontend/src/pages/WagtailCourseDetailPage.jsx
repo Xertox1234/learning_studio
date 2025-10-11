@@ -5,19 +5,30 @@ import {
   User, Calendar, ArrowRight, ChevronRight, Target, AlertCircle 
 } from 'lucide-react'
 import { api } from '../utils/api'
+import { useAuth } from '../contexts/AuthContext'
 import { generateCourseSchema, injectStructuredData } from '../utils/schema'
 import clsx from 'clsx'
 
 export default function WagtailCourseDetailPage() {
   const { courseSlug } = useParams()
+  const { user, isAuthenticated } = useAuth()
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
+  const [enrollmentStatus, setEnrollmentStatus] = useState(null)
+  const [enrollmentLoading, setEnrollmentLoading] = useState(false)
 
   useEffect(() => {
     fetchCourse()
   }, [courseSlug])
+
+  // Check enrollment status when user is authenticated and course is loaded
+  useEffect(() => {
+    if (isAuthenticated && course) {
+      checkEnrollmentStatus()
+    }
+  }, [isAuthenticated, course])
 
   // Add structured data for SEO when course is loaded
   useEffect(() => {
@@ -61,6 +72,92 @@ export default function WagtailCourseDetailPage() {
     }
   }
 
+  const checkEnrollmentStatus = async () => {
+    try {
+      const response = await api.get(`/learning/courses/${courseSlug}/enrollment-status/`)
+      setEnrollmentStatus(response.data)
+    } catch (err) {
+      console.error('Error checking enrollment status:', err)
+      setEnrollmentStatus(null)
+    }
+  }
+
+  const handleEnrollment = async () => {
+    console.log('handleEnrollment called')
+    console.log('isAuthenticated:', isAuthenticated)
+    console.log('user:', user)
+    
+    if (!isAuthenticated) {
+      console.log('User not authenticated, redirecting to login')
+      // Redirect to login or show login modal
+      window.location.href = '/login'
+      return
+    }
+
+    try {
+      setEnrollmentLoading(true)
+      console.log('Making enrollment request for course:', courseSlug)
+      
+      // Check if we have an auth token
+      const token = localStorage.getItem('authToken')
+      console.log('Auth token available:', !!token)
+      if (token) {
+        console.log('Token preview:', token.substring(0, 20) + '...')
+      }
+      
+      const response = await api.post(`/learning/courses/${courseSlug}/enroll/`)
+      console.log('Enrollment response:', response)
+      
+      if (response.data.success) {
+        // Update enrollment status
+        setEnrollmentStatus({
+          enrolled: true,
+          enrollment: response.data.enrollment
+        })
+        
+        // Show success message
+        alert(response.data.message)
+      }
+    } catch (err) {
+      console.error('Error enrolling in course:', err)
+      console.error('Error details:', err.response)
+      console.error('Error response data:', err.response?.data)
+      console.error('Error response status:', err.response?.status)
+      
+      const errorMessage = err.response?.data?.error || err.response?.data?.detail || 'Failed to enroll in course. Please try again.'
+      alert(errorMessage)
+    } finally {
+      setEnrollmentLoading(false)
+    }
+  }
+
+  const handleUnenrollment = async () => {
+    if (!confirm('Are you sure you want to unenroll from this course? Your progress will be saved.')) {
+      return
+    }
+
+    try {
+      setEnrollmentLoading(true)
+      const response = await api.delete(`/learning/courses/${courseSlug}/unenroll/`)
+      
+      if (response.data.success) {
+        // Update enrollment status
+        setEnrollmentStatus({
+          enrolled: false,
+          enrollment: null
+        })
+        
+        // Show success message
+        alert(response.data.message)
+      }
+    } catch (err) {
+      console.error('Error unenrolling from course:', err)
+      alert(err.response?.data?.error || 'Failed to unenroll from course. Please try again.')
+    } finally {
+      setEnrollmentLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="container-custom py-8">
@@ -95,7 +192,7 @@ export default function WagtailCourseDetailPage() {
             <h1 className="text-2xl font-semibold text-destructive mb-4">Course Not Found</h1>
             <p className="text-muted-foreground mb-6">{error}</p>
             <Link
-              to="/learning/courses"
+              to="/courses"
               className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
               <ArrowRight className="h-4 w-4" />
@@ -112,7 +209,7 @@ export default function WagtailCourseDetailPage() {
       <div className="max-w-6xl mx-auto">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-          <Link to="/learning/courses" className="hover:text-primary transition-colors">
+          <Link to="/courses" className="hover:text-primary transition-colors">
             Courses
           </Link>
           <ChevronRight className="h-4 w-4" />
@@ -335,12 +432,18 @@ export default function WagtailCourseDetailPage() {
                                   <span>{lesson.estimated_duration}</span>
                                 </div>
                               )}
-                              <Link
-                                to={`/learning/courses/${course.slug}/lessons/${lesson.slug}`}
-                                className="btn-secondary text-sm"
-                              >
-                                Start Lesson
-                              </Link>
+                              {enrollmentStatus?.enrolled ? (
+                                <Link
+                                  to={`/learning/courses/${course.slug}/lessons/${lesson.slug}`}
+                                  className="btn-secondary text-sm"
+                                >
+                                  Start Lesson
+                                </Link>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">
+                                  {course.is_free ? 'Enroll to access' : 'Purchase required'}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -384,9 +487,55 @@ export default function WagtailCourseDetailPage() {
                 )}
               </div>
 
-              <button className="w-full btn-primary mb-4">
-                {course.is_free ? 'Enroll for Free' : 'Enroll Now'}
-              </button>
+              {/* Enrollment Button */}
+              {!isAuthenticated ? (
+                <Link 
+                  to="/login" 
+                  className="w-full btn-primary mb-4 text-center inline-block"
+                >
+                  {course.is_free ? 'Login to Enroll for Free' : 'Login to Enroll Now'}
+                </Link>
+              ) : enrollmentStatus?.enrolled ? (
+                <div className="space-y-3 mb-4">
+                  <div className="w-full bg-green-600 text-white py-3 px-4 rounded-lg text-center font-medium">
+                    ✓ Enrolled
+                  </div>
+                  
+                  {/* Start Course / Continue Learning Button */}
+                  {course.lessons.length > 0 && (
+                    <Link 
+                      to={`/learning/courses/${course.slug}/lessons/${course.lessons[0].slug}`}
+                      className="w-full btn-primary mb-2 text-center inline-block"
+                    >
+                      {enrollmentStatus.enrollment?.progress_percentage > 0 ? 'Continue Learning' : 'Start Course'}
+                    </Link>
+                  )}
+                  
+                  <button 
+                    onClick={handleUnenrollment}
+                    disabled={enrollmentLoading}
+                    className="w-full btn-secondary text-sm"
+                  >
+                    {enrollmentLoading ? 'Processing...' : 'Unenroll'}
+                  </button>
+                  {enrollmentStatus.enrollment && (
+                    <div className="text-sm text-muted-foreground text-center">
+                      Progress: {enrollmentStatus.enrollment.progress_percentage}%
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button 
+                  onClick={handleEnrollment}
+                  disabled={enrollmentLoading}
+                  className="w-full btn-primary mb-4"
+                >
+                  {enrollmentLoading 
+                    ? 'Processing...' 
+                    : (course.is_free ? 'Enroll for Free' : 'Enroll Now')
+                  }
+                </button>
+              )}
 
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">

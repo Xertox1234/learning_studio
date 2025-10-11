@@ -2671,116 +2671,212 @@ def lesson_detail(request, course_slug, lesson_slug):
         
         lesson = lesson.specific
         
-        # Get lesson content
+        # Safely get lesson content
         content_data = []
-        for block in lesson.content:
-            block_data = {
-                'type': block.block_type,
-                'value': block.value
-            }
-            
-            # Process specific block types
-            if block.block_type == 'code_example':
-                block_data['value'] = {
-                    'title': block.value.get('title', ''),
-                    'language': block.value.get('language', 'text'),
-                    'code': block.value.get('code', ''),
-                    'explanation': str(block.value.get('explanation', ''))
+        try:
+            for block in lesson.content:
+                block_data = {
+                    'type': block.block_type,
+                    'value': block.value
                 }
-            elif block.block_type == 'interactive_exercise':
-                block_data['value'] = {
-                    'title': block.value.get('title', ''),
-                    'instructions': str(block.value.get('instructions', '')),
-                    'starter_code': block.value.get('starter_code', ''),
-                    'solution': block.value.get('solution', ''),
-                    'hints': block.value.get('hints', [])
-                }
-            elif block.block_type == 'video':
-                block_data['value'] = {
-                    'title': block.value.get('title', ''),
-                    'video_url': block.value.get('video_url', ''),
-                    'description': str(block.value.get('description', ''))
-                }
-            elif block.block_type == 'callout':
-                block_data['value'] = {
-                    'type': block.value.get('type', 'info'),
-                    'title': block.value.get('title', ''),
-                    'text': str(block.value.get('text', ''))
-                }
-            elif block.block_type == 'quiz':
-                block_data['value'] = {
-                    'question': block.value.get('question', ''),
-                    'options': block.value.get('options', []),
-                    'correct_answer': block.value.get('correct_answer', 0),
-                    'explanation': str(block.value.get('explanation', ''))
-                }
-            
-            content_data.append(block_data)
+                
+                # Process specific block types and ensure JSON serializable
+                if block.block_type == 'text':
+                    # Handle RichText objects by converting to string
+                    block_data['value'] = str(block.value)
+                elif block.block_type == 'heading':
+                    # Handle heading blocks
+                    block_data['value'] = str(block.value)
+                elif block.block_type == 'code_example':
+                    block_data['value'] = {
+                        'title': block.value.get('title', ''),
+                        'language': block.value.get('language', 'text'),
+                        'code': block.value.get('code', ''),
+                        'explanation': str(block.value.get('explanation', ''))
+                    }
+                elif block.block_type == 'interactive_exercise':
+                    block_data['value'] = {
+                        'title': block.value.get('title', ''),
+                        'instructions': str(block.value.get('instructions', '')),
+                        'starter_code': block.value.get('starter_code', ''),
+                        'solution': block.value.get('solution', ''),
+                        'hints': block.value.get('hints', [])
+                    }
+                elif block.block_type == 'video':
+                    block_data['value'] = {
+                        'title': block.value.get('title', ''),
+                        'video_url': block.value.get('video_url', ''),
+                        'description': str(block.value.get('description', ''))
+                    }
+                elif block.block_type == 'callout':
+                    block_data['value'] = {
+                        'type': block.value.get('type', 'info'),
+                        'title': block.value.get('title', ''),
+                        'text': str(block.value.get('text', ''))
+                    }
+                elif block.block_type == 'quiz':
+                    block_data['value'] = {
+                        'question': block.value.get('question', ''),
+                        'options': block.value.get('options', []),
+                        'correct_answer': block.value.get('correct_answer', 0),
+                        'explanation': str(block.value.get('explanation', ''))
+                    }
+                elif block.block_type == 'runnable_code_example':
+                    block_data['value'] = {
+                        'title': block.value.get('title', ''),
+                        'language': block.value.get('language', 'python'),
+                        'code': block.value.get('code', ''),
+                        'mock_output': block.value.get('mock_output', ''),
+                        'ai_explanation': block.value.get('ai_explanation', '')
+                    }
+                elif block.block_type == 'fill_blank_code':
+                    # Parse JSON strings for complex fields
+                    import json
+                    solutions = {}
+                    alternative_solutions = {}
+                    ai_hints = {}
+                    
+                    try:
+                        solutions = json.loads(block.value.get('solutions', '{}'))
+                    except (json.JSONDecodeError, TypeError):
+                        solutions = {}
+                    
+                    try:
+                        alternative_solutions = json.loads(block.value.get('alternative_solutions', '{}'))
+                    except (json.JSONDecodeError, TypeError):
+                        alternative_solutions = {}
+                    
+                    try:
+                        ai_hints = json.loads(block.value.get('ai_hints', '{}'))
+                    except (json.JSONDecodeError, TypeError):
+                        ai_hints = {}
+                    
+                    block_data['value'] = {
+                        'title': block.value.get('title', ''),
+                        'language': block.value.get('language', 'python'),
+                        'template': block.value.get('template', ''),
+                        'solutions': solutions,
+                        'alternative_solutions': alternative_solutions,
+                        'ai_hints': ai_hints
+                    }
+                elif block.block_type == 'multiple_choice_code':
+                    # Parse JSON strings for complex fields
+                    import json
+                    choices = {}
+                    solutions = {}
+                    ai_explanations = {}
+                    
+                    try:
+                        choices = json.loads(block.value.get('choices', '{}'))
+                    except (json.JSONDecodeError, TypeError):
+                        choices = {}
+                    
+                    try:
+                        solutions = json.loads(block.value.get('solutions', '{}'))
+                    except (json.JSONDecodeError, TypeError):
+                        solutions = {}
+                    
+                    try:
+                        ai_explanations = json.loads(block.value.get('ai_explanations', '{}'))
+                    except (json.JSONDecodeError, TypeError):
+                        ai_explanations = {}
+                    
+                    block_data['value'] = {
+                        'title': block.value.get('title', ''),
+                        'language': block.value.get('language', 'python'),
+                        'template': block.value.get('template', ''),
+                        'choices': choices,
+                        'solutions': solutions,
+                        'ai_explanations': ai_explanations
+                    }
+                else:
+                    # For any other block types, try to convert value to string
+                    try:
+                        block_data['value'] = str(block.value)
+                    except:
+                        block_data['value'] = ''
+                
+                content_data.append(block_data)
+        except AttributeError:
+            # If content field doesn't exist or has issues, provide empty content
+            content_data = []
         
-        # Get lesson objectives
+        # Safely get lesson objectives
         objectives_data = []
-        for block in lesson.lesson_objectives:
-            if block.block_type == 'objective':
-                objectives_data.append(block.value)
+        try:
+            for block in lesson.lesson_objectives:
+                if block.block_type == 'objective':
+                    objectives_data.append(block.value)
+        except AttributeError:
+            objectives_data = []
         
-        # Get resources
+        # Safely get resources
         resources_data = []
-        for block in lesson.resources:
-            if block.block_type == 'resource':
-                resources_data.append({
-                    'title': block.value.get('title', ''),
-                    'url': block.value.get('url', ''),
-                    'description': block.value.get('description', ''),
-                    'type': block.value.get('type', 'article')
-                })
+        try:
+            for block in lesson.resources:
+                if block.block_type == 'resource':
+                    resources_data.append({
+                        'title': block.value.get('title', ''),
+                        'url': block.value.get('url', ''),
+                        'description': block.value.get('description', ''),
+                        'type': block.value.get('type', 'article')
+                    })
+        except AttributeError:
+            resources_data = []
         
         # Get navigation (previous/next lessons)
-        lessons = course.get_children().live().public().order_by('lessonpage__lesson_number')
-        lesson_list = list(lessons)
-        current_index = next((i for i, l in enumerate(lesson_list) if l.id == lesson.id), None)
-        
         navigation = {}
-        if current_index is not None:
-            if current_index > 0:
-                prev_lesson = lesson_list[current_index - 1]
-                navigation['previous'] = {
-                    'title': prev_lesson.title,
-                    'slug': prev_lesson.slug,
-                    'url': prev_lesson.url
-                }
-            if current_index < len(lesson_list) - 1:
-                next_lesson = lesson_list[current_index + 1]
-                navigation['next'] = {
-                    'title': next_lesson.title,
-                    'slug': next_lesson.slug,
-                    'url': next_lesson.url
-                }
+        try:
+            lessons = course.get_children().live().public().order_by('lessonpage__lesson_number')
+            lesson_list = list(lessons)
+            current_index = next((i for i, l in enumerate(lesson_list) if l.id == lesson.id), None)
+            
+            if current_index is not None:
+                if current_index > 0:
+                    prev_lesson = lesson_list[current_index - 1]
+                    navigation['previous'] = {
+                        'title': prev_lesson.title,
+                        'slug': prev_lesson.slug,
+                        'url': prev_lesson.url
+                    }
+                if current_index < len(lesson_list) - 1:
+                    next_lesson = lesson_list[current_index + 1]
+                    navigation['next'] = {
+                        'title': next_lesson.title,
+                        'slug': next_lesson.slug,
+                        'url': next_lesson.url
+                    }
+        except Exception:
+            navigation = {}
         
         # Get lesson exercises
-        exercises = lesson.get_children().live().public()
         exercises_data = []
-        for exercise in exercises:
-            exercise_specific = exercise.specific
-            exercises_data.append({
-                'id': exercise.id,
-                'title': exercise.title,
-                'slug': exercise.slug,
-                'url': exercise.url,
-                'exercise_type': exercise_specific.exercise_type,
-                'difficulty': exercise_specific.difficulty,
-                'points': exercise_specific.points
-            })
+        try:
+            exercises = lesson.get_children().live().public()
+            for exercise in exercises:
+                exercise_specific = exercise.specific
+                exercises_data.append({
+                    'id': exercise.id,
+                    'title': exercise.title,
+                    'slug': exercise.slug,
+                    'url': exercise.url,
+                    'exercise_type': getattr(exercise_specific, 'exercise_type', 'coding'),
+                    'difficulty': getattr(exercise_specific, 'difficulty', 'beginner'),
+                    'points': getattr(exercise_specific, 'points', 10)
+                })
+        except Exception:
+            exercises_data = []
         
         return Response({
             'id': lesson.id,
             'title': lesson.title,
             'slug': lesson.slug,
-            'lesson_number': lesson.lesson_number,
-            'estimated_duration': lesson.estimated_duration,
-            'intro': str(lesson.intro),
+            'lesson_number': getattr(lesson, 'lesson_number', 1),
+            'estimated_duration': getattr(lesson, 'estimated_duration', '30 minutes'),
+            'intro': str(lesson.intro) if hasattr(lesson, 'intro') else '',
             'content': content_data,
             'objectives': objectives_data,
-            'prerequisites': str(lesson.lesson_prerequisites) if lesson.lesson_prerequisites else '',
+            'prerequisites': str(getattr(lesson, 'lesson_prerequisites', '')),
             'resources': resources_data,
             'course': {
                 'id': course.id,
@@ -2791,13 +2887,16 @@ def lesson_detail(request, course_slug, lesson_slug):
             'navigation': navigation,
             'exercises': exercises_data,
             'meta': {
-                'search_description': lesson.search_description,
+                'search_description': getattr(lesson, 'search_description', ''),
                 'first_published_at': lesson.first_published_at.isoformat() if lesson.first_published_at else None,
                 'last_published_at': lesson.last_published_at.isoformat() if lesson.last_published_at else None
             }
         })
         
     except Exception as e:
+        import traceback
+        print(f"Lesson detail error: {str(e)}")
+        print(traceback.format_exc())
         return Response({
             'error': f'Failed to fetch lesson: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -2985,6 +3084,192 @@ print(f"The answer to everything times 2 is: {result}")
     except Exception as e:
         return Response({
             'error': f'Failed to fetch playground: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================================================
+# WAGTAIL COURSE ENROLLMENT API ENDPOINTS
+# ============================================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def wagtail_course_enroll(request, course_slug):
+    """Enroll user in a Wagtail course."""
+    try:
+        from apps.blog.models import CoursePage, WagtailCourseEnrollment
+        
+        # Get the course
+        course = CoursePage.objects.live().public().filter(slug=course_slug).first()
+        if not course:
+            return Response({
+                'error': 'Course not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if user is already enrolled
+        enrollment, created = WagtailCourseEnrollment.objects.get_or_create(
+            user=request.user,
+            course=course
+        )
+        
+        if created:
+            return Response({
+                'success': True,
+                'message': 'Successfully enrolled in course',
+                'enrollment': {
+                    'id': enrollment.id,
+                    'course': course.title,
+                    'enrolled_at': enrollment.enrolled_at.isoformat(),
+                    'progress_percentage': enrollment.progress_percentage
+                }
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response({
+                'success': True,
+                'message': 'Already enrolled in this course',
+                'enrollment': {
+                    'id': enrollment.id,
+                    'course': course.title,
+                    'enrolled_at': enrollment.enrolled_at.isoformat(),
+                    'progress_percentage': enrollment.progress_percentage
+                }
+            }, status=status.HTTP_200_OK)
+            
+    except Exception as e:
+        return Response({
+            'error': f'Failed to enroll in course: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def wagtail_course_unenroll(request, course_slug):
+    """Unenroll user from a Wagtail course."""
+    try:
+        from apps.blog.models import CoursePage, WagtailCourseEnrollment
+        
+        # Get the course
+        course = CoursePage.objects.live().public().filter(slug=course_slug).first()
+        if not course:
+            return Response({
+                'error': 'Course not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if user is enrolled
+        try:
+            enrollment = WagtailCourseEnrollment.objects.get(
+                user=request.user,
+                course=course
+            )
+            enrollment.delete()
+            
+            return Response({
+                'success': True,
+                'message': 'Successfully unenrolled from course'
+            }, status=status.HTTP_200_OK)
+            
+        except WagtailCourseEnrollment.DoesNotExist:
+            return Response({
+                'error': 'Not enrolled in this course'
+            }, status=status.HTTP_404_NOT_FOUND)
+            
+    except Exception as e:
+        return Response({
+            'error': f'Failed to unenroll from course: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def wagtail_course_enrollment_status(request, course_slug):
+    """Check user's enrollment status for a Wagtail course."""
+    try:
+        from apps.blog.models import CoursePage, WagtailCourseEnrollment
+        
+        # Get the course
+        course = CoursePage.objects.live().public().filter(slug=course_slug).first()
+        if not course:
+            return Response({
+                'error': 'Course not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check enrollment status
+        try:
+            enrollment = WagtailCourseEnrollment.objects.get(
+                user=request.user,
+                course=course
+            )
+            
+            return Response({
+                'enrolled': True,
+                'enrollment': {
+                    'id': enrollment.id,
+                    'enrolled_at': enrollment.enrolled_at.isoformat(),
+                    'progress_percentage': enrollment.progress_percentage,
+                    'completed': enrollment.completed,
+                    'completed_at': enrollment.completed_at.isoformat() if enrollment.completed_at else None,
+                    'last_activity': enrollment.last_activity.isoformat(),
+                    'total_time_spent': enrollment.total_time_spent
+                }
+            })
+            
+        except WagtailCourseEnrollment.DoesNotExist:
+            return Response({
+                'enrolled': False,
+                'enrollment': None
+            })
+            
+    except Exception as e:
+        return Response({
+            'error': f'Failed to check enrollment status: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def wagtail_user_enrollments(request):
+    """Get all Wagtail course enrollments for the authenticated user."""
+    try:
+        from apps.blog.models import WagtailCourseEnrollment
+        
+        # Get user's enrollments
+        enrollments = WagtailCourseEnrollment.objects.filter(
+            user=request.user
+        ).select_related('course').order_by('-enrolled_at')
+        
+        enrollments_data = []
+        for enrollment in enrollments:
+            course = enrollment.course
+            enrollments_data.append({
+                'id': enrollment.id,
+                'course': {
+                    'id': course.id,
+                    'title': course.title,
+                    'slug': course.slug,
+                    'course_code': course.course_code,
+                    'short_description': course.short_description,
+                    'difficulty_level': course.difficulty_level,
+                    'is_free': course.is_free,
+                    'price': course.price,
+                    'url': course.url
+                },
+                'enrolled_at': enrollment.enrolled_at.isoformat(),
+                'progress_percentage': enrollment.progress_percentage,
+                'completed': enrollment.completed,
+                'completed_at': enrollment.completed_at.isoformat() if enrollment.completed_at else None,
+                'last_activity': enrollment.last_activity.isoformat(),
+                'total_time_spent': enrollment.total_time_spent
+            })
+        
+        return Response({
+            'enrollments': enrollments_data,
+            'total_count': len(enrollments_data)
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch enrollments: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

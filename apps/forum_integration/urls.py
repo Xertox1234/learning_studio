@@ -12,5 +12,8 @@ urlpatterns = [
     # path('trust-level/', views.trust_level_profile, name='trust_level_profile'),
     # path('api/track-reading-time/', views.track_reading_time, name='track_reading_time'),
     
+    # Rich Content Demo
+    path('rich-content-demo/', views.rich_content_demo, name='rich_content_demo'),
+    
     # Basic forum integration endpoints only for now
 ]

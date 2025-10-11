@@ -6,6 +6,11 @@ export { default as EditableCodePlayground } from './EditableCodePlayground.jsx'
 export { default as ProgressiveHintPanel } from './ProgressiveHintPanel.jsx'
 export { default as ReadOnlyCodeBlock } from './ReadOnlyCodeBlock.jsx'
 
+// Minimal Interactive Components for Wagtail Lessons
+export { default as RunButtonCodeEditor } from './RunButtonCodeEditor.jsx'
+export { default as MinimalFillBlankEditor } from './MinimalFillBlankEditor.jsx'
+export { default as MinimalMultipleChoiceBlanks } from './MinimalMultipleChoiceBlanks.jsx'
+
 // Test and development components
 export { default as CodeBlockTest } from './CodeBlockTest.jsx'
 

@@ -20,8 +20,28 @@
     {% endif %}
   </div>
 
-  <!-- Content Field -->
-  <div class="mb-3">
+  <!-- Content Type Selection -->
+  {% if post_form.content_type %}
+  <div class="mb-4">
+    <label class="form-label">Content Type</label>
+    <div class="form-check-container">
+      {% for choice in post_form.content_type %}
+        <div class="form-check">
+          {{ choice.tag }}
+          <label class="form-check-label" for="{{ choice.id_for_label }}">
+            {{ choice.choice_label }}
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+    {% if post_form.content_type.errors %}
+      <div class="text-danger small mt-1">{{ post_form.content_type.errors }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Simple Content Field -->
+  <div class="mb-3" id="simple-content-section">
     <label for="{{ post_form.content.id_for_label }}" class="form-label">
       {{ post_form.content.label }}
       {% if post_form.content.field.required %}<span class="text-danger">*</span>{% endif %}
@@ -31,6 +51,63 @@
       <div class="text-danger small mt-1">{{ post_form.content.errors }}</div>
     {% endif %}
   </div>
+
+  <!-- Rich Content Field -->
+  {% if post_form.rich_content %}
+  <div class="mb-3" id="rich-content-section" style="display: none;">
+    <label class="form-label">
+      Rich Content Editor
+      <span class="text-muted">(Drag and drop blocks to create your post)</span>
+    </label>
+    
+    <!-- Rich Content Editor Container -->
+    <div id="rich-content-editor" class="border rounded p-3 bg-light">
+      <div class="d-flex flex-wrap gap-2 mb-3" id="block-buttons">
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="paragraph">
+          <i class="bi bi-paragraph"></i> Paragraph
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="heading">
+          <i class="bi bi-type-h1"></i> Heading
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="code">
+          <i class="bi bi-code-slash"></i> Code
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="image">
+          <i class="bi bi-image"></i> Image
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="video">
+          <i class="bi bi-play-circle"></i> Video
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="quote">
+          <i class="bi bi-quote"></i> Quote
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="callout">
+          <i class="bi bi-exclamation-triangle"></i> Callout
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="list">
+          <i class="bi bi-list-ul"></i> List
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-block="embed">
+          <i class="bi bi-code-square"></i> Embed
+        </button>
+      </div>
+      
+      <div id="content-blocks" class="min-height-200">
+        <div class="text-muted text-center p-4">
+          <i class="bi bi-plus-circle fs-1 mb-2"></i>
+          <p>Click a button above to add your first content block</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Hidden field for rich content data -->
+    {% render_field post_form.rich_content %}
+    
+    {% if post_form.rich_content.errors %}
+      <div class="text-danger small mt-1">{{ post_form.rich_content.errors }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
 
   <!-- Username Field (for anonymous users) -->
   {% if post_form.username %}
@@ -203,9 +280,328 @@
   </div>
 </form>
 
+<!-- Rich Content Editor Styles -->
+<style>
+.min-height-200 { min-height: 200px; }
+.content-block {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background: white;
+    position: relative;
+}
+.content-block:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.block-controls {
+    position: absolute;
+    top: -10px;
+    right: 10px;
+    display: none;
+}
+.content-block:hover .block-controls {
+    display: flex;
+    gap: 5px;
+}
+.block-type-label {
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background: #0d6efd;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.form-check-container .form-check {
+    display: inline-block;
+    margin-right: 20px;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Topic type change handling
+    // Content type switching
+    const contentTypeRadios = document.querySelectorAll('input[name="content_type"]');
+    const simpleSection = document.getElementById('simple-content-section');
+    const richSection = document.getElementById('rich-content-section');
+    
+    // Rich content editor state
+    let contentBlocks = [];
+    let blockIdCounter = 1;
+    
+    function updateContentTypeSections() {
+        const selectedType = document.querySelector('input[name="content_type"]:checked')?.value;
+        if (selectedType === 'rich') {
+            simpleSection.style.display = 'none';
+            richSection.style.display = 'block';
+        } else {
+            simpleSection.style.display = 'block';
+            richSection.style.display = 'none';
+        }
+    }
+    
+    // Initialize content type sections
+    updateContentTypeSections();
+    
+    // Listen for content type changes
+    contentTypeRadios.forEach(radio => {
+        radio.addEventListener('change', updateContentTypeSections);
+    });
+    
+    // Rich content editor functionality
+    const blockButtons = document.querySelectorAll('#block-buttons button[data-block]');
+    const contentBlocksContainer = document.getElementById('content-blocks');
+    const richContentField = document.querySelector('input[name="rich_content"]');
+    
+    function createBlock(blockType) {
+        const blockId = `block-${blockIdCounter++}`;
+        const block = {
+            id: blockId,
+            type: blockType,
+            data: {}
+        };
+        
+        let blockHTML = '';
+        
+        switch (blockType) {
+            case 'paragraph':
+                blockHTML = `
+                    <div class="content-block" data-block-id="${blockId}">
+                        <div class="block-type-label">Paragraph</div>
+                        <div class="block-controls">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeBlock('${blockId}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <textarea class="form-control" placeholder="Enter your paragraph text..." rows="4" onchange="updateBlockData('${blockId}', 'text', this.value)"></textarea>
+                    </div>
+                `;
+                break;
+                
+            case 'heading':
+                blockHTML = `
+                    <div class="content-block" data-block-id="${blockId}">
+                        <div class="block-type-label">Heading</div>
+                        <div class="block-controls">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeBlock('${blockId}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <input type="text" class="form-control" placeholder="Enter heading text..." onchange="updateBlockData('${blockId}', 'text', this.value)">
+                    </div>
+                `;
+                break;
+                
+            case 'code':
+                blockHTML = `
+                    <div class="content-block" data-block-id="${blockId}">
+                        <div class="block-type-label">Code</div>
+                        <div class="block-controls">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeBlock('${blockId}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <div class="mb-2">
+                            <select class="form-select form-select-sm" onchange="updateBlockData('${blockId}', 'language', this.value)">
+                                <option value="python">Python</option>
+                                <option value="javascript">JavaScript</option>
+                                <option value="html">HTML</option>
+                                <option value="css">CSS</option>
+                                <option value="sql">SQL</option>
+                                <option value="bash">Bash</option>
+                                <option value="json">JSON</option>
+                            </select>
+                        </div>
+                        <textarea class="form-control font-monospace" placeholder="Enter your code..." rows="5" onchange="updateBlockData('${blockId}', 'code', this.value)"></textarea>
+                        <input type="text" class="form-control form-control-sm mt-2" placeholder="Optional caption..." onchange="updateBlockData('${blockId}', 'caption', this.value)">
+                    </div>
+                `;
+                break;
+                
+            case 'video':
+                blockHTML = `
+                    <div class="content-block" data-block-id="${blockId}">
+                        <div class="block-type-label">Video</div>
+                        <div class="block-controls">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeBlock('${blockId}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <input type="url" class="form-control mb-2" placeholder="Video URL (YouTube, Vimeo, etc.)" onchange="updateBlockData('${blockId}', 'video_url', this.value)">
+                        <input type="text" class="form-control mb-2" placeholder="Optional title..." onchange="updateBlockData('${blockId}', 'title', this.value)">
+                        <textarea class="form-control" placeholder="Optional description..." rows="2" onchange="updateBlockData('${blockId}', 'description', this.value)"></textarea>
+                    </div>
+                `;
+                break;
+                
+            case 'quote':
+                blockHTML = `
+                    <div class="content-block" data-block-id="${blockId}">
+                        <div class="block-type-label">Quote</div>
+                        <div class="block-controls">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeBlock('${blockId}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <textarea class="form-control mb-2" placeholder="Quote text..." rows="3" onchange="updateBlockData('${blockId}', 'text', this.value)"></textarea>
+                        <input type="text" class="form-control" placeholder="Source or attribution..." onchange="updateBlockData('${blockId}', 'source', this.value)">
+                    </div>
+                `;
+                break;
+                
+            case 'callout':
+                blockHTML = `
+                    <div class="content-block" data-block-id="${blockId}">
+                        <div class="block-type-label">Callout</div>
+                        <div class="block-controls">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeBlock('${blockId}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <div class="mb-2">
+                            <select class="form-select form-select-sm" onchange="updateBlockData('${blockId}', 'type', this.value)">
+                                <option value="info">Info</option>
+                                <option value="warning">Warning</option>
+                                <option value="success">Success</option>
+                                <option value="danger">Important/Danger</option>
+                                <option value="tip">Tip</option>
+                                <option value="note">Note</option>
+                            </select>
+                        </div>
+                        <input type="text" class="form-control mb-2" placeholder="Optional title..." onchange="updateBlockData('${blockId}', 'title', this.value)">
+                        <textarea class="form-control" placeholder="Callout content..." rows="3" onchange="updateBlockData('${blockId}', 'text', this.value)"></textarea>
+                    </div>
+                `;
+                break;
+                
+            case 'list':
+                blockHTML = `
+                    <div class="content-block" data-block-id="${blockId}">
+                        <div class="block-type-label">List</div>
+                        <div class="block-controls">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeBlock('${blockId}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <div class="mb-2">
+                            <select class="form-select form-select-sm" onchange="updateBlockData('${blockId}', 'list_type', this.value)">
+                                <option value="ul">Bulleted List</option>
+                                <option value="ol">Numbered List</option>
+                            </select>
+                        </div>
+                        <div id="${blockId}-items">
+                            <input type="text" class="form-control mb-1" placeholder="List item..." onchange="updateListItems('${blockId}')">
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addListItem('${blockId}')">Add Item</button>
+                    </div>
+                `;
+                break;
+                
+            case 'embed':
+                blockHTML = `
+                    <div class="content-block" data-block-id="${blockId}">
+                        <div class="block-type-label">Embed</div>
+                        <div class="block-controls">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeBlock('${blockId}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <textarea class="form-control mb-2" placeholder="Paste embed code (YouTube, CodePen, etc.)" rows="4" onchange="updateBlockData('${blockId}', 'embed_code', this.value)"></textarea>
+                        <input type="text" class="form-control" placeholder="Optional caption..." onchange="updateBlockData('${blockId}', 'caption', this.value)">
+                    </div>
+                `;
+                break;
+        }
+        
+        contentBlocks.push(block);
+        return blockHTML;
+    }
+    
+    function addBlock(blockType) {
+        const blockHTML = createBlock(blockType);
+        
+        // Remove the placeholder if it exists
+        const placeholder = contentBlocksContainer.querySelector('.text-muted.text-center');
+        if (placeholder) {
+            placeholder.remove();
+        }
+        
+        // Add the new block
+        contentBlocksContainer.insertAdjacentHTML('beforeend', blockHTML);
+        updateRichContentField();
+    }
+    
+    window.removeBlock = function(blockId) {
+        const blockElement = document.querySelector(`[data-block-id="${blockId}"]`);
+        if (blockElement) {
+            blockElement.remove();
+        }
+        
+        contentBlocks = contentBlocks.filter(block => block.id !== blockId);
+        
+        // Show placeholder if no blocks remain
+        if (contentBlocks.length === 0) {
+            contentBlocksContainer.innerHTML = `
+                <div class="text-muted text-center p-4">
+                    <i class="bi bi-plus-circle fs-1 mb-2"></i>
+                    <p>Click a button above to add your first content block</p>
+                </div>
+            `;
+        }
+        
+        updateRichContentField();
+    };
+    
+    window.updateBlockData = function(blockId, field, value) {
+        const block = contentBlocks.find(b => b.id === blockId);
+        if (block) {
+            block.data[field] = value;
+            updateRichContentField();
+        }
+    };
+    
+    window.addListItem = function(blockId) {
+        const itemsContainer = document.getElementById(`${blockId}-items`);
+        const newInput = document.createElement('input');
+        newInput.type = 'text';
+        newInput.className = 'form-control mb-1';
+        newInput.placeholder = 'List item...';
+        newInput.onchange = () => updateListItems(blockId);
+        itemsContainer.appendChild(newInput);
+    };
+    
+    window.updateListItems = function(blockId) {
+        const itemsContainer = document.getElementById(`${blockId}-items`);
+        const inputs = itemsContainer.querySelectorAll('input');
+        const items = Array.from(inputs).map(input => input.value).filter(value => value.trim() !== '');
+        updateBlockData(blockId, 'items', items);
+    };
+    
+    function updateRichContentField() {
+        const streamData = contentBlocks.map(block => ({
+            type: block.type,
+            value: block.data,
+            id: block.id
+        }));
+        
+        if (richContentField) {
+            richContentField.value = JSON.stringify(streamData);
+        }
+    }
+    
+    // Add event listeners to block buttons
+    blockButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const blockType = this.getAttribute('data-block');
+            addBlock(blockType);
+        });
+    });
+    
+    // Topic type change handling (existing functionality)
     const topicTypeSelect = document.querySelector('select[name="topic_type"]');
     if (topicTypeSelect) {
         topicTypeSelect.addEventListener('change', function(e) {

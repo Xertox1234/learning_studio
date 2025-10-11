@@ -1,0 +1,15 @@
+{% load static %}
+
+<div class="quote-block mb-4">
+    <blockquote class="blockquote border-start border-primary border-4 ps-4 py-3 bg-light rounded-end">
+        <p class="mb-0 fs-5 text-dark fst-italic">
+            "{{ value.text }}"
+        </p>
+        
+        {% if value.source %}
+            <footer class="blockquote-footer mt-3">
+                <cite title="Source">{{ value.source }}</cite>
+            </footer>
+        {% endif %}
+    </blockquote>
+</div>

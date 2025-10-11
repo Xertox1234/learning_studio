@@ -1,0 +1,55 @@
+{% load static %}
+
+<div class="callout-block mb-4">
+    {% with callout_type=value.type|default:"info" %}
+        <div class="alert alert-{% if callout_type == 'danger' %}danger{% elif callout_type == 'warning' %}warning{% elif callout_type == 'success' %}success{% elif callout_type == 'tip' %}info{% elif callout_type == 'note' %}secondary{% else %}info{% endif %} border-start border-5" role="alert">
+            
+            <!-- Callout icon and title -->
+            <div class="d-flex align-items-start">
+                <div class="flex-shrink-0 me-3">
+                    {% if callout_type == 'danger' %}
+                        <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+                    {% elif callout_type == 'warning' %}
+                        <i class="bi bi-exclamation-circle-fill fs-4 text-warning"></i>
+                    {% elif callout_type == 'success' %}
+                        <i class="bi bi-check-circle-fill fs-4 text-success"></i>
+                    {% elif callout_type == 'tip' %}
+                        <i class="bi bi-lightbulb-fill fs-4 text-info"></i>
+                    {% elif callout_type == 'note' %}
+                        <i class="bi bi-info-circle-fill fs-4 text-secondary"></i>
+                    {% else %}
+                        <i class="bi bi-info-circle-fill fs-4 text-info"></i>
+                    {% endif %}
+                </div>
+                
+                <div class="flex-grow-1">
+                    {% if value.title %}
+                        <h6 class="alert-heading mb-2">
+                            {{ value.title }}
+                        </h6>
+                    {% else %}
+                        <h6 class="alert-heading mb-2">
+                            {% if callout_type == 'danger' %}
+                                Important
+                            {% elif callout_type == 'warning' %}
+                                Warning
+                            {% elif callout_type == 'success' %}
+                                Success
+                            {% elif callout_type == 'tip' %}
+                                💡 Tip
+                            {% elif callout_type == 'note' %}
+                                📝 Note
+                            {% else %}
+                                Information
+                            {% endif %}
+                        </h6>
+                    {% endif %}
+                    
+                    <div class="callout-content">
+                        {{ value.text|linebreaks }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endwith %}
+</div>

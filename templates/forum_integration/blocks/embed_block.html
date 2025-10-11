@@ -1,0 +1,47 @@
+{% load static %}
+
+<div class="embed-block mb-4">
+    {% if value.caption %}
+        <div class="embed-caption mb-2">
+            <small class="text-muted">
+                <i class="bi bi-code-square"></i> {{ value.caption }}
+            </small>
+        </div>
+    {% endif %}
+    
+    <div class="embed-content border rounded p-3 bg-light">
+        {% if value.embed_code %}
+            {{ value.embed_code|safe }}
+        {% else %}
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-code-square fs-1"></i>
+                <p class="mb-0">No embed code provided</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Security notice for embeds -->
+    <div class="mt-2">
+        <small class="text-muted">
+            <i class="bi bi-shield-check"></i> 
+            Embedded content from external sources
+        </small>
+    </div>
+</div>
+
+<style>
+.embed-content iframe,
+.embed-content video,
+.embed-content audio {
+    max-width: 100%;
+    height: auto;
+}
+
+.embed-content pre {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    overflow-x: auto;
+}
+</style>

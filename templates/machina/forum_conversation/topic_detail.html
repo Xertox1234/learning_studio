@@ -4,6 +4,7 @@
 {% load forum_conversation_tags %}
 {% load forum_permission_tags %}
 {% load trust_level_tags %}
+{% load rich_content_tags %}
 
 {% block sub_title %}{{ topic.subject }}{% endblock %}
 
@@ -137,7 +138,16 @@
                             {% endif %}
                             
                             <div class="post-content">
-                                {{ post.content|safe|linebreaks }}
+                                {% render_post_content post %}
+                                
+                                <!-- Content type indicator for debugging -->
+                                {% if debug %}
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="bi bi-info-circle"></i> 
+                                        Content type: {% get_content_type post %}
+                                        {% if post|has_rich_content %}(Rich content blocks: {{ post.rich_content.content|length }}){% endif %}
+                                    </small>
+                                {% endif %}
                             </div>
                             
                             {% if post.updates_count > 0 %}
