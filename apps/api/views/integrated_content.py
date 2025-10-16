@@ -7,7 +7,6 @@ import logging
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from django.views.decorators.csrf import csrf_exempt
 from django_ratelimit.decorators import ratelimit
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -21,7 +20,6 @@ User = get_user_model()
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 @ratelimit(key='user', rate='10/h', method='POST', block=True)  # Rate limit integrated content creation
-@csrf_exempt
 def create_integrated_content(request):
     """
     Create content that can publish to both Wagtail and forum systems.

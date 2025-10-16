@@ -160,48 +160,57 @@ def code_playground_view(request):
     return render(request, 'learning/code_playground.html')
 
 
-@csrf_exempt
 def execute_code_view(request):
-    """Execute code from playground or exercises."""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            code = data.get('code', '')
-            
-            if not code.strip():
-                return JsonResponse({
-                    'success': False,
-                    'error': 'No code provided'
-                })
-            
-            # Import code execution service
-            from .code_execution import code_executor
-            
-            # Execute the code
-            result = code_executor.execute_python_code(code)
-            
-            return JsonResponse({
-                'success': result.success,
-                'output': result.output,
-                'error': result.error_message if not result.success else None,
-                'execution_time': result.execution_time
-            })
-            
-        except json.JSONDecodeError:
-            return JsonResponse({
-                'success': False,
-                'error': 'Invalid JSON data'
-            })
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': f'Execution error: {str(e)}'
-            })
-    
+    """
+    DEPRECATED: This endpoint has been deprecated for security reasons.
+
+    This endpoint was insecure because:
+    1. No authentication required (public code execution)
+    2. No CSRF protection
+    3. No rate limiting
+    4. No audit logging
+
+    Use the secure authenticated endpoint instead:
+    POST /api/v1/code-execution/
+
+    Requires:
+    - Authentication (JWT token or session)
+    - Proper CSRF handling for session auth
+    - Rate limiting enforced
+    - Audit trail maintained
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Log attempted use of deprecated endpoint
+    logger.warning(
+        f"DEPRECATED ENDPOINT ACCESSED: execute_code_view by "
+        f"{'authenticated user ' + str(request.user.id) if request.user.is_authenticated else 'unauthenticated user'} "
+        f"from IP {request.META.get('REMOTE_ADDR', 'unknown')}"
+    )
+
     return JsonResponse({
         'success': False,
-        'error': 'Only POST requests allowed'
-    })
+        'error': 'This endpoint has been deprecated for security reasons.',
+        'message': 'Please use the secure authenticated endpoint: POST /api/v1/code-execution/',
+        'documentation': 'See CLAUDE.md for API documentation',
+        'migration_guide': {
+            'old_endpoint': '/execute-code/',
+            'new_endpoint': '/api/v1/code-execution/',
+            'authentication_required': True,
+            'example': {
+                'method': 'POST',
+                'url': '/api/v1/code-execution/',
+                'headers': {
+                    'Authorization': 'Bearer YOUR_JWT_TOKEN',
+                    'Content-Type': 'application/json'
+                },
+                'body': {
+                    'code': 'print("Hello World")'
+                }
+            }
+        }
+    }, status=410)  # 410 Gone - endpoint permanently removed
 
 
 @login_required

@@ -1199,7 +1199,6 @@ def forum_detail(request, forum_slug, forum_id):
 # Forum Topic CRUD API Views
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def topic_create(request):
     """Create a new forum topic."""
     try:
@@ -1478,7 +1477,6 @@ def topic_delete(request, topic_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @ratelimit(key='user', rate=settings.RATE_LIMIT_SETTINGS['FORUM_POSTS'], method='POST', block=True)
-@csrf_exempt
 def post_create(request):
     """Create a new forum post (reply to a topic)."""
     try:
@@ -1657,7 +1655,6 @@ def post_reply(request, topic_id):
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def post_edit(request, post_id):
     """Edit an existing forum post."""
     try:
@@ -1747,7 +1744,6 @@ def post_edit(request, post_id):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def post_delete(request, post_id):
     """Delete a forum post."""
     try:
@@ -3096,7 +3092,6 @@ print(f"The answer to everything times 2 is: {result}")
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def wagtail_course_enroll(request, course_slug):
     """Enroll user in a Wagtail course."""
     try:
@@ -3146,7 +3141,6 @@ def wagtail_course_enroll(request, course_slug):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def wagtail_course_unenroll(request, course_slug):
     """Unenroll user from a Wagtail course."""
     try:

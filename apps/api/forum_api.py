@@ -5,7 +5,6 @@ Forum API endpoints extracted from views.py with pagination added.
 import logging
 from django.conf import settings
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django_ratelimit.decorators import ratelimit
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -309,7 +308,6 @@ def forum_detail(request, forum_slug, forum_id):
 # Forum Topic CRUD API Views
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def topic_create(request):
     """Create a new forum topic."""
     try:
@@ -528,7 +526,6 @@ def topic_delete(request, topic_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @ratelimit(key='user', rate=settings.RATE_LIMIT_SETTINGS['FORUM_POSTS'], method='POST', block=True)
-@csrf_exempt
 def post_create(request):
     """Create a new forum post (reply to a topic)."""
     try:
@@ -677,7 +674,6 @@ def post_reply(request, topic_id):
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def post_edit(request, post_id):
     """Edit an existing forum post."""
     try:
@@ -749,7 +745,6 @@ def post_edit(request, post_id):
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def post_delete(request, post_id):
     """Delete a forum post."""
     try:
