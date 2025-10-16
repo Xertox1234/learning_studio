@@ -15,6 +15,8 @@ from django.conf import settings
 from django.utils import timezone
 import logging
 
+logger = logging.getLogger(__name__)
+
 # Import the new Docker executor
 try:
     from .docker_executor import get_code_executor
@@ -22,12 +24,12 @@ try:
     try:
         get_code_executor()
         DOCKER_EXECUTOR_AVAILABLE = True
-    except ImportError:
+    except (ImportError, Exception) as e:
+        # Handle Docker not being available (not installed or not running)
+        logger.info(f"Docker executor not available: {e}")
         DOCKER_EXECUTOR_AVAILABLE = False
 except ImportError:
     DOCKER_EXECUTOR_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

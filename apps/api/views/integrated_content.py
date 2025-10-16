@@ -12,7 +12,7 @@ from django_ratelimit.decorators import ratelimit
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
-from apps.api.services.forum_content_service import forum_content_service
+from apps.api.services.container import container
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -60,6 +60,7 @@ def create_integrated_content(request):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Check user permissions
+        forum_content_service = container.get_forum_content_service()
         permissions_check = forum_content_service.check_user_permissions(
             user=request.user,
             action=f'create_{content_type}',
@@ -105,9 +106,11 @@ def create_integrated_content(request):
 def user_permissions(request):
     """Get user's permissions for content creation."""
     try:
+        forum_content_service = container.get_forum_content_service()
+
         # Get permissions for all actions
         actions = ['create_blog_post', 'create_forum_topic', 'create_integrated_content', 'use_rich_content']
-        
+
         all_permissions = {}
         for action in actions:
             permissions_check = forum_content_service.check_user_permissions(
@@ -115,7 +118,7 @@ def user_permissions(request):
                 action=action
             )
             all_permissions[action] = permissions_check['allowed']
-        
+
         # Get detailed trust level info
         trust_level_info = forum_content_service.check_user_permissions(
             user=request.user,
@@ -188,8 +191,9 @@ def available_forums(request):
 def integrated_content_stats(request):
     """Get statistics about integrated content."""
     try:
+        forum_content_service = container.get_forum_content_service()
         forum_id = request.GET.get('forum_id')
-        
+
         # Get forum statistics including integrated content
         stats = forum_content_service.get_forum_statistics(
             forum_id=int(forum_id) if forum_id else None

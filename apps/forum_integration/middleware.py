@@ -18,9 +18,40 @@ class TrustLevelTrackingMiddleware(MiddlewareMixin):
     
     def process_request(self, request):
         """Track user activity on each request"""
+        # Only track activity for forum-related pages to avoid database writes on every request
+        # This prevents unnecessary writes for admin, API, static files, etc.
+        if not self._should_track_activity(request):
+            return None
+
         if request.user.is_authenticated:
             self.track_daily_visit(request.user)
         return None
+
+    def _should_track_activity(self, request):
+        """
+        Determine if we should track activity for this request.
+        Only track for actual forum page views, not API calls or static files.
+        """
+        path = request.path
+
+        # Skip API endpoints (they don't represent user engagement in the same way)
+        if path.startswith('/api/'):
+            return False
+
+        # Skip admin pages
+        if path.startswith('/admin/') or path.startswith('/django-admin/'):
+            return False
+
+        # Skip static and media files
+        if path.startswith('/static/') or path.startswith('/media/'):
+            return False
+
+        # Skip authentication pages
+        if path.startswith('/accounts/') or path in ['/login/', '/logout/', '/register/']:
+            return False
+
+        # Track everything else (forum pages, dashboard, etc.)
+        return True
     
     def track_daily_visit(self, user):
         """

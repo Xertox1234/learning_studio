@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { apiRequest } from '../utils/api'
 import ForumErrorBoundary from '../components/forum/ForumErrorBoundary'
-import { 
-  MessageSquare, 
-  Users, 
-  TrendingUp, 
+import { useForums } from '../hooks/useForumQuery'
+import {
+  MessageSquare,
+  Users,
+  TrendingUp,
   Clock,
   Search,
   Filter,
@@ -21,17 +21,28 @@ import { format } from 'date-fns'
 import clsx from 'clsx'
 
 export default function ForumPage() {
-  const [forums, setForums] = useState([])
-  const [stats, setStats] = useState({ total_topics: 0, total_posts: 0, total_users: 0, online_users: 0 })
-  const [loading, setLoading] = useState(true)
+  // Use React Query hook for data fetching
+  const { data, isLoading, error } = useForums()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('activity')
   const [showForumDropdown, setShowForumDropdown] = useState(false)
 
-  useEffect(() => {
-    fetchForums()
-  }, [])
+  // Transform API data to flat array for easier filtering
+  const forums = data?.categories?.flatMap(category =>
+    category.forums.map(forum => ({
+      ...forum,
+      color: forum.color || 'bg-blue-500' // Fallback color
+    }))
+  ) || []
+
+  const stats = data?.stats || {
+    total_topics: 0,
+    total_posts: 0,
+    total_users: 0,
+    online_users: 0
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -40,145 +51,30 @@ export default function ForumPage() {
         setShowForumDropdown(false)
       }
     }
-    
+
     document.addEventListener('click', handleClickOutside)
     return () => document.removeEventListener('click', handleClickOutside)
   }, [showForumDropdown])
 
-  const fetchForums = async () => {
-    try {
-      const response = await apiRequest('/api/v1/forums/')
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch forums')
-      }
-      
-      const data = await response.json()
-      
-      // Transform API data to match component expectations
-      const forumData = []
-      if (data.categories) {
-        data.categories.forEach(category => {
-          category.forums.forEach(forum => {
-            forumData.push({
-              id: forum.id,
-              name: forum.name,
-              slug: forum.slug,
-              description: forum.description,
-              icon: forum.icon,
-              topics_count: forum.topics_count,
-              posts_count: forum.posts_count,
-              last_post: forum.last_post,
-              stats: forum.stats,
-              color: forum.color
-            })
-          })
-        })
-      }
-      
-      setForums(forumData)
-      
-      // Update stats from API data
-      if (data.stats) {
-        setStats(data.stats)
-      }
-    } catch (error) {
-      console.error('Failed to fetch forums:', error)
-      // Fall back to mock data if API fails
-      setForums(mockForums)
-      setStats({ total_topics: 12500, total_posts: 48200, total_users: 256, online_users: 1200 })
-    } finally {
-      setLoading(false)
-    }
+  // Show error state if API fails
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-8 border border-gray-200 dark:border-gray-700 max-w-md">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Failed to Load Forums</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            {error.message || 'An error occurred while fetching forum data.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="btn-primary w-full"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
-
-  // Mock data for demonstration
-  const mockForums = [
-    {
-      id: 1,
-      name: 'Python Basics',
-      slug: 'python-basics',
-      description: 'Get started with Python programming. Ask questions about syntax, data types, and basic concepts.',
-      icon: '🐍',
-      topics_count: 1234,
-      posts_count: 5678,
-      last_post: {
-        id: 1,
-        title: 'How to use list comprehensions?',
-        author: { username: 'alice_dev', avatar: null, trust_level: 3 },
-        created_at: new Date(Date.now() - 1000 * 60 * 30), // 30 mins ago
-      },
-      stats: {
-        online_users: 45,
-        weekly_posts: 234,
-        trending: true,
-      },
-      color: 'bg-blue-500',
-    },
-    {
-      id: 2,
-      name: 'Web Development',
-      slug: 'web-development',
-      description: 'Django, Flask, FastAPI and everything about Python web development.',
-      icon: '🌐',
-      topics_count: 987,
-      posts_count: 4321,
-      last_post: {
-        id: 2,
-        title: 'Django vs FastAPI for REST APIs',
-        author: { username: 'bob_builder', avatar: null, trust_level: 4 },
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      },
-      stats: {
-        online_users: 32,
-        weekly_posts: 189,
-        trending: false,
-      },
-      color: 'bg-green-500',
-    },
-    {
-      id: 3,
-      name: 'Data Science & ML',
-      slug: 'data-science',
-      description: 'Pandas, NumPy, scikit-learn, TensorFlow, and machine learning discussions.',
-      icon: '📊',
-      topics_count: 1567,
-      posts_count: 7890,
-      last_post: {
-        id: 3,
-        title: 'Best practices for preprocessing data with Pandas',
-        author: { username: 'data_ninja', avatar: null, trust_level: 2 },
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
-      },
-      stats: {
-        online_users: 67,
-        weekly_posts: 456,
-        trending: true,
-      },
-      color: 'bg-purple-500',
-    },
-    {
-      id: 4,
-      name: 'Code Reviews',
-      slug: 'code-reviews',
-      description: 'Share your code for review and help others improve their Python skills.',
-      icon: '👀',
-      topics_count: 543,
-      posts_count: 2345,
-      last_post: {
-        id: 4,
-        title: 'Review my Flask authentication system',
-        author: { username: 'newbie_coder', avatar: null, trust_level: 1 },
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-      },
-      stats: {
-        online_users: 23,
-        weekly_posts: 123,
-        trending: false,
-      },
-      color: 'bg-orange-500',
-    },
-  ]
 
   // Dynamic categories based on real forum data
   const categories = [
@@ -417,7 +313,7 @@ export default function ForumPage() {
 
           {/* Forum List */}
           <div className="flex-1">
-            {loading ? (
+            {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="forum-card animate-pulse">

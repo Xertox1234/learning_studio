@@ -1145,37 +1145,6 @@ FORUM_CONTENT_BLOCKS = [
 ]
 
 
-class RichForumPost(models.Model):
-    """
-    Model to store rich content for forum posts using StreamField.
-    This extends the basic machina Post model with rich content capabilities.
-    """
-    post = models.OneToOneField(
-        Post, 
-        on_delete=models.CASCADE, 
-        related_name='rich_content'
-    )
-    content = StreamField(
-        FORUM_CONTENT_BLOCKS,
-        blank=True,
-        use_json_field=True,
-        help_text="Rich content for this forum post"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = "Rich Forum Post"
-        verbose_name_plural = "Rich Forum Posts"
-    
-    def __str__(self):
-        return f"Rich content for post {self.post.id}"
-    
-    def render_content(self):
-        """Render the StreamField content to HTML"""
-        return str(self.content)
-    
-    @property
-    def has_content(self):
-        """Check if this post has any rich content"""
-        return len(self.content) > 0
+# RichForumPost model removed - migration was disabled (0006_richforumpost.py.disabled)
+# Forum posts use machina's built-in content field with simple markdown formatting
+# If rich content is needed in future, consider lightweight markdown editor or re-enable StreamFields

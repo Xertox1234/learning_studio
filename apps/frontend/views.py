@@ -7,23 +7,38 @@ import json
 
 def react_app_view(request, path=''):
     """
-    Serve the React application for all frontend routes.
-    In development, this will proxy to the Vite dev server.
-    In production, this will serve the built React files.
+    Serve the React SPA for all frontend routes.
+    In development, this proxies to the Vite dev server.
+    In production, this serves the built React files.
+
+    This is the catch-all view for the React SPA routing.
     """
     if settings.DEBUG:
-        # In development, redirect to React dev server
+        # Development: Proxy to Vite dev server (http://localhost:3000)
         context = {
             'REACT_DEV_SERVER': 'http://localhost:3000',
             'path': path,
         }
         return render(request, 'frontend/dev_proxy.html', context)
     else:
-        # In production, serve the built React app
-        # This would serve the built files from static/react/
-        return render(request, 'frontend/index.html', {
-            'path': path,
-        })
+        # Production: Serve built React app from static/react/
+        # The index.html references assets with absolute paths
+        react_html_path = os.path.join(settings.BASE_DIR, 'static', 'react', 'index.html')
+
+        if os.path.exists(react_html_path):
+            with open(react_html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+
+            # Update asset paths to work with Django static files
+            html_content = html_content.replace('="/assets/', f'="{settings.STATIC_URL}react/assets/')
+            html_content = html_content.replace("='/assets/", f"='{settings.STATIC_URL}react/assets/")
+
+            return HttpResponse(html_content, content_type='text/html')
+        else:
+            return HttpResponse(
+                '<h1>React App Not Built</h1><p>Please run: cd frontend && npm run build</p>',
+                status=503
+            )
 
 def api_status_view(request):
     """

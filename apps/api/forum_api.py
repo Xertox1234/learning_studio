@@ -24,9 +24,10 @@ def forum_list(request):
         from machina.apps.forum.models import Forum
         from machina.apps.forum_conversation.models import Topic
         from django.contrib.auth import get_user_model
-        from apps.forum_integration.statistics_service import forum_stats_service
+        from apps.api.services.container import container
 
         User = get_user_model()
+        stats_service = container.get_statistics_service()
 
         # Get forum categories and their children
         forum_categories = Forum.objects.filter(type=Forum.FORUM_CAT)
@@ -64,7 +65,7 @@ def forum_list(request):
                         }
 
                     # Get real statistics for this forum
-                    forum_stats = forum_stats_service.get_forum_specific_stats(forum.id)
+                    forum_stats = stats_service.get_forum_specific_stats(forum.id)
 
                     forum_data = {
                         'id': forum.id,
@@ -88,7 +89,7 @@ def forum_list(request):
                 forums_data.append(category_data)
 
         # Get overall stats using the statistics service
-        overall_stats = forum_stats_service.get_forum_statistics()
+        overall_stats = stats_service.get_forum_statistics()
 
         return Response({
             'categories': forums_data,
@@ -843,9 +844,10 @@ def dashboard_forum_stats(request):
         from django.db.models import Count, Q
         from django.utils import timezone
         from datetime import timedelta
-        from apps.forum_integration.statistics_service import forum_stats_service
+        from apps.api.services.container import container
 
         User = get_user_model()
+        stats_service = container.get_statistics_service()
 
         # Get user's recent activity
         user_recent_posts = Post.objects.filter(
@@ -892,7 +894,7 @@ def dashboard_forum_stats(request):
                 }
             })
 
-        overall_stats = forum_stats_service.get_forum_statistics()
+        overall_stats = stats_service.get_forum_statistics()
         total_forums = Forum.objects.filter(type=Forum.FORUM_POST).count()
 
         week_ago = timezone.now() - timedelta(days=7)
@@ -963,3 +965,1267 @@ def dashboard_forum_stats(request):
 
     except Exception as e:
         return Response({'error': f'Failed to fetch dashboard stats: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# User Profile & Activity API
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_forum_profile(request, user_id):
+    """Get a user's forum profile with statistics and recent activity."""
+    try:
+        from machina.apps.forum_conversation.models import Topic, Post
+        from django.contrib.auth import get_user_model
+        from apps.forum_integration.models import TrustLevel
+        from apps.api.services.container import container
+
+        User = get_user_model()
+        stats_service = container.get_statistics_service()
+
+        # Get the user
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get user's trust level
+        trust_level, _ = TrustLevel.objects.get_or_create(
+            user=user,
+            defaults={'level': 0}
+        )
+
+        # Get user statistics
+        topics_created = Topic.objects.filter(poster=user, approved=True).count()
+        posts_created = Post.objects.filter(poster=user, approved=True).count()
+
+        # Get recent activity
+        recent_topics = Topic.objects.filter(
+            poster=user,
+            approved=True
+        ).select_related('forum').order_by('-created')[:5]
+
+        recent_posts = Post.objects.filter(
+            poster=user,
+            approved=True
+        ).select_related('topic', 'topic__forum').order_by('-created')[:10]
+
+        # Serialize recent topics
+        recent_topics_data = []
+        for topic in recent_topics:
+            recent_topics_data.append({
+                'id': topic.id,
+                'subject': topic.subject,
+                'slug': topic.slug,
+                'created': topic.created.isoformat(),
+                'posts_count': topic.posts_count,
+                'views_count': topic.views_count,
+                'forum': {
+                    'id': topic.forum.id,
+                    'name': topic.forum.name,
+                    'slug': topic.forum.slug
+                }
+            })
+
+        # Serialize recent posts
+        recent_posts_data = []
+        for post in recent_posts:
+            recent_posts_data.append({
+                'id': post.id,
+                'content': str(post.content)[:200] + '...' if len(str(post.content)) > 200 else str(post.content),
+                'created': post.created.isoformat(),
+                'topic': {
+                    'id': post.topic.id,
+                    'subject': post.topic.subject,
+                    'slug': post.topic.slug
+                },
+                'forum': {
+                    'id': post.topic.forum.id,
+                    'name': post.topic.forum.name,
+                    'slug': post.topic.forum.slug
+                }
+            })
+
+        # Build profile response
+        profile_data = {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'full_name': user.get_full_name() or user.username,
+            'date_joined': user.date_joined.isoformat(),
+            'trust_level': {
+                'level': trust_level.level,
+                'level_name': trust_level.get_level_display(),
+                'days_visited': trust_level.days_visited,
+                'posts_read': trust_level.posts_read,
+                'topics_viewed': trust_level.topics_viewed,
+                'posts_created': trust_level.posts_created,
+                'topics_created': trust_level.topics_created,
+                'likes_given': trust_level.likes_given,
+                'likes_received': trust_level.likes_received
+            },
+            'statistics': {
+                'topics_created': topics_created,
+                'posts_created': posts_created,
+                'total_contributions': topics_created + posts_created
+            },
+            'recent_topics': recent_topics_data,
+            'recent_posts': recent_posts_data
+        }
+
+        return Response(profile_data)
+
+    except Exception as e:
+        logger.error(f"Error fetching user forum profile: {str(e)}")
+        return Response({
+            'error': f'Failed to fetch user profile: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_forum_posts(request, user_id):
+    """Get all posts by a specific user with pagination."""
+    try:
+        from machina.apps.forum_conversation.models import Post
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+
+        # Get the user
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get pagination params
+        try:
+            page = int(request.GET.get('page', 1) or 1)
+        except ValueError:
+            page = 1
+        try:
+            page_size = int(request.GET.get('page_size', 20) or 20)
+        except ValueError:
+            page_size = 20
+        page = max(page, 1)
+        page_size = max(1, min(page_size, 100))
+
+        # Get user's posts
+        posts_qs = Post.objects.filter(
+            poster=user,
+            approved=True
+        ).select_related('topic', 'topic__forum').order_by('-created')
+
+        # Pagination
+        total_count = posts_qs.count()
+        start = (page - 1) * page_size
+        if total_count and start >= total_count:
+            page = (total_count - 1) // page_size + 1
+            start = (page - 1) * page_size
+        end = start + page_size
+        posts = posts_qs[start:end]
+
+        # Serialize posts
+        posts_data = []
+        for post in posts:
+            posts_data.append({
+                'id': post.id,
+                'content': str(post.content),
+                'created': post.created.isoformat(),
+                'updated': post.updated.isoformat() if post.updated else None,
+                'topic': {
+                    'id': post.topic.id,
+                    'subject': post.topic.subject,
+                    'slug': post.topic.slug
+                },
+                'forum': {
+                    'id': post.topic.forum.id,
+                    'name': post.topic.forum.name,
+                    'slug': post.topic.forum.slug
+                }
+            })
+
+        # Pagination info
+        total_pages = (total_count + page_size - 1) // page_size if page_size else 1
+
+        return Response({
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'full_name': user.get_full_name() or user.username
+            },
+            'posts': posts_data,
+            'pagination': {
+                'current_page': page,
+                'page_size': page_size,
+                'total_count': total_count,
+                'total_pages': total_pages,
+                'has_next': page < total_pages,
+                'has_previous': page > 1
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching user posts: {str(e)}")
+        return Response({
+            'error': f'Failed to fetch user posts: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_forum_topics(request, user_id):
+    """Get all topics created by a specific user with pagination."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+
+        # Get the user
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get pagination params
+        try:
+            page = int(request.GET.get('page', 1) or 1)
+        except ValueError:
+            page = 1
+        try:
+            page_size = int(request.GET.get('page_size', 20) or 20)
+        except ValueError:
+            page_size = 20
+        page = max(page, 1)
+        page_size = max(1, min(page_size, 100))
+
+        # Get user's topics
+        topics_qs = Topic.objects.filter(
+            poster=user,
+            approved=True
+        ).select_related('forum', 'last_post', 'last_post__poster').order_by('-created')
+
+        # Pagination
+        total_count = topics_qs.count()
+        start = (page - 1) * page_size
+        if total_count and start >= total_count:
+            page = (total_count - 1) // page_size + 1
+            start = (page - 1) * page_size
+        end = start + page_size
+        topics = topics_qs[start:end]
+
+        # Serialize topics
+        topics_data = []
+        for topic in topics:
+            last_post_data = None
+            if topic.last_post and topic.last_post.poster:
+                last_post_data = {
+                    'id': topic.last_post.id,
+                    'poster': {
+                        'username': topic.last_post.poster.username
+                    },
+                    'created': topic.last_post_on.isoformat() if topic.last_post_on else None
+                }
+
+            topics_data.append({
+                'id': topic.id,
+                'subject': topic.subject,
+                'slug': topic.slug,
+                'created': topic.created.isoformat(),
+                'updated': topic.updated.isoformat(),
+                'posts_count': topic.posts_count,
+                'views_count': topic.views_count,
+                'forum': {
+                    'id': topic.forum.id,
+                    'name': topic.forum.name,
+                    'slug': topic.forum.slug
+                },
+                'last_post': last_post_data
+            })
+
+        # Pagination info
+        total_pages = (total_count + page_size - 1) // page_size if page_size else 1
+
+        return Response({
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'full_name': user.get_full_name() or user.username
+            },
+            'topics': topics_data,
+            'pagination': {
+                'current_page': page,
+                'page_size': page_size,
+                'total_count': total_count,
+                'total_pages': total_pages,
+                'has_next': page < total_pages,
+                'has_previous': page > 1
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching user topics: {str(e)}")
+        return Response({
+            'error': f'Failed to fetch user topics: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Topic Subscription API
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_topic_subscriptions(request, user_id):
+    """Get all topics a user is subscribed to."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+
+        # Get the user
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Only allow users to view their own subscriptions
+        if request.user.id != user.id and not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get topics the user is subscribed to using the ManyToManyField
+        subscribed_topics = Topic.objects.filter(
+            subscribers=user
+        ).select_related('forum').order_by('-created')
+
+        # Serialize subscriptions
+        subscriptions_data = []
+        for topic in subscribed_topics:
+            subscriptions_data.append({
+                'topic': {
+                    'id': topic.id,
+                    'subject': topic.subject,
+                    'slug': topic.slug,
+                    'posts_count': topic.posts_count,
+                    'views_count': topic.views_count
+                },
+                'forum': {
+                    'id': topic.forum.id,
+                    'name': topic.forum.name,
+                    'slug': topic.forum.slug
+                },
+                'subscribed_at': topic.created.isoformat() if hasattr(topic, 'created') else None
+            })
+
+        return Response({
+            'user': {
+                'id': user.id,
+                'username': user.username
+            },
+            'subscriptions': subscriptions_data,
+            'total_count': len(subscriptions_data)
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching user subscriptions: {str(e)}")
+        return Response({
+            'error': f'Failed to fetch subscriptions: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def topic_subscribe(request, topic_id):
+    """Subscribe to a topic for notifications."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+
+        # Get the topic
+        try:
+            topic = Topic.objects.get(id=topic_id, approved=True)
+        except Topic.DoesNotExist:
+            return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if already subscribed
+        already_subscribed = topic.subscribers.filter(id=request.user.id).exists()
+
+        if not already_subscribed:
+            # Add subscriber using ManyToManyField
+            topic.subscribers.add(request.user)
+            created = True
+        else:
+            created = False
+
+        return Response({
+            'success': True,
+            'subscribed': True,
+            'created': created,
+            'message': 'Subscribed to topic' if created else 'Already subscribed',
+            'topic': {
+                'id': topic.id,
+                'subject': topic.subject,
+                'slug': topic.slug
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error subscribing to topic: {str(e)}")
+        return Response({
+            'error': f'Failed to subscribe: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE', 'POST'])
+@permission_classes([IsAuthenticated])
+def topic_unsubscribe(request, topic_id):
+    """Unsubscribe from a topic."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+
+        # Get the topic
+        try:
+            topic = Topic.objects.get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Remove subscriber using ManyToManyField
+        was_subscribed = topic.subscribers.filter(id=request.user.id).exists()
+        if was_subscribed:
+            topic.subscribers.remove(request.user)
+            deleted_count = 1
+        else:
+            deleted_count = 0
+
+        return Response({
+            'success': True,
+            'subscribed': False,
+            'message': 'Unsubscribed from topic' if deleted_count > 0 else 'Was not subscribed',
+            'topic': {
+                'id': topic.id,
+                'subject': topic.subject,
+                'slug': topic.slug
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error unsubscribing from topic: {str(e)}")
+        return Response({
+            'error': f'Failed to unsubscribe: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Forum Search API
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def forum_search(request):
+    """Search topics and posts across all forums."""
+    try:
+        from machina.apps.forum_conversation.models import Topic, Post
+        from django.db.models import Q
+
+        # Get search parameters
+        query = request.GET.get('q', '').strip()
+        search_type = request.GET.get('type', 'all')  # all, topics, posts
+        forum_id = request.GET.get('forum_id')
+
+        if not query:
+            return Response({
+                'error': 'Search query required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(query) < 3:
+            return Response({
+                'error': 'Search query must be at least 3 characters'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Pagination
+        try:
+            page = int(request.GET.get('page', 1) or 1)
+        except ValueError:
+            page = 1
+        try:
+            page_size = int(request.GET.get('page_size', 20) or 20)
+        except ValueError:
+            page_size = 20
+        page = max(page, 1)
+        page_size = max(1, min(page_size, 100))
+
+        results = {
+            'query': query,
+            'topics': [],
+            'posts': [],
+            'pagination': {}
+        }
+
+        # Search topics
+        if search_type in ['all', 'topics']:
+            topics_qs = Topic.objects.filter(
+                Q(subject__icontains=query) | Q(first_post__content__icontains=query),
+                approved=True
+            ).select_related('poster', 'forum').distinct()
+
+            if forum_id:
+                topics_qs = topics_qs.filter(forum_id=forum_id)
+
+            # Pagination for topics
+            total_topics = topics_qs.count()
+            start = (page - 1) * page_size
+            end = start + page_size
+            topics = topics_qs[start:end]
+
+            topics_data = []
+            for topic in topics:
+                topics_data.append({
+                    'id': topic.id,
+                    'subject': topic.subject,
+                    'slug': topic.slug,
+                    'created': topic.created.isoformat(),
+                    'posts_count': topic.posts_count,
+                    'views_count': topic.views_count,
+                    'poster': {
+                        'username': topic.poster.username
+                    },
+                    'forum': {
+                        'id': topic.forum.id,
+                        'name': topic.forum.name,
+                        'slug': topic.forum.slug
+                    }
+                })
+
+            results['topics'] = topics_data
+            results['topics_count'] = total_topics
+
+        # Search posts
+        if search_type in ['all', 'posts']:
+            posts_qs = Post.objects.filter(
+                content__icontains=query,
+                approved=True
+            ).select_related('poster', 'topic', 'topic__forum')
+
+            if forum_id:
+                posts_qs = posts_qs.filter(topic__forum_id=forum_id)
+
+            # Pagination for posts
+            total_posts = posts_qs.count()
+            start = (page - 1) * page_size
+            end = start + page_size
+            posts = posts_qs[start:end]
+
+            posts_data = []
+            for post in posts:
+                # Highlight search term in content (simple excerpt)
+                content = str(post.content)
+                excerpt_length = 200
+                query_pos = content.lower().find(query.lower())
+
+                if query_pos != -1:
+                    start_pos = max(0, query_pos - 50)
+                    end_pos = min(len(content), query_pos + excerpt_length)
+                    excerpt = content[start_pos:end_pos]
+                    if start_pos > 0:
+                        excerpt = '...' + excerpt
+                    if end_pos < len(content):
+                        excerpt = excerpt + '...'
+                else:
+                    excerpt = content[:excerpt_length] + ('...' if len(content) > excerpt_length else '')
+
+                posts_data.append({
+                    'id': post.id,
+                    'excerpt': excerpt,
+                    'created': post.created.isoformat(),
+                    'poster': {
+                        'username': post.poster.username
+                    },
+                    'topic': {
+                        'id': post.topic.id,
+                        'subject': post.topic.subject,
+                        'slug': post.topic.slug
+                    },
+                    'forum': {
+                        'id': post.topic.forum.id,
+                        'name': post.topic.forum.name,
+                        'slug': post.topic.forum.slug
+                    }
+                })
+
+            results['posts'] = posts_data
+            results['posts_count'] = total_posts
+
+        # Overall pagination
+        total_results = results.get('topics_count', 0) + results.get('posts_count', 0)
+        total_pages = (total_results + page_size - 1) // page_size if page_size else 1
+
+        results['pagination'] = {
+            'current_page': page,
+            'page_size': page_size,
+            'total_results': total_results,
+            'total_pages': total_pages,
+            'has_next': page < total_pages,
+            'has_previous': page > 1
+        }
+
+        return Response(results)
+
+    except Exception as e:
+        logger.error(f"Error searching forums: {str(e)}")
+        return Response({
+            'error': f'Search failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Recent Activity API
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def forum_recent_activity(request):
+    """Get recent forum activity across all forums."""
+    try:
+        from machina.apps.forum_conversation.models import Topic, Post
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Get time range parameter
+        hours = request.GET.get('hours', 24)
+        try:
+            hours = int(hours)
+            hours = max(1, min(hours, 168))  # 1 hour to 1 week
+        except ValueError:
+            hours = 24
+
+        since = timezone.now() - timedelta(hours=hours)
+
+        # Get recent topics
+        recent_topics = Topic.objects.filter(
+            created__gte=since,
+            approved=True
+        ).select_related('poster', 'forum').order_by('-created')[:10]
+
+        # Get recent posts
+        recent_posts = Post.objects.filter(
+            created__gte=since,
+            approved=True
+        ).select_related('poster', 'topic', 'topic__forum').order_by('-created')[:20]
+
+        # Serialize recent topics
+        topics_data = []
+        for topic in recent_topics:
+            topics_data.append({
+                'type': 'topic',
+                'id': topic.id,
+                'subject': topic.subject,
+                'slug': topic.slug,
+                'created': topic.created.isoformat(),
+                'poster': {
+                    'id': topic.poster.id,
+                    'username': topic.poster.username
+                },
+                'forum': {
+                    'id': topic.forum.id,
+                    'name': topic.forum.name,
+                    'slug': topic.forum.slug
+                }
+            })
+
+        # Serialize recent posts
+        posts_data = []
+        for post in recent_posts:
+            posts_data.append({
+                'type': 'post',
+                'id': post.id,
+                'excerpt': str(post.content)[:150] + ('...' if len(str(post.content)) > 150 else ''),
+                'created': post.created.isoformat(),
+                'poster': {
+                    'id': post.poster.id,
+                    'username': post.poster.username
+                },
+                'topic': {
+                    'id': post.topic.id,
+                    'subject': post.topic.subject,
+                    'slug': post.topic.slug
+                },
+                'forum': {
+                    'id': post.topic.forum.id,
+                    'name': post.topic.forum.name,
+                    'slug': post.topic.forum.slug
+                }
+            })
+
+        # Combine and sort by timestamp
+        all_activity = []
+        for topic in topics_data:
+            topic['timestamp'] = topic['created']
+            all_activity.append(topic)
+        for post in posts_data:
+            post['timestamp'] = post['created']
+            all_activity.append(post)
+
+        # Sort by timestamp descending
+        all_activity.sort(key=lambda x: x['timestamp'], reverse=True)
+
+        # Limit to 30 most recent items
+        all_activity = all_activity[:30]
+
+        return Response({
+            'activity': all_activity,
+            'time_range_hours': hours,
+            'since': since.isoformat(),
+            'count': len(all_activity)
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching recent activity: {str(e)}")
+        return Response({
+            'error': f'Failed to fetch activity: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ==============================================================================
+# MODERATION API ENDPOINTS
+# ==============================================================================
+
+def _check_moderation_permission(user, forum=None):
+    """
+    Check if user has moderation permissions.
+
+    Moderators are:
+    - Staff/superusers
+    - TL3+ users (Regular and Leader)
+    - Forum-specific moderators (if forum provided)
+    """
+    # Staff and superusers can always moderate
+    if user.is_staff or user.is_superuser:
+        return True
+
+    # Check trust level - TL3+ can moderate
+    try:
+        trust_level = user.trust_level.level
+        if trust_level >= 3:  # Regular (TL3) and Leader (TL4)
+            return True
+    except (AttributeError, Exception):
+        # User doesn't have a trust_level relationship or trust_level doesn't exist
+        pass
+
+    # TODO: Check forum-specific moderators when that feature is added
+    # if forum and user in forum.moderators.all():
+    #     return True
+
+    return False
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def topic_lock(request, topic_id):
+    """Lock a topic to prevent new replies."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+
+        # Get the topic
+        try:
+            topic = Topic.objects.select_related('forum').get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check moderation permissions
+        if not _check_moderation_permission(request.user, topic.forum):
+            return Response({
+                'error': 'You do not have permission to moderate this topic'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Lock the topic
+        topic.status = Topic.TOPIC_LOCKED
+        topic.save()
+
+        logger.info(f"Topic {topic.id} '{topic.subject}' locked by {request.user.username}")
+
+        return Response({
+            'success': True,
+            'message': 'Topic locked successfully',
+            'topic': {
+                'id': topic.id,
+                'subject': topic.subject,
+                'status': topic.status,
+                'locked': topic.status == Topic.TOPIC_LOCKED
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error locking topic {topic_id}: {str(e)}")
+        return Response({
+            'error': f'Failed to lock topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def topic_unlock(request, topic_id):
+    """Unlock a topic to allow new replies."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+
+        # Get the topic
+        try:
+            topic = Topic.objects.select_related('forum').get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check moderation permissions
+        if not _check_moderation_permission(request.user, topic.forum):
+            return Response({
+                'error': 'You do not have permission to moderate this topic'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Unlock the topic
+        topic.status = Topic.TOPIC_UNLOCKED
+        topic.save()
+
+        logger.info(f"Topic {topic.id} '{topic.subject}' unlocked by {request.user.username}")
+
+        return Response({
+            'success': True,
+            'message': 'Topic unlocked successfully',
+            'topic': {
+                'id': topic.id,
+                'subject': topic.subject,
+                'status': topic.status,
+                'locked': topic.status == Topic.TOPIC_LOCKED
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error unlocking topic {topic_id}: {str(e)}")
+        return Response({
+            'error': f'Failed to unlock topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def topic_pin(request, topic_id):
+    """Pin a topic (sticky/announcement)."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+
+        # Get the topic
+        try:
+            topic = Topic.objects.select_related('forum').get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check moderation permissions
+        if not _check_moderation_permission(request.user, topic.forum):
+            return Response({
+                'error': 'You do not have permission to moderate this topic'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get pin type from request data
+        pin_type = request.data.get('type', 'sticky')  # 'sticky' or 'announce'
+
+        # Validate pin type
+        if pin_type not in ['sticky', 'announce']:
+            return Response({
+                'error': f'Invalid pin type "{pin_type}". Must be "sticky" or "announce"'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if pin_type == 'announce':
+            topic.type = Topic.TOPIC_ANNOUNCE
+        else:
+            topic.type = Topic.TOPIC_STICKY
+
+        topic.save()
+
+        logger.info(f"Topic {topic.id} '{topic.subject}' pinned as {pin_type} by {request.user.username}")
+
+        return Response({
+            'success': True,
+            'message': f'Topic pinned as {pin_type} successfully',
+            'topic': {
+                'id': topic.id,
+                'subject': topic.subject,
+                'type': topic.type,
+                'is_pinned': topic.type in [Topic.TOPIC_STICKY, Topic.TOPIC_ANNOUNCE],
+                'pin_type': pin_type
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error pinning topic {topic_id}: {str(e)}")
+        return Response({
+            'error': f'Failed to pin topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def topic_unpin(request, topic_id):
+    """Unpin a topic."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+
+        # Get the topic
+        try:
+            topic = Topic.objects.select_related('forum').get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check moderation permissions
+        if not _check_moderation_permission(request.user, topic.forum):
+            return Response({
+                'error': 'You do not have permission to moderate this topic'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Unpin the topic
+        topic.type = Topic.TOPIC_POST
+        topic.save()
+
+        logger.info(f"Topic {topic.id} '{topic.subject}' unpinned by {request.user.username}")
+
+        return Response({
+            'success': True,
+            'message': 'Topic unpinned successfully',
+            'topic': {
+                'id': topic.id,
+                'subject': topic.subject,
+                'type': topic.type,
+                'is_pinned': False
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error unpinning topic {topic_id}: {str(e)}")
+        return Response({
+            'error': f'Failed to unpin topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def topic_move(request, topic_id):
+    """Move a topic to a different forum."""
+    try:
+        from machina.apps.forum_conversation.models import Topic
+        from machina.apps.forum.models import Forum
+
+        # Get the topic
+        try:
+            topic = Topic.objects.select_related('forum').get(id=topic_id)
+        except Topic.DoesNotExist:
+            return Response({'error': 'Topic not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check moderation permissions
+        if not _check_moderation_permission(request.user, topic.forum):
+            return Response({
+                'error': 'You do not have permission to moderate this topic'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get target forum
+        target_forum_id = request.data.get('forum_id')
+        if not target_forum_id:
+            return Response({
+                'error': 'Target forum_id is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            target_forum = Forum.objects.get(id=target_forum_id, type=Forum.FORUM_POST)
+        except Forum.DoesNotExist:
+            return Response({
+                'error': 'Target forum not found or not a postable forum'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Check permission on target forum
+        if not _check_moderation_permission(request.user, target_forum):
+            return Response({
+                'error': 'You do not have permission to moderate the target forum'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        old_forum = topic.forum
+        topic.forum = target_forum
+        topic.save()
+
+        # Update trackers for both forums
+        old_forum.save()  # Triggers signal to update counts
+        target_forum.save()
+
+        logger.info(f"Topic {topic.id} '{topic.subject}' moved from {old_forum.name} to {target_forum.name} by {request.user.username}")
+
+        return Response({
+            'success': True,
+            'message': f'Topic moved to {target_forum.name} successfully',
+            'topic': {
+                'id': topic.id,
+                'subject': topic.subject,
+                'forum': {
+                    'id': target_forum.id,
+                    'name': target_forum.name,
+                    'slug': target_forum.slug
+                },
+                'old_forum': {
+                    'id': old_forum.id,
+                    'name': old_forum.name,
+                    'slug': old_forum.slug
+                }
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error moving topic {topic_id}: {str(e)}")
+        return Response({
+            'error': f'Failed to move topic: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def moderation_queue(request):
+    """Get the moderation queue - posts and topics awaiting review."""
+    try:
+        # Check moderation permissions
+        if not _check_moderation_permission(request.user):
+            return Response({
+                'error': 'You do not have permission to access the moderation queue'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        from machina.apps.forum_conversation.models import Topic, Post
+        from apps.forum_integration.models import ReviewQueue
+        from django.core.paginator import Paginator
+
+        # Get page number
+        page = request.GET.get('page', 1)
+        try:
+            page = int(page)
+        except ValueError:
+            page = 1
+
+        # Get filter type
+        filter_type = request.GET.get('type', 'all')  # all, posts, topics, users
+        status_filter = request.GET.get('status', 'pending')  # pending, approved, rejected
+
+        # Build query
+        queue_items = ReviewQueue.objects.select_related(
+            'post__topic__forum', 'topic__forum', 'topic__poster',
+            'reported_user', 'reporter', 'assigned_moderator'
+        ).order_by('-priority', '-created_at')
+
+        # Apply filters
+        if status_filter == 'pending':
+            queue_items = queue_items.filter(status='pending')
+        elif status_filter == 'approved':
+            queue_items = queue_items.filter(status='approved')
+        elif status_filter == 'rejected':
+            queue_items = queue_items.filter(status='rejected')
+
+        if filter_type == 'posts':
+            queue_items = queue_items.filter(post__isnull=False)
+        elif filter_type == 'topics':
+            queue_items = queue_items.filter(topic__isnull=False)
+        elif filter_type == 'users':
+            queue_items = queue_items.filter(reported_user__isnull=False)
+
+        # Paginate
+        paginator = Paginator(queue_items, 20)
+        page_obj = paginator.get_page(page)
+
+        # Serialize items
+        items_data = []
+        for item in page_obj:
+            item_data = {
+                'id': item.id,
+                'review_type': item.review_type,
+                'reason': item.reason,
+                'priority': item.priority,
+                'status': item.status,
+                'created_at': item.created_at.isoformat(),
+                'resolved_at': item.resolved_at.isoformat() if item.resolved_at else None,
+                'moderator_notes': item.moderator_notes or '',
+                'resolution_notes': item.resolution_notes or '',
+            }
+
+            # Add reporter info
+            if item.reporter:
+                item_data['reporter'] = {
+                    'id': item.reporter.id,
+                    'username': item.reporter.username
+                }
+
+            # Add assigned moderator info
+            if item.assigned_moderator:
+                item_data['assigned_moderator'] = {
+                    'id': item.assigned_moderator.id,
+                    'username': item.assigned_moderator.username
+                }
+
+            # Add content based on type
+            if item.post:
+                item_data['content_type'] = 'post'
+                item_data['post'] = {
+                    'id': item.post.id,
+                    'content': item.post.content[:200] + '...' if len(item.post.content) > 200 else item.post.content,
+                    'poster': {
+                        'id': item.post.poster.id,
+                        'username': item.post.poster.username
+                    },
+                    'topic': {
+                        'id': item.post.topic.id,
+                        'subject': item.post.topic.subject
+                    }
+                }
+            elif item.topic:
+                item_data['content_type'] = 'topic'
+                item_data['topic'] = {
+                    'id': item.topic.id,
+                    'subject': item.topic.subject,
+                    'poster': {
+                        'id': item.topic.poster.id,
+                        'username': item.topic.poster.username
+                    },
+                    'forum': {
+                        'id': item.topic.forum.id,
+                        'name': item.topic.forum.name
+                    }
+                }
+            elif item.reported_user:
+                item_data['content_type'] = 'user'
+                item_data['user'] = {
+                    'id': item.reported_user.id,
+                    'username': item.reported_user.username
+                }
+
+            items_data.append(item_data)
+
+        return Response({
+            'queue': items_data,
+            'pagination': {
+                'current_page': page_obj.number,
+                'total_pages': paginator.num_pages,
+                'has_next': page_obj.has_next(),
+                'has_previous': page_obj.has_previous(),
+                'total_items': paginator.count,
+                'items_per_page': 20
+            },
+            'filters': {
+                'type': filter_type,
+                'status': status_filter
+            },
+            'stats': {
+                'pending_count': ReviewQueue.objects.filter(status='pending').count(),
+                'approved_count': ReviewQueue.objects.filter(status='approved').count(),
+                'rejected_count': ReviewQueue.objects.filter(status='rejected').count()
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching moderation queue: {str(e)}")
+        return Response({
+            'error': f'Failed to fetch moderation queue: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def moderation_review(request, item_id):
+    """Approve or reject a moderation queue item."""
+    try:
+        # Check moderation permissions
+        if not _check_moderation_permission(request.user):
+            return Response({
+                'error': 'You do not have permission to review moderation items'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        from apps.forum_integration.models import ReviewQueue
+
+        # Get the queue item
+        try:
+            item = ReviewQueue.objects.select_related(
+                'post__topic', 'topic', 'reported_user'
+            ).get(id=item_id)
+        except ReviewQueue.DoesNotExist:
+            return Response({'error': 'Queue item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get action and notes
+        action = request.data.get('action')  # 'approve' or 'reject'
+        notes = request.data.get('notes', '')
+
+        if action not in ['approve', 'reject']:
+            return Response({
+                'error': 'Action must be "approve" or "reject"'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update the item
+        item.status = 'approved' if action == 'approve' else 'rejected'
+        item.assigned_moderator = request.user
+        item.resolved_at = timezone.now()
+        item.resolution_notes = notes
+        item.save()
+
+        # Take action on the content
+        if action == 'approve':
+            if item.post and not item.post.approved:
+                item.post.approved = True
+                item.post.save()
+            elif item.topic and not item.topic.approved:
+                item.topic.approved = True
+                item.topic.save()
+        else:  # reject
+            if item.post:
+                item.post.approved = False
+                item.post.save()
+            elif item.topic:
+                item.topic.approved = False
+                item.topic.save()
+
+        logger.info(f"Queue item {item.id} {action}ed by {request.user.username}")
+
+        return Response({
+            'success': True,
+            'message': f'Item {action}ed successfully',
+            'item': {
+                'id': item.id,
+                'status': item.status,
+                'resolved_at': item.resolved_at.isoformat() if item.resolved_at else None,
+                'moderator': request.user.username
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error reviewing queue item {item_id}: {str(e)}")
+        return Response({
+            'error': f'Failed to review item: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def moderation_stats(request):
+    """Get moderation queue statistics."""
+    try:
+        # Check moderation permissions
+        if not _check_moderation_permission(request.user):
+            return Response({
+                'error': 'You do not have permission to access moderation statistics'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        from apps.forum_integration.models import ReviewQueue
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Get count by status
+        pending_count = ReviewQueue.objects.filter(status='pending').count()
+        approved_count = ReviewQueue.objects.filter(status='approved').count()
+        rejected_count = ReviewQueue.objects.filter(status='rejected').count()
+
+        # Get today's review count (items resolved today)
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_count = ReviewQueue.objects.filter(
+            resolved_at__gte=today_start,
+            status__in=['approved', 'rejected']
+        ).count()
+
+        return Response({
+            'pending': pending_count,
+            'approved': approved_count,
+            'rejected': rejected_count,
+            'today_count': today_count,
+            'total': pending_count + approved_count + rejected_count
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching moderation stats: {str(e)}")
+        return Response({
+            'error': f'Failed to fetch moderation statistics: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

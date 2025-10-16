@@ -24,6 +24,7 @@ from apps.learning.code_execution import exercise_evaluator, code_executor
 from apps.learning.services import learning_ai
 from .serializers import *
 from .permissions import IsOwnerOrReadOnly, IsInstructorOrReadOnly
+from .utils import serialize_tags, get_featured_image_url
 
 User = get_user_model()
 
@@ -966,9 +967,10 @@ def forum_list(request):
         from machina.apps.forum.models import Forum
         from machina.apps.forum_conversation.models import Topic, Post
         from django.contrib.auth import get_user_model
-        from apps.forum_integration.statistics_service import forum_stats_service
-        
+        from apps.api.services.container import container
+
         User = get_user_model()
+        stats_service = container.get_statistics_service()
         
         # Get forum categories and their children
         forum_categories = Forum.objects.filter(type=Forum.FORUM_CAT)
@@ -1006,7 +1008,7 @@ def forum_list(request):
                         }
                     
                     # Get real statistics for this forum
-                    forum_stats = forum_stats_service.get_forum_specific_stats(forum.id)
+                    forum_stats = stats_service.get_forum_specific_stats(forum.id)
                     
                     forum_data = {
                         'id': forum.id,
@@ -1030,7 +1032,7 @@ def forum_list(request):
                 forums_data.append(category_data)
         
         # Get overall stats using the statistics service
-        overall_stats = forum_stats_service.get_forum_statistics()
+        overall_stats = stats_service.get_forum_statistics()
         
         return Response({
             'categories': forums_data,
@@ -1910,8 +1912,9 @@ def dashboard_forum_stats(request):
             })
         
         # Get overall forum statistics using the centralized service
-        from apps.forum_integration.statistics_service import forum_stats_service
-        overall_stats = forum_stats_service.get_forum_statistics()
+        from apps.api.services.container import container
+        stats_service = container.get_statistics_service()
+        overall_stats = stats_service.get_forum_statistics()
         total_forums = Forum.objects.filter(type=Forum.FORUM_POST).count()
         
         # Get recent activity (last 7 days)
@@ -2084,7 +2087,7 @@ def blog_index(request):
                 'ai_summary': post.ai_summary,
                 'categories': categories,
                 'tags': tags,
-                'featured_image': None,  # TODO: Add image URL if exists
+                'featured_image': get_featured_image_url(post),
                 'body_preview': body_content[:2]  # First 2 blocks for preview
             })
         
@@ -2212,7 +2215,7 @@ def blog_post_detail(request, post_slug):
             'ai_summary': post.ai_summary,
             'categories': categories,
             'tags': tags,
-            'featured_image': None,  # TODO: Add image URL if exists
+            'featured_image': get_featured_image_url(post),
             'body': body_content,
             'related_posts': related_posts_data
         })
@@ -2482,7 +2485,7 @@ def courses_list(request):
                     }
                     for cat in course.categories.all()
                 ],
-                'tags': []  # TODO: Fix tag integration
+                'tags': serialize_tags(course)
             })
         
         # Pagination info
@@ -2572,7 +2575,7 @@ def course_detail(request, course_slug):
                         ]
                     })
         except Exception as e:
-            print(f"Error serializing syllabus: {e}")
+            logger.error(f"Error serializing syllabus: {e}")
             syllabus_data = []
         
         # Serialize features safely
@@ -2586,7 +2589,7 @@ def course_detail(request, course_slug):
                         'description': str(block.value.get('description', ''))
                     })
         except Exception as e:
-            print(f"Error serializing features: {e}")
+            logger.error(f"Error serializing features: {e}")
             features_data = []
         
         return Response({
@@ -2632,7 +2635,7 @@ def course_detail(request, course_slug):
                 }
                 for obj in course.learning_objectives.all()
             ],
-            'tags': [],  # TODO: Fix tag integration
+            'tags': serialize_tags(course),
             'lessons': lessons_data,
             'related_courses': related_courses_data,
             'meta': {
@@ -2895,8 +2898,8 @@ def lesson_detail(request, course_slug, lesson_slug):
         
     except Exception as e:
         import traceback
-        print(f"Lesson detail error: {str(e)}")
-        print(traceback.format_exc())
+        logger.error(f"Lesson detail error: {str(e)}")
+        logger.error(traceback.format_exc())
         return Response({
             'error': f'Failed to fetch lesson: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

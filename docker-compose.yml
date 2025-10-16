@@ -1,69 +1,54 @@
 version: '3.8'
 
 services:
-  # Main Django application
-  web:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-      - ./media:/app/media
-      - ./staticfiles:/app/staticfiles
-    environment:
-      - DEBUG=True
-      - DATABASE_URL=sqlite:///app/db.sqlite3
-    depends_on:
-      - redis
-    networks:
-      - python_learning_network
-
-  # Redis for caching and task queue
+  # Redis cache service
   redis:
     image: redis:7-alpine
+    container_name: learning_studio_redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     networks:
-      - python_learning_network
+      - learning_studio_network
+    restart: unless-stopped
 
-
-  # Code execution service (separate container for security)
-  code-executor:
-    build:
-      context: ./docker/python-executor
-      dockerfile: Dockerfile
-    restart: "no"  # Don't restart automatically
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp:noexec,nosuid,size=100m
-      - /app/code:noexec,nosuid,size=50m
-      - /app/output:noexec,nosuid,size=50m
-    cap_drop:
-      - ALL
-    cap_add:
-      - SETGID
-      - SETUID
-    networks:
-      - python_learning_network
-    mem_limit: 256m
-    cpus: 0.5
-    pids_limit: 50
-    ulimits:
-      nproc: 50
-      nofile: 1024
+  # PostgreSQL database (optional - for production-like environment)
+  postgres:
+    image: postgres:15-alpine
+    container_name: learning_studio_db
     environment:
-      - TIME_LIMIT=30
-      - MEMORY_LIMIT=134217728  # 128MB
+      POSTGRES_DB: ${DB_NAME:-learning_studio}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - learning_studio_network
+    restart: unless-stopped
     profiles:
-      - code-execution  # Only start when explicitly requested
+      - production
 
 volumes:
   redis_data:
+    driver: local
+  postgres_data:
+    driver: local
 
 networks:
-  python_learning_network:
+  learning_studio_network:
     driver: bridge

@@ -12,7 +12,7 @@ from asgiref.sync import async_to_sync
 from machina.apps.forum_conversation.models import Topic, Post
 from .middleware import ForumActivityTracker
 from .models import TrustLevel
-from .review_queue_service import ReviewQueueService
+from apps.api.services.container import container
 from .gamification_service import GamificationService
 
 User = get_user_model()
@@ -74,7 +74,8 @@ def track_post_creation(sender, instance, created, **kwargs):
         GamificationService.handle_post_created(instance.poster, instance)
         
         # Check if post needs moderation review
-        ReviewQueueService.check_new_post(instance)
+        review_service = container.get_review_queue_service()
+        review_service.check_new_post(instance)
         
         # Update forum trackers to show latest post
         if instance.topic and instance.topic.forum:
@@ -82,10 +83,8 @@ def track_post_creation(sender, instance, created, **kwargs):
             instance.topic.forum.save(update_fields=['last_post_id', 'last_post_on'])
         
         # Broadcast real-time updates
-        try:
-            created_time = instance.created.isoformat() if instance.created else timezone.now().isoformat()
-        except (AttributeError, TypeError):
-            created_time = timezone.now().isoformat()
+        # Use instance.created if available, otherwise use current time
+        created_time = instance.created.isoformat() if instance.created else timezone.now().isoformat()
             
         post_data = {
             'id': instance.id,
@@ -127,15 +126,13 @@ def track_post_creation(sender, instance, created, **kwargs):
     
     elif not created and instance.poster:
         # Check if edited post needs review
-        ReviewQueueService.check_edited_post(instance, instance.poster)
+        review_service = container.get_review_queue_service()
+        review_service.check_edited_post(instance, instance.poster)
         
         # Handle post updates
-        try:
-            created_time = instance.created.isoformat() if instance.created else timezone.now().isoformat()
-            updated_time = instance.updated.isoformat() if instance.updated else timezone.now().isoformat()
-        except (AttributeError, TypeError):
-            created_time = timezone.now().isoformat()
-            updated_time = timezone.now().isoformat()
+        # Use instance timestamps if available, otherwise use current time
+        created_time = instance.created.isoformat() if instance.created else timezone.now().isoformat()
+        updated_time = instance.updated.isoformat() if instance.updated else timezone.now().isoformat()
             
         post_data = {
             'id': instance.id,
@@ -167,7 +164,8 @@ def track_topic_creation(sender, instance, created, **kwargs):
         GamificationService.handle_topic_created(instance.poster, instance)
         
         # Check if topic needs moderation review
-        ReviewQueueService.check_new_topic(instance)
+        review_service = container.get_review_queue_service()
+        review_service.check_new_topic(instance)
         
         # Update forum trackers to show latest topic
         if instance.forum:
@@ -175,10 +173,8 @@ def track_topic_creation(sender, instance, created, **kwargs):
             instance.forum.save(update_fields=['last_post_id', 'last_post_on'])
         
         # Broadcast real-time updates
-        try:
-            created_time = instance.created.isoformat() if instance.created else timezone.now().isoformat()
-        except (AttributeError, TypeError):
-            created_time = timezone.now().isoformat()
+        # Use instance.created if available, otherwise use current time
+        created_time = instance.created.isoformat() if instance.created else timezone.now().isoformat()
             
         topic_data = {
             'id': instance.id,

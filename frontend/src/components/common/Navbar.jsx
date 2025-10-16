@@ -2,14 +2,14 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { 
-  Code2, 
-  BookOpen, 
-  MessageSquare, 
-  User, 
-  Sun, 
-  Moon, 
-  Menu, 
+import {
+  Code2,
+  BookOpen,
+  MessageSquare,
+  User,
+  Sun,
+  Moon,
+  Menu,
   X,
   LogOut,
   LayoutDashboard,
@@ -17,7 +17,8 @@ import {
   Terminal,
   ChevronDown,
   Settings,
-  FileText
+  FileText,
+  Shield
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -39,11 +40,27 @@ export default function Navbar() {
     { name: 'Exercise Demo', href: '/exercise-demo', icon: BookOpen },
   ]
 
-  const userMenuItems = [
+  // Check if user can moderate (TL3+)
+  const canModerate = user && (
+    user.is_staff ||
+    user.is_superuser ||
+    (user.trust_level && user.trust_level.level >= 3)
+  )
+
+  // Build user menu items dynamically
+  const baseUserMenuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Profile', href: '/profile', icon: User },
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
+
+  // Add moderation queue for TL3+ users
+  const userMenuItems = canModerate
+    ? [
+        ...baseUserMenuItems,
+        { name: 'Moderation Queue', href: '/forum/moderation/queue', icon: Shield },
+      ]
+    : baseUserMenuItems
 
   const isActive = (path) => {
     return location.pathname === path || location.pathname.startsWith(path + '/')

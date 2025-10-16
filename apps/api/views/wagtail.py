@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from apps.api.content_serializers.streamfield import serialize_streamfield
+from apps.api.utils import serialize_tags, get_featured_image_url
 
 
 @api_view(['GET'])
@@ -224,13 +225,44 @@ def wagtail_homepage(request):
     """Get Wagtail homepage data for React frontend."""
     try:
         from apps.blog.models import HomePage, BlogPage
-        
+
         # Get the homepage
         homepage = HomePage.objects.live().first()
         if not homepage:
+            # Return default homepage data when HomePage doesn't exist yet
+            recent_posts = BlogPage.objects.live().public().order_by('-first_published_at')[:3]
+            recent_posts_data = [
+                {
+                    'id': post.id,
+                    'title': post.title,
+                    'slug': post.slug,
+                    'intro': post.intro,
+                    'url': post.url,
+                    'date': post.date.isoformat() if post.date else None,
+                    'reading_time': post.reading_time,
+                    'ai_generated': post.ai_generated
+                }
+                for post in recent_posts
+            ]
+
             return Response({
-                'error': 'Homepage not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+                'title': 'Python Learning Studio',
+                'hero_title': 'Learn Python Programming',
+                'hero_subtitle': 'Interactive Coding Exercises',
+                'hero_description': 'Master Python through hands-on exercises and real-world projects',
+                'features_title': 'Why Learn With Us',
+                'features': [
+                    {'title': 'Interactive Exercises', 'description': 'Learn by doing with hands-on coding', 'icon': 'code'},
+                    {'title': 'Step-by-Step Guidance', 'description': 'Progress at your own pace', 'icon': 'route'},
+                    {'title': 'Real-time Feedback', 'description': 'Get instant feedback on your code', 'icon': 'check-circle'}
+                ],
+                'stats': [
+                    {'number': '50+', 'label': 'Exercises', 'description': 'Interactive coding challenges'},
+                    {'number': '10+', 'label': 'Courses', 'description': 'Structured learning paths'},
+                    {'number': '1000+', 'label': 'Students', 'description': 'Active learners'}
+                ],
+                'recent_posts': recent_posts_data
+            })
         
         # Get features
         features = []
@@ -444,7 +476,7 @@ def courses_list(request):
                     }
                     for cat in course.categories.all()
                 ],
-                'tags': []  # TODO: Fix tag integration
+                'tags': serialize_tags(course)
             })
         
         # Pagination info
@@ -468,10 +500,150 @@ def courses_list(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# Placeholder functions for remaining endpoints
+# Course detail and exercises endpoints
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
 def course_detail(request, course_slug):
     """Get detailed information about a specific Wagtail course."""
-    return Response({'error': 'Not implemented yet'}, status=501)
+    try:
+        from apps.blog.models import CoursePage
+
+        course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
+
+        # Serialize course data
+        course_data = {
+            'id': course.id,
+            'title': course.title,
+            'slug': course.slug,
+            'url': course.url,
+            'course_code': course.course_code,
+            'short_description': course.short_description,
+            'detailed_description': str(course.detailed_description),
+            'difficulty_level': course.difficulty_level,
+            'estimated_duration': course.estimated_duration,
+            'is_free': course.is_free,
+            'price': str(course.price) if course.price else None,
+            'enrollment_limit': course.enrollment_limit,
+            'featured': course.featured,
+            'prerequisites': str(course.prerequisites) if course.prerequisites else '',
+            'instructor': {
+                'id': course.instructor.id,
+                'name': course.instructor.get_full_name() or course.instructor.username,
+                'email': course.instructor.email,
+            } if course.instructor else None,
+            'skill_level': {
+                'name': course.skill_level.name,
+                'slug': course.skill_level.slug,
+                'color': course.skill_level.color,
+            } if course.skill_level else None,
+            'learning_objectives': [
+                {
+                    'id': obj.id,
+                    'title': obj.title,
+                    'description': obj.description,
+                    'category': obj.category,
+                }
+                for obj in course.learning_objectives.all()
+            ],
+            'syllabus': serialize_streamfield(course.syllabus, request) if course.syllabus else [],
+            'features': serialize_streamfield(course.features, request) if course.features else [],
+            'course_image': course.course_image.url if course.course_image else None,
+        }
+
+        return Response(course_data)
+
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch course: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def course_exercises(request, course_slug):
+    """Get exercises for a specific course, including direct children and exercises within lessons."""
+    try:
+        from apps.blog.models import CoursePage, ExercisePage, StepBasedExercisePage, LessonPage
+
+        course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
+
+        exercises = []
+
+        # Get direct exercise children
+        direct_exercises = course.get_children().live().public().specific()
+
+        for child in direct_exercises:
+            if isinstance(child, (ExercisePage, StepBasedExercisePage)):
+                # Determine if it's a StepBasedExercisePage or regular ExercisePage
+                is_step_based = isinstance(child, StepBasedExercisePage)
+
+                exercise_data = {
+                    'id': child.id,
+                    'title': child.title,
+                    'slug': child.slug,
+                    'url': child.url,
+                    'type': 'step_based' if is_step_based else 'exercise',
+                    'sequence_number': child.sequence_number,
+                    'difficulty': child.difficulty,
+                    'points': child.total_points if is_step_based else child.points,
+                    'estimated_time': child.estimated_time if is_step_based else None,
+                    'parent_type': 'course',
+                    'parent_title': course.title,
+                }
+
+                if is_step_based:
+                    exercise_data['step_count'] = len(child.exercise_steps)
+                    exercise_data['require_sequential'] = child.require_sequential
+
+                exercises.append(exercise_data)
+
+            elif isinstance(child, LessonPage):
+                # Get exercises within this lesson
+                lesson_exercises = child.get_children().live().public().specific()
+
+                for lesson_child in lesson_exercises:
+                    if isinstance(lesson_child, (ExercisePage, StepBasedExercisePage)):
+                        # Determine if it's a StepBasedExercisePage or regular ExercisePage
+                        is_step_based = isinstance(lesson_child, StepBasedExercisePage)
+
+                        exercise_data = {
+                            'id': lesson_child.id,
+                            'title': lesson_child.title,
+                            'slug': lesson_child.slug,
+                            'url': lesson_child.url,
+                            'type': 'step_based' if is_step_based else 'exercise',
+                            'sequence_number': lesson_child.sequence_number,
+                            'difficulty': lesson_child.difficulty,
+                            'points': lesson_child.total_points if is_step_based else lesson_child.points,
+                            'estimated_time': lesson_child.estimated_time if is_step_based else None,
+                            'parent_type': 'lesson',
+                            'parent_title': child.title,
+                            'lesson_number': child.lesson_number,
+                        }
+
+                        if is_step_based:
+                            exercise_data['step_count'] = len(lesson_child.exercise_steps)
+                            exercise_data['require_sequential'] = lesson_child.require_sequential
+
+                        exercises.append(exercise_data)
+
+        # Sort by sequence_number
+        exercises.sort(key=lambda x: (x.get('lesson_number', 0), x['sequence_number']))
+
+        return Response({
+            'course': {
+                'id': course.id,
+                'title': course.title,
+                'slug': course.slug,
+            },
+            'exercises': exercises,
+            'total_count': len(exercises),
+        })
+
+    except Exception as e:
+        return Response({
+            'error': f'Failed to fetch course exercises: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 def lesson_detail(request, course_slug, lesson_slug):
@@ -834,19 +1006,112 @@ def wagtail_playground(request):
     return Response({'error': 'Not implemented yet'}, status=501)
 
 
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
 def wagtail_course_enroll(request, course_slug):
     """Enroll in a Wagtail course."""
-    return Response({'error': 'Not implemented yet'}, status=501)
+    try:
+        from apps.blog.models import CoursePage, WagtailCourseEnrollment
+
+        course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
+
+        # Check if already enrolled
+        enrollment, created = WagtailCourseEnrollment.objects.get_or_create(
+            user=request.user,
+            course=course
+        )
+
+        if created:
+            return Response({
+                'message': 'Successfully enrolled in course',
+                'enrollment': {
+                    'enrolled': True,
+                    'enrolled_at': enrollment.enrolled_at,
+                    'progress_percentage': enrollment.progress_percentage
+                }
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response({
+                'message': 'Already enrolled in this course',
+                'enrollment': {
+                    'enrolled': True,
+                    'enrolled_at': enrollment.enrolled_at,
+                    'progress_percentage': enrollment.progress_percentage
+                }
+            }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            'error': f'Failed to enroll: {str(e)}'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
 def wagtail_course_unenroll(request, course_slug):
     """Unenroll from a Wagtail course."""
-    return Response({'error': 'Not implemented yet'}, status=501)
+    try:
+        from apps.blog.models import CoursePage, WagtailCourseEnrollment
+
+        course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
+
+        enrollment = WagtailCourseEnrollment.objects.filter(
+            user=request.user,
+            course=course
+        ).first()
+
+        if enrollment:
+            enrollment.delete()
+            return Response({
+                'message': 'Successfully unenrolled from course'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': 'Not enrolled in this course'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            'error': f'Failed to unenroll: {str(e)}'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
 def wagtail_course_enrollment_status(request, course_slug):
     """Get enrollment status for a Wagtail course."""
-    return Response({'error': 'Not implemented yet'}, status=501)
+    try:
+        from apps.blog.models import CoursePage, WagtailCourseEnrollment
+
+        course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
+
+        enrollment = WagtailCourseEnrollment.objects.filter(
+            user=request.user,
+            course=course
+        ).first()
+
+        if enrollment:
+            return Response({
+                'enrolled': True,
+                'enrollment': {
+                    'enrolled_at': enrollment.enrolled_at,
+                    'progress_percentage': enrollment.progress_percentage,
+                    'completed': enrollment.completed,
+                    'completed_at': enrollment.completed_at,
+                    'last_activity': enrollment.last_activity,
+                    'total_time_spent': enrollment.total_time_spent
+                }
+            })
+        else:
+            return Response({
+                'enrolled': False,
+                'enrollment': None
+            })
+
+    except Exception as e:
+        return Response({
+            'error': f'Failed to get enrollment status: {str(e)}'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 def wagtail_user_enrollments(request):

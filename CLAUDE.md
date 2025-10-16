@@ -1,8 +1,36 @@
 # CLAUDE.md
 
+## Development Workflow
+
+After completing ANY coding task, you MUST:
+
+1. **Automatically invoke the code-review-specialist sub-agent** to review changes
+2. Wait for the review to complete
+3. Address any blockers identified
+4. Only then consider the task complete
+
+### Code Review Process
+
+- The code-review-specialist agent reviews ALL modified files
+- Reviews check for: debug code, security issues, accessibility, testing, best practices
+- ALL BLOCKERS must be fixed before proceeding
+- This is NON-NEGOTIABLE for production code
+
+### Standard Task Pattern
+```
+1. Plan the implementation
+2. Write the code
+3. **USE code-review-specialist agent to review** ← ALWAYS DO THIS
+4. Fix any issues found
+5. Confirm task complete
+```
+
+**Important**: Never skip the code review step. It is part of "done".
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
+
 
 Python Learning Studio is a Django-based educational platform with Wagtail CMS integration, featuring a dual frontend architecture (React SPA + Django templates), AI-powered programming education, and secure Docker-based code execution.
 

@@ -10,7 +10,7 @@ from django.db.models import Count, Max, Prefetch
 from datetime import timedelta
 from machina.apps.forum_conversation.models import Topic, Post
 from machina.apps.forum.models import Forum
-from ..statistics_service import forum_stats_service
+from apps.api.services.container import container
 
 register = template.Library()
 User = get_user_model()
@@ -22,9 +22,10 @@ def get_forum_stats():
     Get comprehensive forum statistics for display in sidebar
     """
     try:
-        # Get statistics using the centralized service
-        overall_stats = forum_stats_service.get_forum_statistics()
-        recent_online_users = forum_stats_service.get_online_users_list(5)
+        # Get statistics using the DI container service
+        stats_service = container.get_statistics_service()
+        overall_stats = stats_service.get_forum_statistics()
+        recent_online_users = stats_service.get_online_users_list(5)
         
         return {
             'total_topics': overall_stats['total_topics'],

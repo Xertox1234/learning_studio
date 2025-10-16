@@ -29,20 +29,26 @@ DATABASES = {
     }
 }
 
-# Cache Configuration (Redis)
+# Cache Configuration (Redis with optimizations)
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': config('REDIS_URL', default='redis://redis:6379/0'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 20,
+            # Note: HiredisParser is used automatically if hiredis is installed
+            'CONNECTION_POOL_CLASS_KWARGS': {
+                'max_connections': 50,  # Increased for better concurrency
                 'retry_on_timeout': True,
-            }
+            },
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'PICKLE_VERSION': -1,  # Use latest pickle protocol
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',  # Compress large values
         },
-        'KEY_PREFIX': 'python_learning_studio',
-        'TIMEOUT': 300,
+        'KEY_PREFIX': 'learning_studio',  # Match development prefix
+        'VERSION': 1,  # Increment to invalidate all caches on deployment
+        'TIMEOUT': 300,  # 5 minutes default
     }
 }
 

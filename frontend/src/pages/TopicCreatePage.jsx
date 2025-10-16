@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ChevronRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { apiRequest } from '../utils/api';
+import { useCreateTopic } from '../hooks/useForumQuery';
+import toast from 'react-hot-toast';
 
 export default function TopicCreatePage() {
   const navigate = useNavigate();
@@ -11,35 +12,43 @@ export default function TopicCreatePage() {
   const forumId = searchParams.get('forum');
   const { user } = useAuth();
   const { theme } = useTheme();
-  
-  const [forum, setForum] = useState(null);
+
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [topicType, setTopicType] = useState('0'); // 0 = Normal topic
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [loadingForum, setLoadingForum] = useState(true);
 
-  useEffect(() => {
-    if (forumId) {
-      fetchForumInfo();
-    } else {
-      setLoadingForum(false);
-      setError('No forum selected. Please select a forum from the forum list.');
-    }
-  }, [forumId]);
+  // Use React Query mutation hook
+  const createTopicMutation = useCreateTopic();
 
-  const fetchForumInfo = async () => {
-    try {
-      // For now, we'll just use the forum ID. 
-      // In a real implementation, we'd fetch forum details
-      setForum({ id: forumId, name: 'Forum' });
-      setLoadingForum(false);
-    } catch (err) {
-      setError('Failed to load forum information');
-      setLoadingForum(false);
-    }
-  };
+  // Check if forum ID exists
+  if (!forumId) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                  No forum selected
+                </p>
+                <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                  Please select a forum from the forum list.
+                </p>
+                <Link
+                  to="/forum"
+                  className="inline-block mt-3 text-sm text-red-700 dark:text-red-300 underline hover:text-red-900 dark:hover:text-red-100"
+                >
+                  Return to Forum List
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -56,75 +65,27 @@ export default function TopicCreatePage() {
     }
 
     try {
-      setLoading(true);
-      
-      console.log('Creating topic with data:', {
-        forum_id: forumId,
+      // Use mutation hook - note the field names match v2 API
+      const newTopic = await createTopicMutation.mutateAsync({
         subject: subject.trim(),
-        content: content.trim(),
-        topic_type: topicType,
-        enable_signature: true
-      });
-      
-      const response = await apiRequest('/api/v1/topics/create/', {
-        method: 'POST',
-        body: JSON.stringify({
-          forum_id: forumId,
-          subject: subject.trim(),
-          content: content.trim(),
-          topic_type: topicType,
-          enable_signature: true
-        })
+        forum_id: parseInt(forumId),
+        first_post_content: content.trim(),
+        type: parseInt(topicType),
       });
 
-      console.log('Topic creation response status:', response.status);
-      console.log('Response ok:', response.ok);
+      toast.success('Topic created successfully!');
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Topic creation error response:', errorText);
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(errorData.error || errorData.message || 'Failed to create topic');
-        } catch (parseError) {
-          throw new Error(`Server error (${response.status}): ${errorText}`);
-        }
-      }
-
-      const data = await response.json();
-      console.log('Topic creation success data:', data);
-      
-      if (data.success && data.topic) {
-        console.log('Navigating to new topic:', `/forum/topics/${data.topic.forum.slug}/${data.topic.forum.id}/${data.topic.slug}/${data.topic.id}`);
-        // Navigate to the new topic
-        navigate(`/forum/topics/${data.topic.forum.slug}/${data.topic.forum.id}/${data.topic.slug}/${data.topic.id}`);
-      } else {
-        throw new Error('Topic creation failed - no topic data returned');
+      // Navigate to the new topic
+      if (newTopic && newTopic.id && newTopic.forum) {
+        navigate(`/forum/topics/${newTopic.forum.slug}/${newTopic.forum.id}/${newTopic.slug}/${newTopic.id}`);
       }
     } catch (err) {
       console.error('Topic creation error:', err);
       setError(err.message || 'Failed to create topic. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (loadingForum) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-64 mb-8"></div>
-            <div className="space-y-4">
-              <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
-              <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const loading = createTopicMutation.isPending;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

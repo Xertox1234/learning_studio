@@ -19,13 +19,14 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import render
-from apps.learning.views import (
-    home_view, course_list_view, course_detail_view, 
-    lesson_detail_view, exercises_list_view, exercise_detail_view, my_courses_view,
-    enroll_course, execute_code_view, submit_exercise, code_playground_view, test_exercise_interface_view
-)
-from apps.users.views import dashboard_view
-from apps.community.views import community_index_view
+# Legacy Django views - DEPRECATED: Migrating to React SPA
+# from apps.learning.views import (
+#     home_view, course_list_view, course_detail_view,
+#     lesson_detail_view, exercises_list_view, exercise_detail_view, my_courses_view,
+#     enroll_course, execute_code_view, submit_exercise, code_playground_view, test_exercise_interface_view
+# )
+# from apps.users.views import dashboard_view
+# from apps.community.views import community_index_view
 from apps.frontend.views import react_login_view, react_register_view
 from apps.api.mixins import ratelimited
 
@@ -42,34 +43,38 @@ urlpatterns = [
     # React authentication pages
     path('login/', react_login_view, name='react_login'),
     path('register/', react_register_view, name='react_register'),
-    
-    
-    # User dashboard
-    path('dashboard/', dashboard_view, name='dashboard'),
-    
-    # Learning views
-    path('courses/', course_list_view, name='course_list'),
-    path('courses/<slug:slug>/', course_detail_view, name='course_detail'),
-    path('courses/<slug:course_slug>/lessons/<slug:lesson_slug>/', lesson_detail_view, name='lesson_detail'),
-    path('exercises/', exercises_list_view, name='exercises_list'),
-    path('exercises/<int:exercise_id>/', exercise_detail_view, name='exercise_detail'),
-    path('exercises/<int:exercise_id>/submit/', submit_exercise, name='submit_exercise'),
-    path('my-courses/', my_courses_view, name='my_courses'),
-    path('enroll/<int:course_id>/', enroll_course, name='enroll_course'),
-    path('execute-code/', execute_code_view, name='execute_code'),
-    path('code-playground/', code_playground_view, name='code_playground'),
+
+    # LEGACY DJANGO TEMPLATE ROUTES - DISABLED (Now using React SPA)
+    # All learning, course, exercise, and dashboard routes are now handled by React
+    # API endpoints are available at /api/v1/ for the React frontend
+    #
+    # path('dashboard/', dashboard_view, name='dashboard'),
+    # path('courses/', course_list_view, name='course_list'),
+    # path('courses/<slug:slug>/', course_detail_view, name='course_detail'),
+    # path('courses/<slug:course_slug>/lessons/<slug:lesson_slug>/', lesson_detail_view, name='lesson_detail'),
+    # path('exercises/', exercises_list_view, name='exercises_list'),
+    # path('exercises/<int:exercise_id>/', exercise_detail_view, name='exercise_detail'),
+    # path('exercises/<int:exercise_id>/submit/', submit_exercise, name='submit_exercise'),
+    # path('my-courses/', my_courses_view, name='my_courses'),
+    # path('enroll/<int:course_id>/', enroll_course, name='enroll_course'),
+    # path('execute-code/', execute_code_view, name='execute_code'),
+    # path('code-playground/', code_playground_view, name='code_playground'),
+    # path('community/', community_index_view, name='community_index'),
+
+    # Test/Demo routes (keep for debugging if needed)
     path('playground/', lambda request: render(request, 'learning/code_playground_modern.html'), name='playground'),
-    path('test-exercise/', test_exercise_interface_view, name='test_exercise_interface'),
+    path('test-exercise/', lambda request: render(request, 'test-editor.html'), name='test_exercise_interface'),
     path('test-editor/', lambda request: render(request, 'test-editor.html'), name='test_editor'),
     path('simple-test/', lambda request: render(request, 'simple-test.html'), name='simple_test'),
-    
-    # Community views
-    path('community/', community_index_view, name='community_index'),
-    
-    # Forum (Django-machina with custom overrides)
-    path('forum/', include('apps.forum_integration.forum_urls')),
-    
-    # Forum integration features
+
+    # FORUM - NOW FULLY HEADLESS (React SPA Only)
+    # Django-machina templates disabled - forum is now 100% API-driven via React
+    # API endpoints: /api/v1/forums/, /api/v1/topics/, /api/v1/posts/
+    # React routes: /forum, /forum/:slug/:id, /forum/topics/:slug/:id
+    #
+    # path('forum/', include('apps.forum_integration.forum_urls')),  # DISABLED
+
+    # Forum integration features (keep for now - may have API endpoints)
     path('forum-features/', include('apps.forum_integration.urls')),
     
     # PWA support

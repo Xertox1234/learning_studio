@@ -206,49 +206,16 @@ def execute_code_view(request):
 
 @login_required
 def submit_exercise(request, exercise_id):
-    """Submit exercise solution."""
-    if request.method == 'POST':
-        try:
-            exercise = get_object_or_404(Exercise, id=exercise_id, is_published=True)
-            data = json.loads(request.body)
-            code = data.get('code', '')
-            
-            if not code.strip():
-                return JsonResponse({
-                    'success': False,
-                    'error': 'No code provided'
-                })
-            
-            # Import exercise submission system
-            from .code_execution import code_executor
-            
-            # Execute the code
-            result = code_executor.execute_python_code(code)
-            
-            # For now, just return execution result
-            # TODO: Add test case validation and scoring
-            return JsonResponse({
-                'success': result.success,
-                'output': result.output,
-                'error': result.error_message if not result.success else None,
-                'submission_id': 1,  # Placeholder
-                'test_results': []  # Placeholder
-            })
-            
-        except json.JSONDecodeError:
-            return JsonResponse({
-                'success': False,
-                'error': 'Invalid JSON data'
-            })
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': f'Submission error: {str(e)}'
-            })
-    else:
-        return JsonResponse({
-            'login_required': True
-        }, status=401)
+    """
+    DEPRECATED: Legacy exercise submission endpoint.
+    Use /api/exercises/<id>/submit/ endpoint instead.
+    """
+    return JsonResponse({
+        'success': False,
+        'error': 'This endpoint is deprecated. Please use /api/exercises/{}/submit/ instead.'.format(exercise_id),
+        'deprecated': True,
+        'new_endpoint': f'/api/exercises/{exercise_id}/submit/'
+    }, status=410)  # 410 Gone status indicates deprecated resource
 
 
 @login_required  

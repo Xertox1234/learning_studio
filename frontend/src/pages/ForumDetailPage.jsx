@@ -1,67 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, MessageSquare, Eye, Clock, Plus, Search, Filter } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { apiRequest } from '../utils/api';
+import { useForumDetail, useForumTopics } from '../hooks/useForumQuery';
 
 export default function ForumDetailPage() {
   const { forumSlug, forumId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useTheme();
-  const [forum, setForum] = useState(null);
-  const [topics, setTopics] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('last_post_on'); // last_post_on, created, replies, views
 
-  useEffect(() => {
-    fetchForumDetail();
-  }, [forumSlug, forumId]);
+  // Fetch forum details and topics with React Query
+  const { data: forum, isLoading: loadingForum, error: forumError } = useForumDetail(forumSlug);
+  const { data: topicsData, isLoading: loadingTopics } = useForumTopics(forumSlug, { page: 1, page_size: 100 });
 
-  const fetchForumDetail = async () => {
-    try {
-      setLoading(true);
-      
-      // Debug logging
-      console.log('ForumDetailPage params:', { forumSlug, forumId });
-      console.log('API URL:', `/api/v1/forums/${forumSlug}/${forumId}/`);
-      
-      const response = await apiRequest(`/api/v1/forums/${forumSlug}/${forumId}/`);
-
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Error response:', errorText);
-        console.log('Request URL was:', `/api/v1/forums/${forumSlug}/${forumId}/`);
-        console.log('URL params:', { forumSlug, forumId });
-        
-        if (response.status === 404) {
-          throw new Error(`Forum not found. Please check the URL or try browsing from the main forum page.`);
-        }
-        
-        throw new Error(`Failed to fetch forum details: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('Forum data received:', data);
-      console.log('Topics:', data.topics);
-      if (data.topics && data.topics.length > 0) {
-        console.log('First topic structure:', data.topics[0]);
-      }
-      setForum(data);
-      setTopics(data.topics || []);
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const topics = topicsData?.results || [];
+  const loading = loadingForum || loadingTopics;
+  const error = forumError?.message || null;
 
   const handleCreateTopic = () => {
     navigate(`/forum/topics/create?forum=${forumId}`);
@@ -125,13 +83,13 @@ export default function ForumDetailPage() {
             <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Error Loading Forum</h3>
             <p className="text-red-600 dark:text-red-300">{error}</p>
             <div className="flex space-x-3 mt-4">
-              <button 
-                onClick={fetchForumDetail}
+              <button
+                onClick={() => window.location.reload()}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
               >
                 Try Again
               </button>
-              <Link 
+              <Link
                 to="/forum"
                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
               >

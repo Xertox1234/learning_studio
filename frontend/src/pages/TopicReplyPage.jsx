@@ -1,89 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ChevronRight, AlertCircle, MessageSquare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { apiRequest } from '../utils/api';
+import { useTopicDetail, useCreatePost } from '../hooks/useForumQuery';
+import toast from 'react-hot-toast';
 
 export default function TopicReplyPage() {
   const navigate = useNavigate();
   const { forumSlug, forumId, topicSlug, topicId } = useParams();
   const { user } = useAuth();
   const { theme } = useTheme();
-  
-  const [topic, setTopic] = useState(null);
+
   const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [loadingTopic, setLoadingTopic] = useState(true);
+  const [submitError, setSubmitError] = useState(null);
 
-  useEffect(() => {
-    fetchTopic();
-  }, [forumSlug, forumId, topicSlug, topicId]);
+  // Fetch topic details with React Query
+  const { data: topic, isLoading: loadingTopic, error: topicError } = useTopicDetail(topicId);
 
-  const fetchTopic = async () => {
-    try {
-      const response = await apiRequest(
-        `/api/v1/forums/${forumSlug}/${forumId}/topics/${topicSlug}/${topicId}/`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch topic: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setTopic(data);
-    } catch (err) {
-      setError(`Failed to load topic: ${err.message}`);
-    } finally {
-      setLoadingTopic(false);
-    }
-  };
+  // Use mutation hook for creating post
+  const createPostMutation = useCreatePost();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setSubmitError(null);
 
     if (!content.trim()) {
-      setError('Please enter your reply content');
+      setSubmitError('Please enter your reply content');
       return;
     }
 
     try {
-      setLoading(true);
-      
-      const response = await apiRequest('/api/v1/posts/create/', {
-        method: 'POST',
-        body: JSON.stringify({
-          topic_id: topicId,
-          content: content.trim(),
-          enable_signature: true
-        })
+      // Use mutation hook - note the field names match v2 API
+      await createPostMutation.mutateAsync({
+        topic: parseInt(topicId),
+        content: content.trim(),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(errorData.error || errorData.message || 'Failed to create reply');
-        } catch (parseError) {
-          throw new Error(`Server error (${response.status}): ${errorText}`);
-        }
-      }
+      toast.success('Reply posted successfully!');
 
-      const data = await response.json();
-      
-      if (data.success) {
-        // Navigate back to the topic page
-        navigate(`/forum/topics/${forumSlug}/${forumId}/${topicSlug}/${topicId}`);
-      } else {
-        throw new Error('Reply creation failed');
-      }
+      // Navigate back to the topic page
+      navigate(`/forum/topics/${forumSlug}/${forumId}/${topicSlug}/${topicId}`);
     } catch (err) {
       console.error('Reply creation error:', err);
-      setError(err.message || 'Failed to create reply. Please try again.');
-    } finally {
-      setLoading(false);
+      setSubmitError(err.message || 'Failed to create reply. Please try again.');
     }
   };
 
@@ -103,12 +63,14 @@ export default function TopicReplyPage() {
     );
   }
 
-  if (error && !topic) {
+  if (topicError || !topic) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Topic Not Found</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            {topicError?.message || 'Failed to load topic'}
+          </p>
           <Link
             to="/forum"
             className="btn-primary inline-flex items-center space-x-2"
@@ -119,6 +81,9 @@ export default function TopicReplyPage() {
       </div>
     );
   }
+
+  const loading = createPostMutation.isPending;
+  const error = submitError;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

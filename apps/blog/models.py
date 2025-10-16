@@ -694,7 +694,7 @@ class CoursePage(Page):
 
     # Parent page rules
     parent_page_types = ['blog.LearningIndexPage']
-    subpage_types = ['blog.LessonPage']
+    subpage_types = ['blog.LessonPage', 'blog.ExercisePage', 'blog.StepBasedExercisePage']
 
     def get_context(self, request):
         context = super().get_context(request)
@@ -914,6 +914,11 @@ class ExercisePage(Page):
     template = 'blog/exercise_page.html'
     
     # Exercise metadata
+    sequence_number = models.PositiveIntegerField(
+        default=0,
+        help_text="Order within parent (course or lesson). 0 means no specific order."
+    )
+
     exercise_type = models.CharField(
         max_length=50,
         choices=[
@@ -925,7 +930,7 @@ class ExercisePage(Page):
         ],
         default='coding'
     )
-    
+
     difficulty = models.CharField(
         max_length=20,
         choices=[
@@ -1099,6 +1104,7 @@ class ExercisePage(Page):
 
     content_panels = Page.content_panels + [
         MultiFieldPanel([
+            FieldPanel('sequence_number'),
             FieldPanel('exercise_type'),
             FieldPanel('difficulty'),
             FieldPanel('points'),
@@ -1131,7 +1137,7 @@ class ExercisePage(Page):
     ]
 
     # Parent page rules
-    parent_page_types = ['blog.LessonPage']
+    parent_page_types = ['blog.LessonPage', 'blog.CoursePage']
 
     def get_context(self, request):
         context = super().get_context(request)
@@ -1164,16 +1170,21 @@ class StepBasedExercisePage(Page):
     template = 'blog/step_based_exercise_page.html'
     
     # Overall exercise configuration
+    sequence_number = models.PositiveIntegerField(
+        default=0,
+        help_text="Order within parent (course or lesson). 0 means no specific order."
+    )
+
     require_sequential = models.BooleanField(
         default=True,
         help_text="Must complete steps in order"
     )
-    
+
     total_points = models.PositiveIntegerField(
         default=100,
         help_text="Total points for completing all steps"
     )
-    
+
     difficulty = models.CharField(
         max_length=20,
         choices=[
@@ -1227,6 +1238,10 @@ class StepBasedExercisePage(Page):
                 required=False,
                 help_text="Optional hint for this step"
             )),
+            ('progressive_hints', blocks.TextBlock(
+                required=False,
+                help_text='JSON array of progressive hints: [{"level": 1, "type": "conceptual", "title": "...", "content": "...", "triggerTime": 30, "triggerAttempts": 0}]'
+            )),
         ])),
     ], use_json_field=True)
     
@@ -1258,6 +1273,7 @@ class StepBasedExercisePage(Page):
     
     content_panels = Page.content_panels + [
         MultiFieldPanel([
+            FieldPanel('sequence_number'),
             FieldPanel('difficulty'),
             FieldPanel('total_points'),
             FieldPanel('estimated_time'),

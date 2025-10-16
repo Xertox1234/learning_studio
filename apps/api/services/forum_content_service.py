@@ -344,11 +344,14 @@ class ForumContentService:
             from machina.apps.forum.models import Forum
             from machina.apps.forum_conversation.models import Topic, Post
             from apps.blog.models import ForumIntegratedBlogPage
-            from apps.forum_integration.statistics_service import forum_stats_service
-            
+            from apps.api.services.container import container
+
+            # Get statistics service from container
+            stats_service = container.get_statistics_service()
+
             # Get base forum statistics
             if forum_id:
-                stats = forum_stats_service.get_forum_specific_stats(forum_id)
+                stats = stats_service.get_forum_specific_stats(forum_id)
                 
                 # Add integrated blog posts count for this forum
                 integrated_posts = ForumIntegratedBlogPage.objects.live().filter(
@@ -359,7 +362,7 @@ class ForumContentService:
                 stats['integrated_blog_posts'] = integrated_posts
                 
             else:
-                stats = forum_stats_service.get_forum_statistics()
+                stats = stats_service.get_forum_statistics()
                 
                 # Add overall integrated content stats
                 total_integrated = ForumIntegratedBlogPage.objects.live().filter(
@@ -431,5 +434,6 @@ class ForumContentService:
             }
 
 
-# Global service instance
-forum_content_service = ForumContentService()
+# DEPRECATED: Use container.get_forum_content_service() instead
+# Global service instance kept for backwards compatibility
+# forum_content_service = ForumContentService()

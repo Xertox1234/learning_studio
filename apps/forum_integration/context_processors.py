@@ -6,7 +6,7 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from machina.apps.forum.models import Forum
 from machina.apps.forum_conversation.models import Topic, Post
-from .statistics_service import forum_stats_service
+from apps.api.services.container import container
 
 User = get_user_model()
 
@@ -33,8 +33,9 @@ def forum_stats(request):
                     'forums': subforums
                 })
         
-        # Get statistics using the centralized service
-        overall_stats = forum_stats_service.get_forum_statistics()
+        # Get statistics using the DI container service
+        stats_service = container.get_statistics_service()
+        overall_stats = stats_service.get_forum_statistics()
         
         return {
             'forum_tree': forum_tree,

@@ -15,7 +15,7 @@ from rest_framework import permissions
 from .viewsets import (
     user, learning, exercises, community
 )
-from .views import code_execution, wagtail, integrated_content
+from .views import code_execution, wagtail, integrated_content, progress
 
 # API Router for ViewSets
 router = DefaultRouter()
@@ -58,14 +58,17 @@ app_name = 'api'
 urlpatterns = [
     # API Root
     path('v1/', include(router.urls)),
-    
+
+    # Forum API (New DRF ViewSets)
+    path('v2/forum/', include('apps.api.forum.urls')),
+
     # Authentication endpoints for React frontend
     path('v1/auth/user/', auth_views.current_user, name='current-user'),
     path('v1/auth/login/', auth_views.login, name='auth-login'),
     path('v1/auth/register/', auth_views.register, name='auth-register'),
     path('v1/auth/logout/', auth_views.logout, name='auth-logout'),
     path('v1/auth/status/', auth_views.auth_status, name='auth-status'),
-    
+
     # DRF Authentication (for browsable API)
     path('auth/', include('rest_framework.urls')),
     
@@ -98,7 +101,31 @@ urlpatterns = [
     
     # Dashboard Forum Stats
     path('v1/dashboard/forum-stats/', forum_api.dashboard_forum_stats, name='dashboard-forum-stats'),
-    
+
+    # User Profile & Activity
+    path('v1/forums/users/<int:user_id>/profile/', forum_api.user_forum_profile, name='user-forum-profile'),
+    path('v1/forums/users/<int:user_id>/posts/', forum_api.user_forum_posts, name='user-forum-posts'),
+    path('v1/forums/users/<int:user_id>/topics/', forum_api.user_forum_topics, name='user-forum-topics'),
+    path('v1/forums/users/<int:user_id>/subscriptions/', forum_api.user_topic_subscriptions, name='user-topic-subscriptions'),
+
+    # Topic Subscriptions
+    path('v1/topics/<int:topic_id>/subscribe/', forum_api.topic_subscribe, name='topic-subscribe'),
+    path('v1/topics/<int:topic_id>/unsubscribe/', forum_api.topic_unsubscribe, name='topic-unsubscribe'),
+
+    # Search & Discovery
+    path('v1/forums/search/', forum_api.forum_search, name='forum-search'),
+    path('v1/forums/recent-activity/', forum_api.forum_recent_activity, name='forum-recent-activity'),
+
+    # Moderation endpoints
+    path('v1/topics/<int:topic_id>/lock/', forum_api.topic_lock, name='topic-lock'),
+    path('v1/topics/<int:topic_id>/unlock/', forum_api.topic_unlock, name='topic-unlock'),
+    path('v1/topics/<int:topic_id>/pin/', forum_api.topic_pin, name='topic-pin'),
+    path('v1/topics/<int:topic_id>/unpin/', forum_api.topic_unpin, name='topic-unpin'),
+    path('v1/topics/<int:topic_id>/move/', forum_api.topic_move, name='topic-move'),
+    path('v1/moderation/queue/', forum_api.moderation_queue, name='moderation-queue'),
+    path('v1/moderation/queue/<int:item_id>/review/', forum_api.moderation_review, name='moderation-review'),
+    path('v1/moderation/stats/', forum_api.moderation_stats, name='moderation-stats'),
+
     # Integrated Content API (Wagtail + Forum)
     path('v1/integrated-content/create/', integrated_content.create_integrated_content, name='create-integrated-content'),
     path('v1/integrated-content/permissions/', integrated_content.user_permissions, name='integrated-content-permissions'),
@@ -118,6 +145,7 @@ urlpatterns = [
     path('v1/learning/', wagtail.learning_index, name='learning-index'),
     path('v1/learning/courses/', wagtail.courses_list, name='courses-list'),
     path('v1/learning/courses/<slug:course_slug>/', wagtail.course_detail, name='course-detail'),
+    path('v1/learning/courses/<slug:course_slug>/exercises/', wagtail.course_exercises, name='course-exercises'),
     path('v1/learning/courses/<slug:course_slug>/lessons/<slug:lesson_slug>/', wagtail.lesson_detail, name='lesson-detail'),
     path('v1/learning/courses/<slug:course_slug>/lessons/<slug:lesson_slug>/exercises/<slug:exercise_slug>/', wagtail.exercise_detail, name='exercise-detail'),
     
@@ -131,6 +159,13 @@ urlpatterns = [
     path('v1/learning/courses/<slug:course_slug>/unenroll/', wagtail.wagtail_course_unenroll, name='wagtail-course-unenroll'),
     path('v1/learning/courses/<slug:course_slug>/enrollment-status/', wagtail.wagtail_course_enrollment_status, name='wagtail-course-enrollment-status'),
     path('v1/wagtail/user-enrollments/', wagtail.wagtail_user_enrollments, name='wagtail-user-enrollments'),
+    
+    # Progress Tracking API endpoints
+    path('v1/lessons/<int:lesson_id>/complete/', progress.mark_lesson_complete, name='mark-lesson-complete'),
+    path('v1/lessons/<int:lesson_id>/progress/', progress.get_lesson_progress, name='get-lesson-progress'),
+    path('v1/lessons/<int:lesson_id>/position/', progress.update_lesson_position, name='update-lesson-position'),
+    path('v1/lessons/<int:lesson_id>/bookmark/', progress.bookmark_lesson, name='bookmark-lesson'),
+    path('v1/courses/<int:course_id>/progress/', progress.get_course_progress, name='get-course-progress'),
 
     # API Schema & Docs (public)
     path('schema/', SpectacularAPIView.as_view(permission_classes=[permissions.AllowAny]), name='schema'),

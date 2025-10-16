@@ -9,22 +9,32 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
-# Development-specific apps
-INSTALLED_APPS += [
-    'django_extensions',
-    'debug_toolbar',
-]
+# Check if we're running tests
+import sys
+TESTING = 'test' in sys.argv
 
-# Debug Toolbar Middleware
-MIDDLEWARE += [
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
-]
+# Development-specific apps (exclude debug_toolbar during tests)
+if not TESTING:
+    INSTALLED_APPS += [
+        'django_extensions',
+        'debug_toolbar',
+    ]
 
-# Debug Toolbar Configuration
-INTERNAL_IPS = [
-    '127.0.0.1',
-    'localhost',
-]
+    # Debug Toolbar Middleware
+    MIDDLEWARE += [
+        'debug_toolbar.middleware.DebugToolbarMiddleware',
+    ]
+
+    # Debug Toolbar Configuration
+    INTERNAL_IPS = [
+        '127.0.0.1',
+        'localhost',
+    ]
+else:
+    # During tests, only add django_extensions
+    INSTALLED_APPS += [
+        'django_extensions',
+    ]
 
 # Database for development (SQLite)
 DATABASES = {
@@ -34,13 +44,52 @@ DATABASES = {
     }
 }
 
-# Cache for development (local memory)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+# Cache for development (Redis with fallback to local memory)
+import os
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/1')
+
+# Try to use Redis, fallback to LocMemCache if not available
+try:
+    import redis
+    redis_client = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=1)
+    redis_client.ping()
+
+    # Redis is available - use it
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                # Note: HiredisParser is used automatically if hiredis is installed
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                },
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+                'PICKLE_VERSION': -1,  # Use latest pickle protocol
+            },
+            'KEY_PREFIX': 'learning_studio',
+            'VERSION': 1,  # Increment to invalidate all caches
+            'TIMEOUT': 300,  # 5 minutes default
+        },
+        # Fallback cache for when Redis is down
+        'fallback': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'fallback-cache',
+        }
     }
-}
+    print("✓ Redis cache configured successfully")
+except (ImportError, redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+    # Redis not available - use local memory cache
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
+    print("⚠ Redis not available, using local memory cache")
 
 # Email backend for development (console)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
