@@ -6,6 +6,7 @@ import CodeEditorErrorBoundary from './CodeEditorErrorBoundary'
 import AIErrorBoundary from '../ai/AIErrorBoundary'
 import { executeCode } from '../../utils/api'
 import { useAuth } from '../../contexts/AuthContext'
+import { sanitizeHTML } from '../../utils/sanitize'
 import { Play, RotateCcw, CheckCircle, XCircle } from 'lucide-react'
 
 const FillInBlankExercise = ({
@@ -19,7 +20,9 @@ const FillInBlankExercise = ({
   const [isValidated, setIsValidated] = useState(false)
   const [validationResults, setValidationResults] = useState({})
   const [isRunning, setIsRunning] = useState(false)
-  
+  const [executionOutput, setExecutionOutput] = useState(null)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+
   // Progressive hint tracking
   const [timeSpent, setTimeSpent] = useState(0)
   const [wrongAttempts, setWrongAttempts] = useState(0)
@@ -75,46 +78,84 @@ const FillInBlankExercise = ({
   // Validate fill-in-blank answers using DOM queries like the original pattern
   const validateAnswers = useCallback(async () => {
     setIsValidated(true)
-    
+
     const inputs = document.querySelectorAll('.cm-blank-input')
     const results = {}
     const values = {}
     const solutions = exerciseData?.solutions || {}
     const alternativeSolutions = exerciseData?.alternativeSolutions || {}
-    
+
     inputs.forEach(input => {
       const blankId = input.dataset.blankId
       const userInput = input.value.trim()
       const expectedSolution = solutions[blankId]
       const alternatives = alternativeSolutions[blankId] || []
-      
+
       values[blankId] = userInput
-      
+
       let isCorrect = false
-      
-      // Check if input matches solution or alternatives
-      if (userInput === expectedSolution || alternatives.includes(userInput)) {
+
+      // Special validation for string literals
+      // Only accept "any quoted string" if the solution is a name/identifier pattern
+      // (contains letters or is a common variable name pattern)
+      const isNamePattern = expectedSolution &&
+        (expectedSolution.match(/^["'][A-Z][a-z]+["']$/) || // Capitalized name like "William"
+         expectedSolution.match(/^["'][a-z_][a-z0-9_]*["']$/)) // Variable name pattern
+
+      if (isNamePattern) {
+        // Accept any quoted string for name-like patterns
+        if (expectedSolution.startsWith('"') && expectedSolution.endsWith('"')) {
+          if (userInput.startsWith('"') && userInput.endsWith('"') && userInput.length > 2) {
+            isCorrect = true
+          } else if (userInput.startsWith("'") && userInput.endsWith("'") && userInput.length > 2) {
+            isCorrect = true
+          }
+        } else if (expectedSolution.startsWith("'") && expectedSolution.endsWith("'")) {
+          if (userInput.startsWith('"') && userInput.endsWith('"') && userInput.length > 2) {
+            isCorrect = true
+          } else if (userInput.startsWith("'") && userInput.endsWith("'") && userInput.length > 2) {
+            isCorrect = true
+          }
+        }
+      }
+
+      // Check if input matches solution or alternatives exactly
+      if (!isCorrect && (userInput === expectedSolution || alternatives.includes(userInput))) {
         isCorrect = true
       }
-      
+
       results[blankId] = isCorrect
-      
+
       // Add visual feedback like the original
       input.classList.remove('correct', 'incorrect')
       input.classList.add(isCorrect ? 'correct' : 'incorrect')
     })
-    
+
     setValidationResults(results)
     setFillBlankValues(values)
-    
+
+    // Check if all correct - show success message
+    const allCorrect = Object.values(results).every(result => result === true)
+
+    console.log('Validation Results:', results)
+    console.log('All Correct?', allCorrect)
+    console.log('Values:', values)
+
+    if (allCorrect) {
+      setShowSuccessMessage(true)
+      setTimeout(() => {
+        setShowSuccessMessage(false)
+      }, 3000)
+    }
+
     // Track wrong attempts for progressive hints
     const hasErrors = Object.values(results).some(result => !result)
     if (hasErrors) {
       setWrongAttempts(prev => prev + 1)
     }
-    
+
     onValidate(results, values)
-    
+
     return results
   }, [exerciseData, onValidate])
 
@@ -135,10 +176,12 @@ const FillInBlankExercise = ({
   // Run the code
   const runCode = useCallback(async () => {
     setIsRunning(true)
-    
+    setExecutionOutput(null)
+
     try {
       const completeCode = generateCompleteCode()
       const result = await executeCode(completeCode, exerciseData?.language || 'python')
+      setExecutionOutput(result)
       onSubmit(completeCode, result, fillBlankValues)
     } catch (error) {
       console.error('Error running code:', error)
@@ -148,6 +191,7 @@ const FillInBlankExercise = ({
         success: false,
         error: error.message || "Unexpected error"
       }
+      setExecutionOutput(errorResult)
       onSubmit(generateCompleteCode(), errorResult, fillBlankValues)
     } finally {
       setIsRunning(false)
@@ -167,6 +211,7 @@ const FillInBlankExercise = ({
     setIsValidated(false)
     setValidationResults({})
     setCode(exerciseData?.template || '')
+    setExecutionOutput(null)
     setTimeSpent(0)
     setWrongAttempts(0)
     setHintLevel(0)
@@ -175,9 +220,9 @@ const FillInBlankExercise = ({
 
   // Get expected blanks from solutions
   const expectedBlanks = Object.keys(exerciseData?.solutions || {})
-  
-  // Check if all blanks are filled
-  const allBlanksFilled = expectedBlanks.every(blankId => 
+
+  // Check if all blanks are filled (if no blanks, always true for run-only exercises)
+  const allBlanksFilled = expectedBlanks.length === 0 ? true : expectedBlanks.every(blankId =>
     fillBlankValues[blankId]?.trim()
   )
 
@@ -197,9 +242,12 @@ const FillInBlankExercise = ({
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {exerciseData?.title || 'Fill in the Blanks'}
             </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              {exerciseData?.description || 'Complete the code by filling in the missing parts'}
-            </p>
+            <div
+              className="text-sm text-slate-600 dark:text-slate-400 mt-1 prose prose-sm dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{
+                __html: sanitizeHTML(exerciseData?.description || 'Complete the code by filling in the missing parts', { mode: 'rich' })
+              }}
+            />
             {isAuthenticated && user && (
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                 ✓ Logged in as {user.username || user.email}
@@ -244,10 +292,10 @@ const FillInBlankExercise = ({
           </h4>
           <div className="flex flex-wrap gap-2">
             {Object.entries(validationResults).map(([blankId, isCorrect]) => (
-              <div 
+              <div
                 key={blankId}
                 className={`flex items-center space-x-1 px-2 py-1 rounded text-sm ${
-                  isCorrect 
+                  isCorrect
                     ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                     : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                 }`}
@@ -260,6 +308,42 @@ const FillInBlankExercise = ({
                 <span>{blankId}: {fillBlankValues[blankId] || '(empty)'}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Code Execution Output */}
+      {executionOutput && (
+        <div className="execution-output bg-slate-50 dark:bg-slate-900 p-4 border-t">
+          <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">
+            Output:
+          </h4>
+          <div className={`p-3 rounded font-mono text-sm ${
+            executionOutput.success
+              ? 'bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100 border border-green-200 dark:border-green-800'
+              : 'bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 border border-red-200 dark:border-red-800'
+          }`}>
+            {executionOutput.error ? (
+              <div>
+                <div className="font-bold text-red-700 dark:text-red-300 mb-1">Error:</div>
+                <div className="whitespace-pre-wrap">{executionOutput.error}</div>
+              </div>
+            ) : (
+              <div className="whitespace-pre-wrap">{executionOutput.output || '(no output)'}</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Toast */}
+      {showSuccessMessage && (
+        <div className="fixed bottom-8 right-8 z-50 animate-in slide-in-from-bottom duration-300">
+          <div className="bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
+            <CheckCircle className="w-6 h-6" />
+            <div>
+              <div className="font-semibold">{exerciseData?.success_message || 'Great job!'}</div>
+              <div className="text-sm text-green-100">All answers are correct!</div>
+            </div>
           </div>
         </div>
       )}

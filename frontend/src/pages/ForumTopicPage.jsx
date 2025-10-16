@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { 
-  MessageSquare, 
-  Clock, 
-  Eye, 
+import { sanitizeHTML } from '../utils/sanitize'
+import {
+  MessageSquare,
+  Clock,
+  Eye,
   ArrowLeft,
   User,
   Calendar,
@@ -11,52 +12,65 @@ import {
   ChevronRight,
   Edit,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Lock,
+  Unlock,
+  Pin,
+  PinOff,
+  Move,
+  Shield
 } from 'lucide-react'
-import axios from 'axios'
 import { format } from 'date-fns'
-import { apiRequest } from '../utils/api'
+import { useTopicDetail, useTopicPosts, useDeletePost, useLockTopic, usePinTopic } from '../hooks/useForumQuery'
 import { useAuth } from '../contexts/AuthContext'
+import { useQueryClient } from '@tanstack/react-query'
 import PostCreateForm from '../components/forum/PostCreateForm'
 import PostEditForm from '../components/forum/PostEditForm'
+import toast from 'react-hot-toast'
 
 export default function ForumTopicPage() {
-  const { forumSlug, forumId, topicSlug, topicId } = useParams()
+  const { forumSlug, forumId, topicSlug, topicId} = useParams()
   const { user } = useAuth()
-  const [topic, setTopic] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const queryClient = useQueryClient()
   const [editingPostId, setEditingPostId] = useState(null)
   const [showReplyForm, setShowReplyForm] = useState(false)
+  const [showModerationMenu, setShowModerationMenu] = useState(false)
+  const menuRef = useRef(null)
+  const menuButtonRef = useRef(null)
 
+  // Fetch topic and posts with React Query
+  const { data: topic, isLoading: loadingTopic, error: topicError } = useTopicDetail(topicId)
+  const { data: postsData, isLoading: loadingPosts } = useTopicPosts(topicId, { page: 1, page_size: 100 })
+  const deletePostMutation = useDeletePost()
+  const lockTopicMutation = useLockTopic()
+  const pinTopicMutation = usePinTopic()
+
+  const posts = postsData?.results || []
+  const loading = loadingTopic || loadingPosts
+  const error = topicError?.message || null
+  const moderationLoading = lockTopicMutation.isPending || pinTopicMutation.isPending
+
+  // Keyboard navigation - close moderation menu on Escape
   useEffect(() => {
-    fetchTopic()
-  }, [forumSlug, forumId, topicSlug, topicId])
-
-  const fetchTopic = async () => {
-    try {
-      console.log('Fetching topic with params:', { forumSlug, forumId, topicSlug, topicId });
-      
-      const response = await apiRequest(
-        `/api/v1/forums/${forumSlug}/${forumId}/topics/${topicSlug}/${topicId}/`
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Topic fetch error:', response.status, errorText);
-        throw new Error(`Failed to fetch topic: ${response.status}`);
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && showModerationMenu) {
+        setShowModerationMenu(false)
+        // Return focus to trigger button
+        menuButtonRef.current?.focus()
       }
-      
-      const data = await response.json();
-      console.log('Topic data received:', data);
-      setTopic(data);
-    } catch (error) {
-      console.error('Failed to fetch topic:', error);
-      setError(error.message || 'Failed to load topic');
-    } finally {
-      setLoading(false);
     }
-  }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [showModerationMenu])
+
+  // Focus management for moderation menu
+  useEffect(() => {
+    if (showModerationMenu && menuRef.current) {
+      // Focus first menu item when opened
+      const firstMenuItem = menuRef.current.querySelector('[role="menuitem"]')
+      firstMenuItem?.focus()
+    }
+  }, [showModerationMenu])
 
   const formatTimeAgo = (date) => {
     if (!date) return 'unknown'
@@ -81,24 +95,18 @@ export default function ForumTopicPage() {
   }
 
   const handleReplyCreated = (newPost) => {
-    // Add the new post to the topic's posts array
-    setTopic(prevTopic => ({
-      ...prevTopic,
-      posts: [...prevTopic.posts, newPost],
-      posts_count: prevTopic.posts_count + 1
-    }))
+    // React Query will automatically refetch the posts and topic
+    queryClient.invalidateQueries({ queryKey: ['topics', topicId, 'posts'] })
+    queryClient.invalidateQueries({ queryKey: ['topics', topicId] })
     setShowReplyForm(false)
+    toast.success('Reply posted successfully!')
   }
 
   const handlePostEdited = (updatedPost) => {
-    // Update the specific post in the topic's posts array
-    setTopic(prevTopic => ({
-      ...prevTopic,
-      posts: prevTopic.posts.map(post => 
-        post.id === updatedPost.id ? updatedPost : post
-      )
-    }))
+    // React Query will automatically refetch the posts
+    queryClient.invalidateQueries({ queryKey: ['topics', topicId, 'posts'] })
     setEditingPostId(null)
+    toast.success('Post updated successfully!')
   }
 
   const handleDeletePost = async (postId) => {
@@ -107,21 +115,11 @@ export default function ForumTopicPage() {
     }
 
     try {
-      const response = await apiRequest(`/api/v1/posts/${postId}/delete/`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        // Remove the post from the topic's posts array
-        setTopic(prevTopic => ({
-          ...prevTopic,
-          posts: prevTopic.posts.filter(post => post.id !== postId),
-          posts_count: prevTopic.posts_count - 1
-        }))
-      }
+      await deletePostMutation.mutateAsync(postId)
+      toast.success('Post deleted successfully!')
     } catch (error) {
       console.error('Failed to delete post:', error)
-      alert('Failed to delete post. Please try again.')
+      toast.error('Failed to delete post. Please try again.')
     }
   }
 
@@ -131,6 +129,54 @@ export default function ForumTopicPage() {
 
   const canDeletePost = (post) => {
     return user && (user.id === post.poster.id || user.is_staff)
+  }
+
+  const canModerate = () => {
+    return user && (
+      user.is_staff ||
+      user.is_superuser ||
+      (user.trust_level && user.trust_level.level >= 3)
+    )
+  }
+
+  const handleLockTopic = async () => {
+    if (moderationLoading) return
+
+    try {
+      const isCurrentlyLocked = topic.status === 'locked' || topic.status === 1
+      const lock = !isCurrentlyLocked  // Pass boolean instead of action string
+
+      await lockTopicMutation.mutateAsync({
+        topicId,
+        lock
+      })
+
+      toast.success(`Topic ${lock ? 'locked' : 'unlocked'} successfully!`)
+      setShowModerationMenu(false)
+    } catch (error) {
+      console.error('Failed to lock/unlock topic:', error)
+      toast.error(`Failed to ${isCurrentlyLocked ? 'unlock' : 'lock'} topic: ${error.message}`)
+    }
+  }
+
+  const handlePinTopic = async (pinType = 'sticky') => {
+    if (moderationLoading) return
+
+    try {
+      const isCurrentlyPinned = topic.type === 'sticky' || topic.type === 'announce' || topic.type === 1 || topic.type === 2
+      const pin = !isCurrentlyPinned  // Pass boolean instead of action string
+
+      await pinTopicMutation.mutateAsync({
+        topicId,
+        pin
+      })
+
+      toast.success(`Topic ${pin ? 'pinned' : 'unpinned'} successfully!`)
+      setShowModerationMenu(false)
+    } catch (error) {
+      console.error('Failed to pin/unpin topic:', error)
+      toast.error(`Failed to ${isCurrentlyPinned ? 'unpin' : 'pin'} topic: ${error.message}`)
+    }
   }
 
   if (loading) {
@@ -185,7 +231,27 @@ export default function ForumTopicPage() {
           {/* Topic Header */}
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold mb-2">{topic.subject}</h1>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-3xl font-bold">{topic.subject}</h1>
+                {(topic.status === 'locked' || topic.status === 1) && (
+                  <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    Locked
+                  </span>
+                )}
+                {(topic.type === 'sticky' || topic.type === 1) && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full flex items-center gap-1">
+                    <Pin className="w-3 h-3" />
+                    Pinned
+                  </span>
+                )}
+                {(topic.type === 'announce' || topic.type === 2) && (
+                  <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full flex items-center gap-1">
+                    <Pin className="w-3 h-3" />
+                    Announcement
+                  </span>
+                )}
+              </div>
               <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
                 <span className="flex items-center space-x-1">
                   <User className="h-4 w-4" />
@@ -205,13 +271,88 @@ export default function ForumTopicPage() {
                 </span>
               </div>
             </div>
-            <Link
-              to="/forum"
-              className="btn-secondary flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back to Forums</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              {/* Moderation Menu for TL3+ Users */}
+              {canModerate() && (
+                <div className="relative">
+                  <button
+                    ref={menuButtonRef}
+                    onClick={() => setShowModerationMenu(!showModerationMenu)}
+                    className="btn-secondary flex items-center space-x-2"
+                    disabled={moderationLoading}
+                    aria-label="Open moderation menu"
+                    aria-expanded={showModerationMenu}
+                    aria-haspopup="true"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>Moderate</span>
+                  </button>
+                  {showModerationMenu && (
+                    <div
+                      ref={menuRef}
+                      className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[180px] z-10"
+                      role="menu"
+                      aria-label="Moderation actions"
+                    >
+                      <button
+                        onClick={handleLockTopic}
+                        disabled={moderationLoading}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2 disabled:opacity-50"
+                        role="menuitem"
+                        tabIndex={0}
+                      >
+                        {(topic.status === 'locked' || topic.status === 1) ? (
+                          <>
+                            <Unlock className="w-4 h-4" />
+                            <span>Unlock Topic</span>
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-4 h-4" />
+                            <span>Lock Topic</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handlePinTopic('sticky')}
+                        disabled={moderationLoading}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2 disabled:opacity-50"
+                        role="menuitem"
+                        tabIndex={0}
+                      >
+                        {(topic.type === 'sticky' || topic.type === 'announce' || topic.type === 1 || topic.type === 2) ? (
+                          <>
+                            <PinOff className="w-4 h-4" />
+                            <span>Unpin Topic</span>
+                          </>
+                        ) : (
+                          <>
+                            <Pin className="w-4 h-4" />
+                            <span>Pin Topic</span>
+                          </>
+                        )}
+                      </button>
+                      <Link
+                        to="/forum/moderation/queue"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2 border-t border-gray-200 dark:border-gray-700 mt-1 pt-2"
+                        role="menuitem"
+                        tabIndex={0}
+                      >
+                        <Shield className="w-4 h-4" />
+                        <span>Moderation Queue</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+              <Link
+                to="/forum"
+                className="btn-secondary flex items-center space-x-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to Forums</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -219,7 +360,7 @@ export default function ForumTopicPage() {
       {/* Posts */}
       <div className="container-custom py-8">
         <div className="space-y-6">
-          {topic.posts.map((post, index) => (
+          {posts.map((post, index) => (
             <div key={post.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               {/* Post Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -287,9 +428,9 @@ export default function ForumTopicPage() {
                 </div>
               ) : (
                 <div className="p-6">
-                  <div 
+                  <div
                     className="prose prose-gray dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: post.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHTML(post.content, { mode: 'default' }) }}
                   />
                 </div>
               )}

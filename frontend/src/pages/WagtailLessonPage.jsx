@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { 
+import {
   ChevronLeft, ChevronRight, Clock, BookOpen, CheckCircle,
   ArrowLeft, Code, FileText, Video, AlertCircle, Info,
   User, Calendar, Target, PlayCircle, Award
@@ -9,14 +9,15 @@ import { api } from '../utils/api'
 import { useAuth } from '../contexts/AuthContext'
 import { ReadOnlyCodeBlock, RunButtonCodeEditor, MinimalFillBlankEditor, MinimalMultipleChoiceBlanks } from '../components/code-editor'
 import ConfettiCelebration from '../components/common/ConfettiCelebration'
+import { sanitizeHTML } from '../utils/sanitize'
 import clsx from 'clsx'
 
 // Content Block Components
 function TextBlock({ content }) {
   return (
-    <div 
+    <div
       className="prose prose-lg dark:prose-invert max-w-none mb-6"
-      dangerouslySetInnerHTML={{ __html: content }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHTML(content, { mode: 'rich' }) }}
     />
   )
 }
@@ -49,9 +50,9 @@ function CodeExampleBlock({ content }) {
       </div>
       
       {explanation && (
-        <div 
+        <div
           className="prose dark:prose-invert text-sm"
-          dangerouslySetInnerHTML={{ __html: explanation }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHTML(explanation, { mode: 'rich' }) }}
         />
       )}
     </div>
@@ -86,9 +87,9 @@ function VideoBlock({ content }) {
       </div>
       
       {description && (
-        <div 
+        <div
           className="prose dark:prose-invert text-sm"
-          dangerouslySetInnerHTML={{ __html: description }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHTML(description, { mode: 'rich' }) }}
         />
       )}
     </div>
@@ -130,9 +131,9 @@ function CalloutBlock({ content }) {
         {getIcon(type)}
         <div className="flex-1">
           {title && <h4 className="font-semibold mb-2">{title}</h4>}
-          <div 
+          <div
             className="prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: text }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHTML(text, { mode: 'rich' }) }}
           />
         </div>
       </div>
@@ -228,9 +229,9 @@ function InteractiveExerciseBlock({ content }) {
         <h3 className="text-lg font-semibold">{title}</h3>
       </div>
       
-      <div 
+      <div
         className="prose dark:prose-invert mb-4"
-        dangerouslySetInnerHTML={{ __html: instructions }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHTML(instructions, { mode: 'rich' }) }}
       />
       
       {starter_code && (
@@ -333,9 +334,9 @@ function QuizBlock({ content, onQuizComplete = null }) {
       ) : (
         <div className="bg-muted p-4 rounded-lg">
           <h5 className="font-medium mb-2">Explanation:</h5>
-          <div 
+          <div
             className="prose prose-sm dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: explanation }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHTML(explanation, { mode: 'rich' }) }}
           />
         </div>
       )}
@@ -420,7 +421,7 @@ export default function WagtailLessonPage() {
 
   useEffect(() => {
     fetchLesson()
-  }, [courseSlug, lessonSlug])
+  }, [courseSlug, lessonSlug, isAuthenticated])
 
   const fetchLesson = async () => {
     try {
@@ -430,8 +431,25 @@ export default function WagtailLessonPage() {
       
       const response = await api.get(`/courses/${courseSlug}/lessons/${lessonSlug}/`)
       console.log('Lesson response:', response)
-      setLesson(response.data)
+      const lessonData = response.data
+      setLesson(lessonData)
       setError(null)
+      
+      // Fetch progress if user is authenticated
+      if (isAuthenticated && lessonData.id) {
+        try {
+          const progressResponse = await api.get(`/lessons/${lessonData.id}/progress/`)
+          console.log('Lesson progress:', progressResponse.data)
+          
+          // Set completed state based on existing progress
+          if (progressResponse.data.completed) {
+            setCompleted(true)
+          }
+        } catch (progressErr) {
+          console.log('No existing progress found or error fetching progress:', progressErr)
+          // It's okay if progress doesn't exist yet
+        }
+      }
     } catch (err) {
       console.error('Error fetching lesson:', err)
       console.error('Error details:', {
@@ -480,9 +498,28 @@ export default function WagtailLessonPage() {
     setShowCourseComplete(false)
   }
 
-  const handleMarkComplete = () => {
-    setCompleted(true)
-    // TODO: Update progress via API
+  const handleMarkComplete = async () => {
+    if (!isAuthenticated || !lesson) return
+    
+    try {
+      setCompleted(true)
+      
+      // Call the progress tracking API
+      const response = await api.post(`/lessons/${lesson.id}/complete/`, {
+        time_spent: 0 // Could track actual time if needed
+      })
+      
+      console.log('Lesson marked complete:', response.data)
+      
+      // Optionally show a success message
+      if (response.data.success) {
+        const courseProgress = response.data.course_progress
+        console.log(`Course progress: ${courseProgress.completed_lessons}/${courseProgress.total_lessons} lessons completed (${courseProgress.progress_percentage}%)`)
+      }
+    } catch (err) {
+      console.error('Error marking lesson complete:', err)
+      // Still show as completed in UI even if API fails
+    }
   }
 
   if (loading) {

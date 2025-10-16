@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { sanitizeHTML } from '../utils/sanitize'
 import FillInBlankExercise from '../components/code-editor/FillInBlankExercise'
 import InteractiveCodeEditor from '../components/code-editor/InteractiveCodeEditor'
 import RunButtonCodeEditor from '../components/code-editor/RunButtonCodeEditor'
@@ -112,46 +113,24 @@ const WagtailExercisePage = () => {
       case 'fullscreen':
         return (
           <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-            {exercise.exercise_type === 'fill_blank' ? (
-              <FillInBlankExercise
-                exerciseData={exercise}
-                onSubmit={handleExerciseSubmit}
-                onValidate={handleValidation}
-                className="h-screen"
-              />
-            ) : (
-              <RunButtonCodeEditor
-                initialCode={exercise.starter_code || '# Start coding here...'}
-                language={exercise.programming_language}
-                onSubmit={handleExerciseSubmit}
-                height="100vh"
-                showSubmitButton={true}
-              />
-            )}
+            <FillInBlankExercise
+              exerciseData={exercise}
+              onSubmit={handleExerciseSubmit}
+              onValidate={handleValidation}
+              className="h-screen"
+            />
           </div>
         )
-      
+
       default:
         return (
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden">
-            {exercise.exercise_type === 'fill_blank' ? (
-              <FillInBlankExercise
-                exerciseData={exercise}
-                onSubmit={handleExerciseSubmit}
-                onValidate={handleValidation}
-                className="min-h-[500px]"
-              />
-            ) : (
-              <div className="p-6">
-                <RunButtonCodeEditor
-                  initialCode={exercise.starter_code || '# Start coding here...'}
-                  language={exercise.programming_language}
-                  onSubmit={handleExerciseSubmit}
-                  height={exercise.code_editor_height || '400px'}
-                  showSubmitButton={true}
-                />
-              </div>
-            )}
+            <FillInBlankExercise
+              exerciseData={exercise}
+              onSubmit={handleExerciseSubmit}
+              onValidate={handleValidation}
+              className="min-h-[500px]"
+            />
           </div>
         )
     }
@@ -279,9 +258,9 @@ const WagtailExercisePage = () => {
                 {exercise.title}
               </h1>
               
-              <div 
+              <div
                 className="text-slate-600 dark:text-slate-300 prose dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: exercise.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHTML(exercise.description, { mode: 'rich' }) }}
               />
             </div>
             
@@ -350,9 +329,9 @@ const WagtailExercisePage = () => {
                     {exercise.exercise_content.map((block, index) => (
                       <div key={index}>
                         {block.type === 'instruction' && (
-                          <div 
+                          <div
                             className="text-slate-600 dark:text-slate-300 prose dark:prose-invert prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: block.value }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHTML(block.value, { mode: 'rich' }) }}
                           />
                         )}
                         {block.type === 'code_example' && (
@@ -364,9 +343,9 @@ const WagtailExercisePage = () => {
                               <code>{block.code}</code>
                             </pre>
                             {block.explanation && (
-                              <div 
+                              <div
                                 className="mt-2 text-sm text-slate-600 dark:text-slate-400"
-                                dangerouslySetInnerHTML={{ __html: block.explanation }}
+                                dangerouslySetInnerHTML={{ __html: sanitizeHTML(block.explanation, { mode: 'rich' }) }}
                               />
                             )}
                           </div>
@@ -423,7 +402,7 @@ const WagtailExercisePage = () => {
                     {exercise.hints.map((hint, index) => (
                       <div key={index} className="text-sm text-yellow-700 dark:text-yellow-300">
                         <span className="font-medium">{index + 1}.</span>{' '}
-                        <span dangerouslySetInnerHTML={{ __html: hint.hint_text }} />
+                        <span dangerouslySetInnerHTML={{ __html: sanitizeHTML(hint.hint_text, { mode: 'rich' }) }} />
                       </div>
                     ))}
                   </div>
@@ -443,15 +422,6 @@ const WagtailExercisePage = () => {
             Back to Exercises
           </Link>
 
-          {exercise.lesson && (
-            <Link
-              to={`/courses/${exercise.course.slug}/lessons/${exercise.lesson.slug}`}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl hover:bg-blue-700 transition-all duration-200"
-            >
-              Continue Lesson
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Link>
-          )}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { Calendar, Clock, User, ArrowLeft, ExternalLink, Copy, Check, Tag, ChevronRight } from 'lucide-react'
 import { api } from '../utils/api'
 import { ReadOnlyCodeBlock } from '../components/code-editor'
+import { sanitizeHTML } from '../utils/sanitize'
 import clsx from 'clsx'
 
 export default function BlogPostPage() {
@@ -66,9 +67,9 @@ export default function BlogPostPage() {
     switch (block.type) {
       case 'paragraph':
         return (
-          <div 
+          <div
             className="prose prose-lg dark:prose-invert max-w-none mb-6 text-gray-700 dark:text-gray-300 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: block.value }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHTML(block.value, { mode: 'rich' }) }}
           />
         )
       
@@ -144,9 +145,9 @@ export default function BlogPostPage() {
                 {block.value.title}
               </div>
             )}
-            <div 
+            <div
               className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
-              dangerouslySetInnerHTML={{ __html: block.value.text }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHTML(block.value.text, { mode: 'rich' }) }}
             />
           </div>
         )

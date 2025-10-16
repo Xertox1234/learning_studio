@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronRight, Lightbulb, Clock, Eye, CheckCircle } from 'lucide-react'
+import { sanitizeHTML } from '../../utils/sanitize'
 
 const ProgressiveHintPanel = ({
   exerciseData,
@@ -168,9 +169,10 @@ const ProgressiveHintPanel = ({
                       Level {hint.level}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    {hint.content}
-                  </p>
+                  <div
+                    className="text-sm text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHTML(hint.content, { mode: 'rich' }) }}
+                  />
                   
                   {/* Show solution for level 5 */}
                   {hint.level === 5 && exerciseData?.solutions && (

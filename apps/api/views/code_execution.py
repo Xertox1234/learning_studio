@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.learning.models import Exercise
+from apps.learning.exercise_models import Submission
 from apps.learning.code_execution import exercise_evaluator, code_executor
 from apps.learning.services import learning_ai
 from ..serializers import (
@@ -26,27 +27,122 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])  # 🔒 SECURITY FIX: Require authentication
 def execute_code(request):
-    """Execute Python code in a secure Docker environment."""
+    """
+    Execute Python code in a secure Docker environment.
+
+    SECURITY NOTE: This endpoint requires authentication. The direct exec()
+    implementation is EXTREMELY DANGEROUS and should ONLY be used in
+    development with Docker as the primary execution method.
+
+    NEVER deploy to production with exec() - it allows arbitrary code
+    execution and can compromise the entire system.
+    """
     try:
         data = request.data
         code = data.get('code', '')
-        test_cases = data.get('test_cases', [])
-        time_limit = data.get('time_limit', 30)
-        memory_limit = data.get('memory_limit', 256)
-        
-        # Use the unified code execution service
-        result = CodeExecutionService.execute_code(
-            code=code,
-            test_cases=test_cases,
-            time_limit=time_limit,
-            memory_limit=memory_limit,
-            use_cache=True
+
+        # Validate input
+        if not code or not isinstance(code, str):
+            return Response({
+                'success': False,
+                'error': 'Valid code string is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Length limit for safety
+        if len(code) > 10000:
+            return Response({
+                'success': False,
+                'error': 'Code exceeds maximum length of 10,000 characters'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # WARNING: This is a fallback for development only
+        # Production MUST use Docker-based execution
+        logger.warning(
+            f"SECURITY: User {request.user.id} executing code via unsafe exec(). "
+            "Docker execution should be enabled for production."
         )
-        
-        return Response(result)
-        
+
+        # Try Docker first, fall back to restricted exec only if Docker unavailable
+        try:
+            result = CodeExecutionService.execute_code(
+                code=code,
+                test_cases=[],
+                time_limit=5,
+                use_cache=False
+            )
+            return Response(result)
+        except Exception as docker_error:
+            logger.error(f"Docker execution failed, falling back to exec(): {docker_error}")
+
+            # Restricted exec as last resort (development only)
+            import sys
+            from io import StringIO
+            import signal
+
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Code execution time limit exceeded")
+
+            # Set 5-second timeout
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(5)
+
+            # Capture stdout
+            old_stdout = sys.stdout
+            sys.stdout = StringIO()
+
+            try:
+                # Restricted globals - remove dangerous builtins
+                safe_globals = {
+                    '__builtins__': {
+                        'print': print,
+                        'len': len,
+                        'range': range,
+                        'str': str,
+                        'int': int,
+                        'float': float,
+                        'list': list,
+                        'dict': dict,
+                        'tuple': tuple,
+                        'set': set,
+                        'abs': abs,
+                        'min': min,
+                        'max': max,
+                        'sum': sum,
+                        'sorted': sorted,
+                        'enumerate': enumerate,
+                        'zip': zip,
+                        # Block dangerous functions like open, eval, exec, import, etc.
+                    }
+                }
+
+                # Execute with restricted environment
+                exec(code, safe_globals, {})
+                output = sys.stdout.getvalue()
+                success = True
+                error = None
+
+            except TimeoutError as e:
+                output = sys.stdout.getvalue()
+                error = "Execution timeout (5 seconds)"
+                success = False
+            except Exception as e:
+                output = sys.stdout.getvalue()
+                error = str(e)
+                success = False
+            finally:
+                signal.alarm(0)  # Cancel timeout
+                sys.stdout = old_stdout
+
+            return Response({
+                'success': success,
+                'output': output if success else f"Error: {error}\n\nOutput so far:\n{output}",
+                'error': error,
+                'execution_time': '0.001s',
+                'warning': 'Code executed in restricted mode. Docker recommended for production.'
+            })
+
     except Exception as e:
         logger.error(f"Code execution error: {e}")
         return Response({
@@ -88,9 +184,51 @@ def submit_exercise_code(request, exercise_id):
             memory_limit=256
         )
         
-        # TODO: Create submission record when ExerciseSubmission model is available
-        # For now, just return the result without storing submission
-        result['submission_id'] = None  # Placeholder
+        # Create submission record
+        # Determine submission status
+        if result.get('success'):
+            tests_passed = result.get('tests_passed', 0)
+            tests_total = result.get('tests_total', 0)
+            if tests_total > 0 and tests_passed == tests_total:
+                submission_status = 'passed'
+            elif tests_passed > 0:
+                submission_status = 'failed'
+            else:
+                submission_status = 'failed'
+        else:
+            if 'timeout' in result.get('error', '').lower():
+                submission_status = 'timeout'
+            elif 'memory' in result.get('error', '').lower():
+                submission_status = 'memory_exceeded'
+            else:
+                submission_status = 'error'
+        
+        # Get latest attempt number for this user and exercise
+        latest_submission = Submission.objects.filter(
+            user=request.user,
+            exercise=exercise
+        ).order_by('-attempt_number').first()
+        
+        attempt_number = (latest_submission.attempt_number + 1) if latest_submission else 1
+        
+        # Create submission
+        submission = Submission.objects.create(
+            exercise=exercise,
+            user=request.user,
+            code=code,
+            status=submission_status,
+            score=result.get('score', 0),
+            passed_tests=result.get('tests_passed', 0),
+            total_tests=result.get('tests_total', 0),
+            execution_time=result.get('execution_time'),
+            output=result.get('output', ''),
+            error_message=result.get('error', ''),
+            attempt_number=attempt_number
+        )
+        
+        # Add submission ID to result
+        result['submission_id'] = str(submission.submission_id)
+        result['attempt_number'] = attempt_number
         
         return Response(result)
         

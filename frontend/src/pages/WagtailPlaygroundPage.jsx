@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { apiRequest } from '../utils/api'
 import { EditableCodePlayground } from '../components/code-editor'
 import { Loader2, AlertCircle, Code } from 'lucide-react'
+import { sanitizeHTML } from '../utils/sanitize'
 
 export default function WagtailPlaygroundPage() {
   const [playgroundData, setPlaygroundData] = useState(null)
@@ -36,11 +37,10 @@ export default function WagtailPlaygroundPage() {
   const handleSave = (codeData) => {
     setSavedCode(codeData.code)
     // Here you could save to the backend API
-    console.log('Code saved:', codeData)
   }
 
   const handleExecute = (code, result) => {
-    console.log('Code executed:', { code, result })
+    // Handle execution result
   }
 
   if (loading) {
@@ -135,9 +135,9 @@ export default function WagtailPlaygroundPage() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">{playgroundData.title}</h1>
           {playgroundData.description && (
-            <div 
+            <div
               className="text-muted-foreground prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: playgroundData.description }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHTML(playgroundData.description, { mode: 'rich' }) }}
             />
           )}
           {!playgroundData.description && (

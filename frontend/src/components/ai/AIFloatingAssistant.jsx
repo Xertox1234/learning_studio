@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { MessageCircle, X, Send, Loader, Bot, User, Minimize2, Maximize2 } from 'lucide-react'
 import { useTheme } from '../../contexts/ThemeContext'
-import DOMPurify from 'dompurify'
+import { sanitizeHTML } from '../../utils/sanitize'
 
 const AIFloatingAssistant = ({
   exerciseContext = null,
@@ -255,13 +255,10 @@ const AIFloatingAssistant = ({
                           )}
                         </div>
                         <div className={`rounded-2xl px-4 py-2 ${message.type === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'}`}>
-                          <p 
+                          <p
                             className="text-sm whitespace-pre-wrap"
-                            dangerouslySetInnerHTML={{ 
-                              __html: DOMPurify.sanitize(message.content, {
-                                ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'code', 'pre', 'br'],
-                                ALLOWED_ATTR: []
-                              })
+                            dangerouslySetInnerHTML={{
+                              __html: sanitizeHTML(message.content, { mode: 'strict' })
                             }}
                           />
                           <p className="text-xs opacity-70 mt-1">{formatTime(message.timestamp)}</p>

@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { 
-  BookOpen, Clock, Users, Award, Star, CheckCircle, PlayCircle, 
-  User, Calendar, ArrowRight, ChevronRight, Target, AlertCircle 
+import {
+  BookOpen, Clock, Users, Award, Star, CheckCircle, PlayCircle,
+  User, Calendar, ArrowRight, ChevronRight, Target, AlertCircle, Lock
 } from 'lucide-react'
 import { api } from '../utils/api'
 import { useAuth } from '../contexts/AuthContext'
 import { generateCourseSchema, injectStructuredData } from '../utils/schema'
+import { sanitizeHTML } from '../utils/sanitize'
 import clsx from 'clsx'
 
 export default function WagtailCourseDetailPage() {
   const { courseSlug } = useParams()
   const { user, isAuthenticated } = useAuth()
   const [course, setCourse] = useState(null)
+  const [exercises, setExercises] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
@@ -21,6 +23,7 @@ export default function WagtailCourseDetailPage() {
 
   useEffect(() => {
     fetchCourse()
+    fetchExercises()
   }, [courseSlug])
 
   // Check enrollment status when user is authenticated and course is loaded
@@ -72,6 +75,16 @@ export default function WagtailCourseDetailPage() {
     }
   }
 
+  const fetchExercises = async () => {
+    try {
+      const response = await api.get(`/learning/courses/${courseSlug}/exercises/`)
+      setExercises(response.data.exercises || [])
+    } catch (err) {
+      console.error('Error fetching exercises:', err)
+      setExercises([])
+    }
+  }
+
   const checkEnrollmentStatus = async () => {
     try {
       const response = await api.get(`/learning/courses/${courseSlug}/enrollment-status/`)
@@ -107,17 +120,18 @@ export default function WagtailCourseDetailPage() {
       
       const response = await api.post(`/learning/courses/${courseSlug}/enroll/`)
       console.log('Enrollment response:', response)
-      
-      if (response.data.success) {
-        // Update enrollment status
-        setEnrollmentStatus({
-          enrolled: true,
-          enrollment: response.data.enrollment
-        })
-        
-        // Show success message
-        alert(response.data.message)
-      }
+
+      // Update enrollment status (backend returns enrollment object directly)
+      setEnrollmentStatus({
+        enrolled: true,
+        enrollment: response.data.enrollment
+      })
+
+      // Refresh enrollment status to get latest data
+      await checkEnrollmentStatus()
+
+      // Show success message
+      alert(response.data.message || 'Successfully enrolled in course!')
     } catch (err) {
       console.error('Error enrolling in course:', err)
       console.error('Error details:', err.response)
@@ -138,18 +152,19 @@ export default function WagtailCourseDetailPage() {
 
     try {
       setEnrollmentLoading(true)
-      const response = await api.delete(`/learning/courses/${courseSlug}/unenroll/`)
-      
-      if (response.data.success) {
-        // Update enrollment status
-        setEnrollmentStatus({
-          enrolled: false,
-          enrollment: null
-        })
-        
-        // Show success message
-        alert(response.data.message)
-      }
+      const response = await api.post(`/learning/courses/${courseSlug}/unenroll/`)
+
+      // Update enrollment status
+      setEnrollmentStatus({
+        enrolled: false,
+        enrollment: null
+      })
+
+      // Refresh enrollment status to get latest data
+      await checkEnrollmentStatus()
+
+      // Show success message
+      alert(response.data.message || 'Successfully unenrolled from course.')
     } catch (err) {
       console.error('Error unenrolling from course:', err)
       alert(err.response?.data?.error || 'Failed to unenroll from course. Please try again.')
@@ -191,6 +206,27 @@ export default function WagtailCourseDetailPage() {
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-8">
             <h1 className="text-2xl font-semibold text-destructive mb-4">Course Not Found</h1>
             <p className="text-muted-foreground mb-6">{error}</p>
+            <Link
+              to="/courses"
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              <ArrowRight className="h-4 w-4" />
+              <span>Browse All Courses</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Guard clause - if course is still null after loading, show error
+  if (!course) {
+    return (
+      <div className="container-custom py-8">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-8">
+            <h1 className="text-2xl font-semibold text-destructive mb-4">Course Not Available</h1>
+            <p className="text-muted-foreground mb-6">Unable to load course data.</p>
             <Link
               to="/courses"
               className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
@@ -256,7 +292,7 @@ export default function WagtailCourseDetailPage() {
                 )}
                 <div className="flex items-center space-x-2">
                   <BookOpen className="h-4 w-4" />
-                  <span>{course.lessons.length} lessons</span>
+                  <span>{exercises.length} exercises</span>
                 </div>
                 {course.estimated_duration && (
                   <div className="flex items-center space-x-2">
@@ -315,14 +351,14 @@ export default function WagtailCourseDetailPage() {
                   {/* Course Description */}
                   <div>
                     <h2 className="text-2xl font-semibold mb-4">About This Course</h2>
-                    <div 
+                    <div
                       className="prose prose-lg dark:prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: course.detailed_description }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHTML(course.detailed_description, { mode: 'rich' }) }}
                     />
                   </div>
 
                   {/* Learning Objectives */}
-                  {course.learning_objectives.length > 0 && (
+                  {course.learning_objectives?.length > 0 && (
                     <div>
                       <h2 className="text-2xl font-semibold mb-4">What You'll Learn</h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -345,15 +381,15 @@ export default function WagtailCourseDetailPage() {
                   {course.prerequisites && (
                     <div>
                       <h2 className="text-2xl font-semibold mb-4">Prerequisites</h2>
-                      <div 
+                      <div
                         className="prose dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: course.prerequisites }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHTML(course.prerequisites, { mode: 'rich' }) }}
                       />
                     </div>
                   )}
 
                   {/* Course Features */}
-                  {course.features.length > 0 && (
+                  {course.features?.length > 0 && (
                     <div>
                       <h2 className="text-2xl font-semibold mb-4">Course Features</h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -377,14 +413,14 @@ export default function WagtailCourseDetailPage() {
                   <h2 className="text-2xl font-semibold mb-4">Course Curriculum</h2>
                   
                   {/* Syllabus */}
-                  {course.syllabus.length > 0 ? (
+                  {course.syllabus?.length > 0 ? (
                     <div className="space-y-6">
                       {course.syllabus.map((module, moduleIndex) => (
                         <div key={moduleIndex} className="border rounded-lg p-6">
                           <h3 className="text-xl font-semibold mb-3">{module.title}</h3>
-                          <div 
+                          <div
                             className="prose dark:prose-invert max-w-none mb-4"
-                            dangerouslySetInnerHTML={{ __html: module.description }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHTML(module.description, { mode: 'rich' }) }}
                           />
                           {module.lessons.length > 0 && (
                             <div className="space-y-2">
@@ -411,43 +447,75 @@ export default function WagtailCourseDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    /* Actual Lessons */
+                    /* Course Exercises */
                     <div className="space-y-4">
-                      {course.lessons.map((lesson, index) => (
-                        <div key={lesson.id} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-medium">
-                                {lesson.lesson_number}
-                              </div>
-                              <div>
-                                <h3 className="font-semibold">{lesson.title}</h3>
-                                <p className="text-sm text-muted-foreground">{lesson.intro}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                              {lesson.estimated_duration && (
-                                <div className="text-sm text-muted-foreground flex items-center space-x-1">
-                                  <Clock className="h-4 w-4" />
-                                  <span>{lesson.estimated_duration}</span>
+                      {exercises.map((exercise, index) => {
+                        const isFirstExercise = index === 0
+                        const canAccess = enrollmentStatus?.enrolled && (isFirstExercise || !exercise.require_sequential)
+                        const isLocked = !isFirstExercise && exercise.require_sequential && !enrollmentStatus?.enrolled
+
+                        return (
+                          <div
+                            key={exercise.id}
+                            className={clsx(
+                              "border rounded-lg p-4 transition-colors",
+                              canAccess ? "hover:bg-muted/30" : "opacity-60"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-medium">
+                                  {exercise.sequence_number || index + 1}
                                 </div>
-                              )}
-                              {enrollmentStatus?.enrolled ? (
-                                <Link
-                                  to={`/learning/courses/${course.slug}/lessons/${lesson.slug}`}
-                                  className="btn-secondary text-sm"
-                                >
-                                  Start Lesson
-                                </Link>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">
-                                  {course.is_free ? 'Enroll to access' : 'Purchase required'}
-                                </span>
-                              )}
+                                <div>
+                                  <div className="flex items-center space-x-2">
+                                    <h3 className="font-semibold">{exercise.title}</h3>
+                                    {exercise.type === 'step_based' && (
+                                      <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded">
+                                        {exercise.step_count} steps
+                                      </span>
+                                    )}
+                                    <span className={clsx(
+                                      "text-xs px-2 py-0.5 rounded",
+                                      exercise.difficulty === 'easy' && "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+                                      exercise.difficulty === 'medium' && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+                                      exercise.difficulty === 'hard' && "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                    )}>
+                                      {exercise.difficulty}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">{exercise.points} points</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-4">
+                                {exercise.estimated_time && (
+                                  <div className="text-sm text-muted-foreground flex items-center space-x-1">
+                                    <Clock className="h-4 w-4" />
+                                    <span>{exercise.estimated_time} min</span>
+                                  </div>
+                                )}
+                                {canAccess ? (
+                                  <Link
+                                    to={`/exercises/${exercise.slug}`}
+                                    className="btn-secondary text-sm"
+                                  >
+                                    {isFirstExercise ? 'Start Exercise' : 'Continue'}
+                                  </Link>
+                                ) : isLocked ? (
+                                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                    <Lock className="h-4 w-4" />
+                                    <span>Complete previous exercises</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">
+                                    {course.is_free ? 'Enroll to access' : 'Purchase required'}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -502,9 +570,9 @@ export default function WagtailCourseDetailPage() {
                   </div>
                   
                   {/* Start Course / Continue Learning Button */}
-                  {course.lessons.length > 0 && (
-                    <Link 
-                      to={`/learning/courses/${course.slug}/lessons/${course.lessons[0].slug}`}
+                  {exercises.length > 0 && (
+                    <Link
+                      to={exercises[0].type === 'step_based' ? `/step-exercises/${exercises[0].slug}` : `/exercises/${exercises[0].slug}`}
                       className="w-full btn-primary mb-2 text-center inline-block"
                     >
                       {enrollmentStatus.enrollment?.progress_percentage > 0 ? 'Continue Learning' : 'Start Course'}
@@ -539,8 +607,8 @@ export default function WagtailCourseDetailPage() {
 
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Lessons</span>
-                  <span>{course.lessons.length}</span>
+                  <span className="text-muted-foreground">Exercises</span>
+                  <span>{exercises.length}</span>
                 </div>
                 {course.estimated_duration && (
                   <div className="flex items-center justify-between">
@@ -562,7 +630,7 @@ export default function WagtailCourseDetailPage() {
             </div>
 
             {/* Categories */}
-            {course.categories.length > 0 && (
+            {course.categories?.length > 0 && (
               <div className="bg-card border rounded-lg p-6">
                 <h3 className="font-semibold mb-4">Categories</h3>
                 <div className="flex flex-wrap gap-2">
@@ -580,7 +648,7 @@ export default function WagtailCourseDetailPage() {
             )}
 
             {/* Tags */}
-            {course.tags.length > 0 && (
+            {course.tags?.length > 0 && (
               <div className="bg-card border rounded-lg p-6">
                 <h3 className="font-semibold mb-4">Tags</h3>
                 <div className="flex flex-wrap gap-2">
@@ -597,7 +665,7 @@ export default function WagtailCourseDetailPage() {
             )}
 
             {/* Related Courses */}
-            {course.related_courses.length > 0 && (
+            {course.related_courses?.length > 0 && (
               <div className="bg-card border rounded-lg p-6">
                 <h3 className="font-semibold mb-4">Related Courses</h3>
                 <div className="space-y-4">

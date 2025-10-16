@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { sanitizeHTML } from '../utils/sanitize'
 import FillInBlankExercise from '../components/code-editor/FillInBlankExercise'
 import RunButtonCodeEditor from '../components/code-editor/RunButtonCodeEditor'
+import MultipleChoiceQuiz from '../components/code-editor/MultipleChoiceQuiz'
 import ConfettiCelebration from '../components/common/ConfettiCelebration'
-import { 
-  BookOpen, 
-  Clock, 
-  Trophy, 
-  ChevronLeft, 
+import {
+  BookOpen,
+  Clock,
+  Trophy,
+  ChevronLeft,
   ChevronRight,
-  CheckCircle, 
+  CheckCircle,
   XCircle,
   Code,
   Target,
@@ -118,17 +120,24 @@ const StepBasedExercisePage = () => {
 
   // Handle step validation (for fill-in-blank)
   const handleStepValidation = (stepIndex, results, answers) => {
+    console.log('handleStepValidation called:', { stepIndex, results, answers })
     const allCorrect = Object.values(results).every(result => result === true)
-    
+    console.log('All correct in step?', allCorrect)
+
     if (allCorrect) {
       const step = exercise.steps[stepIndex]
-      
+      console.log('Marking step', stepIndex, 'as completed')
+
       // Mark step as completed
-      setStepCompletion(prev => ({
-        ...prev,
-        [stepIndex]: true
-      }))
-      
+      setStepCompletion(prev => {
+        const updated = {
+          ...prev,
+          [stepIndex]: true
+        }
+        console.log('Updated stepCompletion:', updated)
+        return updated
+      })
+
       // Add points to total
       setTotalPoints(prev => prev + step.points)
       
@@ -171,14 +180,65 @@ const StepBasedExercisePage = () => {
     }
   }
 
+  // Handle quiz submission
+  const handleQuizSubmit = (stepIndex, quizResult) => {
+    const { score, correctCount, totalQuestions, results } = quizResult
+
+    // Mark step as completed if score is >= 60%
+    if (score >= 60) {
+      const step = exercise.steps[stepIndex]
+
+      setStepCompletion(prev => ({
+        ...prev,
+        [stepIndex]: true
+      }))
+
+      // Add points proportional to score
+      const earnedPoints = Math.round((step.points * score) / 100)
+      setTotalPoints(prev => prev + earnedPoints)
+
+      // Store quiz results
+      setStepResults(prev => ({
+        ...prev,
+        [stepIndex]: quizResult
+      }))
+
+      // Check if all steps are completed
+      const allCompleted = Object.keys(stepCompletion).every(
+        key => key == stepIndex || stepCompletion[key]
+      )
+
+      if (allCompleted && stepIndex === exercise.steps.length - 1) {
+        setShowCelebration(true)
+        setTimeout(() => {
+          setShowCelebration(false)
+        }, 4000)
+      }
+    }
+  }
+
   // Render step content
   const renderStepContent = (step, stepIndex) => {
+    // Parse progressive hints if they exist
+    let progressiveHints = []
+    if (step.progressive_hints) {
+      try {
+        progressiveHints = typeof step.progressive_hints === 'string'
+          ? JSON.parse(step.progressive_hints)
+          : step.progressive_hints
+      } catch (e) {
+        console.error('Failed to parse progressive hints:', e)
+        progressiveHints = []
+      }
+    }
+
     const stepData = {
       ...step,
       exercise_type: step.exercise_type,
       template_code: step.template,
       template: step.template,
       solutions: step.solutions || {},
+      progressiveHints: progressiveHints,
       programming_language: 'python'
     }
 
@@ -187,39 +247,106 @@ const StepBasedExercisePage = () => {
         return (
           <FillInBlankExercise
             exerciseData={stepData}
-            onSubmit={(code, executionResult, answers) => 
+            onSubmit={(code, executionResult, answers) =>
               handleStepSubmit(stepIndex, code, executionResult, answers)
             }
-            onValidate={(results, answers) => 
+            onValidate={(results, answers) =>
               handleStepValidation(stepIndex, results, answers)
             }
             className="min-h-[400px]"
           />
         )
-      
+
+      case 'quiz':
+      case 'multiple_choice':
+        // Parse quiz data from solutions field
+        let quizData = {}
+        try {
+          quizData = typeof step.solutions === 'string'
+            ? JSON.parse(step.solutions)
+            : step.solutions
+        } catch (e) {
+          console.error('Failed to parse quiz data:', e)
+          quizData = { questions: [] }
+        }
+
+        return (
+          <MultipleChoiceQuiz
+            quizData={{
+              ...quizData,
+              title: step.title,
+              description: step.description
+            }}
+            onSubmit={(quizResult) => handleQuizSubmit(stepIndex, quizResult)}
+            className="min-h-[400px]"
+          />
+        )
+
       case 'code':
       default:
+        // Check if this is an informational step (no code) or actual code exercise
+        const hasCode = step.template && step.template.trim().length > 0
+
         return (
           <div className="p-6">
+            {/* Description */}
             <div className="mb-4">
               <div className="prose dark:prose-invert max-w-none"
-                   dangerouslySetInnerHTML={{ __html: step.description }} />
+                   dangerouslySetInnerHTML={{ __html: sanitizeHTML(step.description, { mode: 'rich' }) }} />
             </div>
-            <RunButtonCodeEditor
-              initialCode={step.template || '# Start coding here...'}
-              language="python"
-              onSubmit={(code, executionResult) => 
-                handleStepSubmit(stepIndex, code, executionResult)
-              }
-              height="300px"
-              showSubmitButton={true}
-            />
+
+            {/* Code Editor (only if there's actual code) */}
+            {hasCode && (
+              <div>
+                <RunButtonCodeEditor
+                  code={step.template}
+                  language="python"
+                  mockOutput=""
+                  aiExplanation={step.hint || ''}
+                  className="min-h-[300px]"
+                />
+
+                {/* Mark as complete button for demo/educational code steps */}
+                {!stepCompletion[currentStep] && (
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      onClick={() => {
+                        setStepCompletion(prev => ({ ...prev, [currentStep]: true }))
+                      }}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      ✓ I understand, continue
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Hint (show below code or description) */}
             {step.hint && (
               <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
                 <div className="flex items-start space-x-2">
                   <Lightbulb className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-1" />
                   <p className="text-sm text-yellow-700 dark:text-yellow-300">{step.hint}</p>
                 </div>
+              </div>
+            )}
+
+            {/* Next button for informational steps */}
+            {!hasCode && (
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => {
+                    // Mark step as complete and move to next
+                    setStepCompletion(prev => ({ ...prev, [currentStep]: true }))
+                    if (currentStep < exercise.steps.length - 1) {
+                      setCurrentStep(currentStep + 1)
+                    }
+                  }}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Continue →
+                </button>
               </div>
             )}
           </div>
@@ -520,7 +647,7 @@ const StepBasedExercisePage = () => {
                     .filter(hint => hint.show_after_step <= currentStep)
                     .map((hint, index) => (
                       <div key={index} className="text-sm text-yellow-700 dark:text-yellow-300">
-                        <div dangerouslySetInnerHTML={{ __html: hint.hint_text }} />
+                        <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(hint.hint_text, { mode: 'rich' }) }} />
                       </div>
                     ))}
                 </div>
