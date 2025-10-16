@@ -11,7 +11,44 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-y4xd$t)8(&zs6%2a186=wnscue&d@4h0s6(vw3+ovv_idptyl=')
+# SECRET_KEY is REQUIRED and must be set via environment variable
+# Generate a secure key with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+SECRET_KEY = config('SECRET_KEY', default='')
+
+# Validate SECRET_KEY
+INSECURE_SECRET_KEYS = [
+    'django-insecure-y4xd$t)8(&zs6%2a186=wnscue&d@4h0s6(vw3+ovv_idptyl=',
+    'your-super-secret-key-here',
+    'your-super-secret-key-here-REPLACE-THIS',
+    'REPLACE_WITH_GENERATED_KEY',
+    '',
+]
+
+if not SECRET_KEY or SECRET_KEY in INSECURE_SECRET_KEYS:
+    error_message = """
+    ╔══════════════════════════════════════════════════════════════════╗
+    ║  SECURITY ERROR: SECRET_KEY not configured or insecure           ║
+    ╚══════════════════════════════════════════════════════════════════╝
+
+    The SECRET_KEY environment variable is required and must be set to
+    a secure, random value. This key is used for:
+    - Cryptographic signing of session cookies
+    - JWT token generation and validation
+    - Password reset tokens
+    - CSRF protection
+
+    🔐 To generate a secure SECRET_KEY, run:
+
+        python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+    Then add it to your .env file:
+
+        SECRET_KEY=<generated-key-here>
+
+    ⚠️  NEVER commit the SECRET_KEY to version control!
+    ⚠️  Use different keys for development and production!
+    """
+    raise ValueError(error_message)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)

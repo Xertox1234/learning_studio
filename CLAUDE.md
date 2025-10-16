@@ -224,13 +224,30 @@ class NewPageType(Page):
 ## Environment Configuration
 
 ### Required Environment Variables
+
+#### SECRET_KEY (CRITICAL - REQUIRED)
 ```bash
-# Django
+# Generate a secure SECRET_KEY first:
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# Then add to .env file:
+SECRET_KEY=<generated-key-here>
+```
+
+**SECURITY REQUIREMENTS:**
+- ⚠️ SECRET_KEY is **REQUIRED** - Django will not start without it
+- ⚠️ Never use the placeholder `your-super-secret-key-here`
+- ⚠️ Never commit SECRET_KEY to version control
+- ⚠️ Use different keys for development and production
+- ⚠️ Used for: JWT tokens, session cookies, CSRF protection, password resets
+
+#### Other Environment Variables
+```bash
+# Django Core
 DJANGO_SETTINGS_MODULE=learning_community.settings.development
-SECRET_KEY=your-secret-key
 DEBUG=True
 
-# AI Integration  
+# AI Integration
 OPENAI_API_KEY=your-api-key  # Optional - graceful fallback if missing
 
 # Database (production only)

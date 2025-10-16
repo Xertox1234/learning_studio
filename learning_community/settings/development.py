@@ -46,6 +46,9 @@ DATABASES = {
 
 # Cache for development (Redis with fallback to local memory)
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/1')
 
 # Try to use Redis, fallback to LocMemCache if not available
@@ -80,7 +83,7 @@ try:
             'LOCATION': 'fallback-cache',
         }
     }
-    print("✓ Redis cache configured successfully")
+    logger.info("✓ Redis cache configured successfully")
 except (ImportError, redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
     # Redis not available - use local memory cache
     CACHES = {
@@ -89,7 +92,7 @@ except (ImportError, redis.exceptions.ConnectionError, redis.exceptions.TimeoutE
             'LOCATION': 'unique-snowflake',
         }
     }
-    print("⚠ Redis not available, using local memory cache")
+    logger.warning("⚠ Redis not available, using local memory cache")
 
 # Email backend for development (console)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
