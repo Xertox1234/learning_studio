@@ -160,6 +160,7 @@ def code_playground_view(request):
     return render(request, 'learning/code_playground.html')
 
 
+@csrf_exempt  # Exempt ONLY for deprecation message - endpoint doesn't execute code
 def execute_code_view(request):
     """
     DEPRECATED: This endpoint has been deprecated for security reasons.

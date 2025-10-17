@@ -4,6 +4,7 @@ This file contains settings common to all environments.
 """
 
 import os
+import logging
 from pathlib import Path
 from decouple import config
 
@@ -496,4 +497,57 @@ CHANNEL_LAYERS = {
 WEBSOCKET_ACCEPT_ALL = config('WEBSOCKET_ACCEPT_ALL', default=True, cast=bool)
 WEBSOCKET_HEARTBEAT_INTERVAL = config('WEBSOCKET_HEARTBEAT_INTERVAL', default=30, cast=int)
 WEBSOCKET_MESSAGE_MAX_SIZE = config('WEBSOCKET_MESSAGE_MAX_SIZE', default=64 * 1024, cast=int)  # 64KB
+
+# Sentry Error Tracking and Performance Monitoring
+SENTRY_DSN = config('SENTRY_DSN', default='')
+SENTRY_TRACES_SAMPLE_RATE = config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float)
+SENTRY_PROFILES_SAMPLE_RATE = config('SENTRY_PROFILES_SAMPLE_RATE', default=0.1, cast=float)
+
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.redis import RedisIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(
+                transaction_style='url',
+                middleware_spans=True,
+                signals_spans=True,
+                cache_spans=True,
+            ),
+            RedisIntegration(),
+            CeleryIntegration(
+                monitor_beat_tasks=True,
+                propagate_traces=True,
+            ),
+            LoggingIntegration(
+                level=logging.INFO,
+                event_level=logging.ERROR,
+            ),
+        ],
+
+        # Performance monitoring
+        traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+        profiles_sample_rate=SENTRY_PROFILES_SAMPLE_RATE,
+
+        # Send default PII (Personally Identifiable Information)
+        send_default_pii=False,
+
+        # Environment
+        environment=config('ENVIRONMENT', default='development'),
+
+        # Release tracking
+        release=config('SENTRY_RELEASE', default=None),
+
+        # Error handling
+        attach_stacktrace=True,
+        max_breadcrumbs=50,
+
+        # Before send hook to filter sensitive data
+        before_send=lambda event, hint: event if not DEBUG else None,
+    )
 

@@ -18,11 +18,14 @@ if not TESTING:
     INSTALLED_APPS += [
         'django_extensions',
         'debug_toolbar',
+        'silk',  # Performance profiling
     ]
 
     # Debug Toolbar Middleware
     MIDDLEWARE += [
+        'silk.middleware.SilkyMiddleware',  # Must be first for accurate profiling
         'debug_toolbar.middleware.DebugToolbarMiddleware',
+        'apps.api.middleware.QueryLoggingMiddleware',
     ]
 
     # Debug Toolbar Configuration
@@ -94,6 +97,15 @@ except (ImportError, redis.exceptions.ConnectionError, redis.exceptions.TimeoutE
     }
     logger.warning("⚠ Redis not available, using local memory cache")
 
+# Override cache for testing to avoid Mock serialization issues
+if TESTING:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'test-cache',
+        }
+    }
+
 # Email backend for development (console)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
@@ -133,3 +145,20 @@ SECURE_HSTS_PRELOAD = False
 
 # Development-specific environment variables
 ENVIRONMENT = 'development'
+
+# Query logging for development (helps identify N+1 queries and slow queries)
+# Set to False if query logging is too verbose
+QUERY_LOGGING_ENABLED = config('QUERY_LOGGING_ENABLED', default=False, cast=bool)
+
+# Django Silk Configuration (Performance Profiling)
+SILKY_PYTHON_PROFILER = True
+SILKY_PYTHON_PROFILER_BINARY = True
+SILKY_ANALYZE_QUERIES = True
+SILKY_META = True
+SILKY_INTERCEPT_PERCENT = 100  # Profile 100% of requests in development
+SILKY_MAX_RECORDED_REQUESTS = 10000
+SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10
+# Authentication required to access silk
+SILKY_AUTHENTICATION = True
+SILKY_AUTHORISATION = True
+SILKY_PERMISSIONS = lambda user: user.is_superuser

@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])  # 🔒 SECURITY FIX: Require authentication
+@ratelimit(key='user', rate='10/m', method='POST', block=True)  # 🔒 SECURITY: Rate limit per user
+@ratelimit(key='ip', rate='30/m', method='POST', block=True)  # 🔒 SECURITY: Rate limit per IP
 def execute_code(request):
     """
     Execute Python code in a secure Docker environment.
@@ -57,24 +59,55 @@ def execute_code(request):
                 'error': 'Code exceeds maximum length of 10,000 characters'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # WARNING: This is a fallback for development only
-        # Production MUST use Docker-based execution
-        logger.warning(
-            f"SECURITY: User {request.user.id} executing code via unsafe exec(). "
-            "Docker execution should be enabled for production."
+        # 🔒 SECURITY AUDIT LOG: Track all code execution attempts
+        client_ip = request.META.get('REMOTE_ADDR', 'unknown')
+        user_agent = request.META.get('HTTP_USER_AGENT', 'unknown')
+        code_length = len(code)
+
+        logger.info(
+            f"CODE_EXECUTION_AUDIT: "
+            f"user_id={request.user.id} "
+            f"username={request.user.username} "
+            f"ip={client_ip} "
+            f"code_length={code_length} "
+            f"user_agent={user_agent[:100]}"
         )
 
         # Try Docker first, fall back to restricted exec only if Docker unavailable
+        start_time = None
+        execution_success = False
         try:
+            import time as time_module
+            start_time = time_module.time()
+
             result = CodeExecutionService.execute_code(
                 code=code,
                 test_cases=[],
                 time_limit=5,
                 use_cache=False
             )
+
+            execution_success = result.get('success', False)
+            execution_time = time_module.time() - start_time
+
+            # 🔒 SECURITY AUDIT LOG: Log execution result
+            logger.info(
+                f"CODE_EXECUTION_RESULT: "
+                f"user_id={request.user.id} "
+                f"success={execution_success} "
+                f"execution_time={execution_time:.3f}s "
+                f"executor={'docker' if 'from_cache' not in result or not result.get('from_cache') else 'docker_cached'}"
+            )
+
             return Response(result)
         except Exception as docker_error:
-            logger.error(f"Docker execution failed, falling back to exec(): {docker_error}")
+            # 🔒 SECURITY AUDIT LOG: Log fallback to exec()
+            logger.warning(
+                f"CODE_EXECUTION_FALLBACK: "
+                f"user_id={request.user.id} "
+                f"docker_error={str(docker_error)[:200]} "
+                f"Using restricted exec() fallback (UNSAFE)"
+            )
 
             # Restricted exec as last resort (development only)
             import sys
@@ -153,13 +186,25 @@ def execute_code(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate='20/m', method='POST', block=True)  # 🔒 SECURITY: Higher limit for exercise submissions
 def submit_exercise_code(request, exercise_id):
     """Submit code for an exercise using Docker executor."""
     try:
         exercise = get_object_or_404(Exercise, id=exercise_id, is_published=True)
         data = request.data
         code = data.get('code', '')
-        
+
+        # 🔒 SECURITY AUDIT LOG: Track exercise submission attempts
+        client_ip = request.META.get('REMOTE_ADDR', 'unknown')
+        logger.info(
+            f"EXERCISE_SUBMISSION_AUDIT: "
+            f"user_id={request.user.id} "
+            f"exercise_id={exercise_id} "
+            f"exercise_title={exercise.title} "
+            f"ip={client_ip} "
+            f"code_length={len(code)}"
+        )
+
         if not code.strip():
             return Response({
                 'success': False,

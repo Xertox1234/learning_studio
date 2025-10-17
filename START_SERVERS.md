@@ -143,4 +143,4 @@ Expected: Homepage with navigation
 
 ---
 
-**Need Help?** Check the HEADLESS_MIGRATION_COMPLETE.md file for detailed architecture information.
+**Need Help?** Check the docs/headless-cms-migration-plan.md file for detailed architecture information.
