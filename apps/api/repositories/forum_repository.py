@@ -169,9 +169,23 @@ class ForumRepository(OptimizedRepository):
         Returns:
             List of visible forums
         """
-        # For now, return all forums
-        # TODO: Implement permission checking
-        return self.get_all_forums_with_hierarchy()
+        # Staff and superusers can see all forums
+        if user.is_staff or user.is_superuser:
+            return self.get_all_forums_with_hierarchy()
+
+        # Filter forums by permissions using machina's permission handler
+        from machina.core.loading import get_class
+
+        PermissionHandler = get_class('forum_permission.handler', 'PermissionHandler')
+        perm_handler = PermissionHandler()
+
+        all_forums = self.get_all_forums_with_hierarchy()
+        accessible_forums = [
+            forum for forum in all_forums
+            if perm_handler.can_read_forum(forum, user)
+        ]
+
+        return accessible_forums
 
     def search_forums(self, query: str) -> List[Forum]:
         """

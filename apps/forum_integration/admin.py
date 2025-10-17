@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import TrustLevel, UserActivity, ReadingProgress, ReviewQueue, ModerationLog, FlaggedContent
+from .models import TrustLevel, UserActivity, ReadingProgress, ReviewQueue, ModerationLog, FlaggedContent, ForumCustomization
 
 
 @admin.register(TrustLevel)
@@ -312,6 +312,41 @@ class FlaggedContentAdmin(admin.ModelAdmin):
         )
         self.message_user(request, f"Marked {count} flags as resolved.")
     mark_resolved.short_description = "Mark selected flags as resolved"
+
+
+@admin.register(ForumCustomization)
+class ForumCustomizationAdmin(admin.ModelAdmin):
+    list_display = ['forum', 'icon_preview', 'color_preview', 'created_at', 'updated_at']
+    list_filter = ['created_at', 'updated_at']
+    search_fields = ['forum__name', 'icon', 'color']
+    readonly_fields = ['created_at', 'updated_at']
+
+    fieldsets = (
+        ('Forum', {
+            'fields': ('forum',)
+        }),
+        ('Customization', {
+            'fields': ('icon', 'color')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def icon_preview(self, obj):
+        return format_html(
+            '<span style="font-size: 1.5em;">{}</span>',
+            obj.icon
+        )
+    icon_preview.short_description = 'Icon'
+
+    def color_preview(self, obj):
+        return format_html(
+            '<span class="{}" style="display: inline-block; padding: 4px 12px; border-radius: 4px; color: white;">{}</span>',
+            obj.color, obj.color
+        )
+    color_preview.short_description = 'Color'
 
 
 # Register Wagtail pages with admin

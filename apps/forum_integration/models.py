@@ -16,6 +16,40 @@ from machina.apps.forum_conversation.models import Topic, Post
 User = get_user_model()
 
 
+# Forum Customization Models
+
+class ForumCustomization(models.Model):
+    """
+    Custom styling for forums.
+    Extends django-machina's Forum model with icon and color customization.
+    """
+    forum = models.OneToOneField(
+        'forum.Forum',
+        on_delete=models.CASCADE,
+        related_name='customization'
+    )
+    icon = models.CharField(
+        max_length=50,
+        default='💬',
+        help_text='Emoji or icon class (e.g., 💬 or fa-comments)'
+    )
+    color = models.CharField(
+        max_length=50,
+        default='bg-blue-500',
+        help_text='Tailwind color class (e.g., bg-blue-500)'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Forum Customization'
+        verbose_name_plural = 'Forum Customizations'
+
+    def __str__(self):
+        return f"Customization for {self.forum.name}"
+
+
 # Trust Level System Models
 
 class TrustLevel(models.Model):
@@ -1148,3 +1182,43 @@ FORUM_CONTENT_BLOCKS = [
 # RichForumPost model removed - migration was disabled (0006_richforumpost.py.disabled)
 # Forum posts use machina's built-in content field with simple markdown formatting
 # If rich content is needed in future, consider lightweight markdown editor or re-enable StreamFields
+
+
+# Post Edit History Model
+
+class PostEditHistory(models.Model):
+    """Track edit history for forum posts."""
+    post = models.ForeignKey(
+        'forum_conversation.Post',
+        on_delete=models.CASCADE,
+        related_name='edit_history'
+    )
+    edited_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='post_edits'
+    )
+    edited_at = models.DateTimeField(auto_now_add=True)
+    previous_content = models.TextField(
+        help_text='Content before this edit'
+    )
+    new_content = models.TextField(
+        help_text='Content after this edit'
+    )
+    edit_reason = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='Optional reason for the edit'
+    )
+
+    class Meta:
+        ordering = ['-edited_at']
+        verbose_name = 'Post Edit History'
+        verbose_name_plural = 'Post Edit Histories'
+        indexes = [
+            models.Index(fields=['post', '-edited_at']),
+        ]
+
+    def __str__(self):
+        return f"Edit by {self.edited_by} at {self.edited_at}"

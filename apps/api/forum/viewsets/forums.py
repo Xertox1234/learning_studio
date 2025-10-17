@@ -31,7 +31,8 @@ class ForumViewSet(viewsets.ReadOnlyModelViewSet):
         return Forum.objects.filter(
             type=Forum.FORUM_POST
         ).select_related(
-            'parent'
+            'parent',
+            'customization'
         ).prefetch_related(
             'children'
         ).order_by('tree_id', 'lft')
@@ -48,7 +49,9 @@ class ForumViewSet(viewsets.ReadOnlyModelViewSet):
         forums_data = []
         for category in categories:
             # Get child forums for this category
-            child_forums = category.get_children().filter(type=Forum.FORUM_POST)
+            child_forums = category.get_children().filter(
+                type=Forum.FORUM_POST
+            ).select_related('customization')
 
             if child_forums.exists():
                 category_data = {

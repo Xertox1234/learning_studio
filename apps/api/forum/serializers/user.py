@@ -34,8 +34,12 @@ class UserSerializer(serializers.ModelSerializer):
         return {'level': 0, 'name': 'New User', 'can_moderate': False}
 
     def get_avatar(self, obj):
-        """Get user avatar URL (placeholder for now)."""
-        # TODO: Implement avatar system
+        """Get user avatar URL."""
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
         return None
 
 
@@ -84,7 +88,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
         """Get user avatar URL."""
-        # TODO: Implement avatar system
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
         return None
 
     def get_forum_stats(self, obj):

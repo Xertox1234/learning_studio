@@ -1697,9 +1697,21 @@ def _check_moderation_permission(user, forum=None):
         # User doesn't have a trust_level relationship or trust_level doesn't exist
         pass
 
-    # TODO: Check forum-specific moderators when that feature is added
-    # if forum and user in forum.moderators.all():
-    #     return True
+    # Check if user has forum-specific moderation permissions
+    if forum:
+        try:
+            from machina.core.loading import get_class
+            PermissionHandler = get_class('forum_permission.handler', 'PermissionHandler')
+            perm_handler = PermissionHandler()
+
+            # User is considered a moderator if they have any of these permissions
+            if (perm_handler.can_lock_topics(forum, user) or
+                perm_handler.can_delete_topics(forum, user) or
+                perm_handler.can_approve_posts(forum, user)):
+                return True
+        except Exception:
+            # If permission check fails, continue to return False
+            pass
 
     return False
 

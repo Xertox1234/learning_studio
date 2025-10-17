@@ -127,9 +127,22 @@ class PostDetailSerializer(serializers.ModelSerializer):
         }
 
     def get_edit_history(self, obj):
-        """Get edit history for this post (if implemented)."""
-        # TODO: Implement edit history tracking
-        return []
+        """Get post edit history."""
+        from apps.forum_integration.models import PostEditHistory
+
+        history = PostEditHistory.objects.filter(
+            post=obj
+        ).select_related('edited_by').order_by('-edited_at')[:10]  # Last 10 edits
+
+        return [{
+            'edited_by': {
+                'id': edit.edited_by.id if edit.edited_by else None,
+                'username': edit.edited_by.username if edit.edited_by else 'Deleted User'
+            },
+            'edited_at': edit.edited_at,
+            'edit_reason': edit.edit_reason,
+            'previous_content': edit.previous_content[:200],  # Preview only
+        } for edit in history]
 
 
 class PostCreateSerializer(serializers.ModelSerializer):
@@ -226,9 +239,22 @@ class PostUpdateSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def update(self, instance, validated_data):
-        """Update post content."""
+        """Update post and track edit history."""
+        from apps.forum_integration.models import PostEditHistory
+
+        request = self.context.get('request')
+
+        # Save previous content before updating
+        if 'content' in validated_data and validated_data['content'] != instance.content:
+            PostEditHistory.objects.create(
+                post=instance,
+                edited_by=request.user if request else None,
+                previous_content=instance.content.raw if hasattr(instance.content, 'raw') else str(instance.content),
+                new_content=validated_data['content'],
+                edit_reason=validated_data.pop('edit_reason', '')  # Optional field from request
+            )
+
         instance.content = validated_data.get('content', instance.content)
         instance.save()
 
-        # TODO: Track edit history
         return instance

@@ -87,13 +87,15 @@ class ForumListSerializer(serializers.ModelSerializer):
         }
 
     def get_icon(self, obj):
-        """Get forum icon (default emoji for now)."""
-        # TODO: Allow custom icons per forum
+        """Get forum icon (custom or default emoji)."""
+        if hasattr(obj, 'customization'):
+            return obj.customization.icon
         return '💬'
 
     def get_color(self, obj):
-        """Get forum color theme."""
-        # TODO: Allow custom colors per forum
+        """Get forum color theme (custom or default)."""
+        if hasattr(obj, 'customization'):
+            return obj.customization.color
         return 'bg-blue-500'
 
 

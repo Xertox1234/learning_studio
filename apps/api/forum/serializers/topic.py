@@ -191,14 +191,61 @@ class TopicCreateSerializer(serializers.ModelSerializer):
     def validate_forum_id(self, value):
         """Validate that the forum exists and user can post to it."""
         from machina.apps.forum.models import Forum
+        from machina.apps.forum_permission.models import UserForumPermission, GroupForumPermission, ForumPermission
 
         try:
             forum = Forum.objects.get(id=value, type=Forum.FORUM_POST)
         except Forum.DoesNotExist:
             raise serializers.ValidationError("Forum not found or is not a post forum.")
 
-        # TODO: Check forum permissions
-        return value
+        # Check forum permissions
+        request = self.context.get('request')
+        if not request or not request.user:
+            raise serializers.ValidationError("Authentication required")
+
+        user = request.user
+
+        # Staff and superusers always have permission
+        if user.is_staff or user.is_superuser:
+            return value
+
+        # Check if user has 'can_start_new_topics' permission for this forum
+        try:
+            permission = ForumPermission.objects.get(codename='can_start_new_topics')
+
+            # Check user-specific permissions
+            user_perm = UserForumPermission.objects.filter(
+                permission=permission,
+                forum=forum,
+                user=user,
+                has_perm=True
+            ).exists()
+
+            if user_perm:
+                return value
+
+            # Check group permissions
+            user_groups = user.groups.all()
+            group_perm = GroupForumPermission.objects.filter(
+                permission=permission,
+                forum=forum,
+                group__in=user_groups,
+                has_perm=True
+            ).exists()
+
+            if group_perm:
+                return value
+
+            # No permission found
+            raise serializers.ValidationError(
+                "You don't have permission to create topics in this forum"
+            )
+
+        except ForumPermission.DoesNotExist:
+            # If permission doesn't exist, deny access
+            raise serializers.ValidationError(
+                "Forum permission system is not properly configured"
+            )
 
     def validate_subject(self, value):
         """Validate topic subject."""
@@ -230,12 +277,26 @@ class TopicCreateSerializer(serializers.ModelSerializer):
         # Create topic
         topic = Topic.objects.create(**validated_data)
 
+        # Determine if post needs moderation based on trust level
+        user = request.user
+        approved = True  # Default for trusted users
+
+        if not user.is_staff and not user.is_superuser:
+            # Check user's trust level
+            if hasattr(user, 'trust_level'):
+                # TL0 users need moderation
+                if user.trust_level.level == 0:
+                    approved = False
+            else:
+                # No trust level = treat as TL0
+                approved = False
+
         # Create first post
         Post.objects.create(
             topic=topic,
             poster=request.user,
             content=first_post_content,
-            approved=True,  # TODO: Add moderation logic
+            approved=approved,
         )
 
         # Update forum trackers

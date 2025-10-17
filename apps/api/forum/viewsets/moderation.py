@@ -236,23 +236,95 @@ class ModerationQueueViewSet(viewsets.ViewSet):
 
         # Get reviews in timeframe
         reviews = ModerationLog.objects.filter(
-            reviewed_at__gte=start_date,
-            reviewed_at__lte=end_date
-        ).select_related('reviewer')
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).select_related('moderator')
 
         total_reviews = reviews.count()
-        approved_count = reviews.filter(action='approve').count()
-        rejected_count = reviews.filter(action='reject').count()
+        approved_count = reviews.filter(action_type='approve').count()
+        rejected_count = reviews.filter(action_type='reject').count()
 
         approval_rate = (approved_count / total_reviews * 100) if total_reviews > 0 else 0
 
         # Get pending items
         pending_items = ReviewQueue.objects.filter(status='pending').count()
 
-        # TODO: Calculate trends comparing to previous period
-        # TODO: Calculate average response time
-        # TODO: Get top moderators
-        # TODO: Get daily activity breakdown
+        # Calculate trends comparing to previous period
+        previous_start_date = start_date - timedelta(days=days)
+        previous_end_date = start_date
+
+        previous_reviews = ModerationLog.objects.filter(
+            timestamp__gte=previous_start_date,
+            timestamp__lt=previous_end_date
+        )
+        previous_total = previous_reviews.count()
+        previous_approved = previous_reviews.filter(action_type='approve').count()
+
+        # Calculate percentage change
+        review_trend = ((total_reviews - previous_total) / previous_total * 100) if previous_total > 0 else 0
+        approval_trend = ((approved_count - previous_approved) / previous_approved * 100) if previous_approved > 0 else 0
+
+        # Calculate average response time (time from creation to review)
+        from django.db.models import Avg, F, ExpressionWrapper, fields
+
+        avg_response_time_data = ReviewQueue.objects.filter(
+            status__in=['approved', 'rejected'],
+            resolved_at__isnull=False,
+            created_at__isnull=False
+        ).annotate(
+            response_duration=ExpressionWrapper(
+                F('resolved_at') - F('created_at'),
+                output_field=fields.DurationField()
+            )
+        ).aggregate(avg_time=Avg('response_duration'))
+
+        avg_response_seconds = None
+        if avg_response_time_data['avg_time']:
+            avg_response_seconds = avg_response_time_data['avg_time'].total_seconds()
+
+        # Get top moderators (users with most moderation actions in the period)
+        top_moderators_data = ModerationLog.objects.filter(
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).values(
+            'moderator__id',
+            'moderator__username'
+        ).annotate(
+            action_count=Count('id')
+        ).order_by('-action_count')[:5]
+
+        top_moderators = [
+            {
+                'user_id': mod['moderator__id'],
+                'username': mod['moderator__username'],
+                'actions': mod['action_count']
+            }
+            for mod in top_moderators_data
+        ]
+
+        # Get daily activity breakdown
+        from django.db.models.functions import TruncDate
+
+        daily_activity_data = ModerationLog.objects.filter(
+            timestamp__gte=start_date,
+            timestamp__lte=end_date
+        ).annotate(
+            day=TruncDate('timestamp')
+        ).values('day').annotate(
+            total_actions=Count('id'),
+            approvals=Count('id', filter=Q(action_type='approve')),
+            rejections=Count('id', filter=Q(action_type='reject'))
+        ).order_by('day')
+
+        daily_activity = [
+            {
+                'date': item['day'].isoformat(),
+                'total_actions': item['total_actions'],
+                'approvals': item['approvals'],
+                'rejections': item['rejections']
+            }
+            for item in daily_activity_data
+        ]
 
         return Response({
             'total_reviews': total_reviews,
@@ -261,6 +333,21 @@ class ModerationQueueViewSet(viewsets.ViewSet):
             'approval_rate': round(approval_rate, 1),
             'pending_items': pending_items,
             'time_period': f'{days} days',
+            'trends': {
+                'reviews': {
+                    'current': total_reviews,
+                    'previous': previous_total,
+                    'change_percent': round(review_trend, 1)
+                },
+                'approvals': {
+                    'current': approved_count,
+                    'previous': previous_approved,
+                    'change_percent': round(approval_trend, 1)
+                }
+            },
+            'avg_response_time_seconds': round(avg_response_seconds, 1) if avg_response_seconds else None,
+            'top_moderators': top_moderators,
+            'daily_activity': daily_activity,
         })
 
     # Helper methods
