@@ -17,6 +17,9 @@ from .viewsets import (
 )
 from .views import code_execution, wagtail, integrated_content, progress
 
+# 🔒 SECURITY: Cookie-based JWT authentication (CVE-2024-JWT-003)
+from .views.auth import CookieTokenObtainPairView, CookieTokenRefreshView, LogoutView
+
 # API Router for ViewSets
 router = DefaultRouter()
 
@@ -64,9 +67,14 @@ urlpatterns = [
 
     # Authentication endpoints for React frontend
     path('v1/auth/user/', auth_views.current_user, name='current-user'),
-    path('v1/auth/login/', auth_views.login, name='auth-login'),
+    # 🔒 SECURITY: Cookie-based JWT authentication (CVE-2024-JWT-003)
+    # Login sets httpOnly cookies for access and refresh tokens
+    path('v1/auth/login/', CookieTokenObtainPairView.as_view(), name='auth-login'),
     path('v1/auth/register/', auth_views.register, name='auth-register'),
+    # Logout clears httpOnly cookies (uses updated function-based view)
     path('v1/auth/logout/', auth_views.logout, name='auth-logout'),
+    # Token refresh from httpOnly cookie
+    path('v1/auth/refresh/', CookieTokenRefreshView.as_view(), name='auth-refresh'),
     path('v1/auth/status/', auth_views.auth_status, name='auth-status'),
 
     # DRF Authentication (for browsable API)

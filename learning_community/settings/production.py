@@ -62,7 +62,10 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 
 # CSRF configuration
 CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_HTTPONLY = True
+# 🔒 SECURITY NOTE: CSRF cookie must NOT be httpOnly for API usage
+# JavaScript needs to read this cookie to include CSRF token in request headers
+# Security comes from SameSite attribute and requirement for token in both cookie AND header
+CSRF_COOKIE_HTTPONLY = False  # Must be False for React frontend to read CSRF token
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # CORS configuration (production)
