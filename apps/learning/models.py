@@ -148,23 +148,45 @@ class Course(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
-        """Delete old images when uploading new ones, then save."""
+        """
+        Delete old images when uploading new ones.
+
+        Uses select_for_update() to prevent race conditions when
+        multiple requests attempt to update the same course concurrently.
+        """
+        from django.db import transaction
+
+        old_thumbnail = None
+        old_banner = None
+
         if self.pk:
             try:
-                old_instance = Course.objects.get(pk=self.pk)
-                # Clean up old thumbnail
-                if old_instance.thumbnail and self.thumbnail != old_instance.thumbnail:
-                    old_instance.thumbnail.delete(save=False)
-                # Clean up old banner
-                if old_instance.banner_image and self.banner_image != old_instance.banner_image:
-                    old_instance.banner_image.delete(save=False)
+                # Lock the row to prevent concurrent modifications
+                with transaction.atomic():
+                    old_instance = Course.objects.select_for_update().get(pk=self.pk)
+
+                    # Capture old thumbnail
+                    if old_instance.thumbnail and self.thumbnail != old_instance.thumbnail:
+                        old_thumbnail = old_instance.thumbnail
+
+                    # Capture old banner
+                    if old_instance.banner_image and self.banner_image != old_instance.banner_image:
+                        old_banner = old_instance.banner_image
             except Course.DoesNotExist:
                 pass
 
         # Existing published_at logic
         if self.is_published and not self.published_at:
             self.published_at = timezone.now()
+
+        # Save the new images
         super().save(*args, **kwargs)
+
+        # Delete old files after successful save
+        if old_thumbnail:
+            old_thumbnail.delete(save=False)
+        if old_banner:
+            old_banner.delete(save=False)
 
     def delete(self, *args, **kwargs):
         """Delete image files when course deleted."""

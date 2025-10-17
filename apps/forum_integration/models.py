@@ -634,16 +634,32 @@ class Badge(models.Model):
         return colors.get(self.rarity, '#6c757d')
 
     def save(self, *args, **kwargs):
-        """Delete old badge image when uploading new one."""
+        """
+        Delete old badge image when uploading new one.
+
+        Uses select_for_update() to prevent race conditions when
+        multiple requests attempt to update the same badge concurrently.
+        """
+        from django.db import transaction
+
+        old_image = None
+
         if self.pk:
             try:
-                old_instance = Badge.objects.get(pk=self.pk)
-                if old_instance.image and self.image != old_instance.image:
-                    # Delete old file from storage
-                    old_instance.image.delete(save=False)
+                # Lock the row to prevent concurrent modifications
+                with transaction.atomic():
+                    old_instance = Badge.objects.select_for_update().get(pk=self.pk)
+                    if old_instance.image and self.image != old_instance.image:
+                        old_image = old_instance.image
             except Badge.DoesNotExist:
                 pass
+
+        # Save the new image
         super().save(*args, **kwargs)
+
+        # Delete old file after successful save
+        if old_image:
+            old_image.delete(save=False)
 
     def delete(self, *args, **kwargs):
         """Delete badge image file when badge deleted."""

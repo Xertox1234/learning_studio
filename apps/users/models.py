@@ -91,16 +91,32 @@ class User(AbstractUser):
         return int((completed / enrollments.count()) * 100)
 
     def save(self, *args, **kwargs):
-        """Delete old avatar when uploading new one."""
+        """
+        Delete old avatar when uploading new one.
+
+        Uses select_for_update() to prevent race conditions when
+        multiple requests attempt to update the same user concurrently.
+        """
+        from django.db import transaction
+
+        old_avatar = None
+
         if self.pk:
             try:
-                old_instance = User.objects.get(pk=self.pk)
-                if old_instance.avatar and self.avatar != old_instance.avatar:
-                    # Delete old file from storage
-                    old_instance.avatar.delete(save=False)
+                # Lock the row to prevent concurrent modifications
+                with transaction.atomic():
+                    old_instance = User.objects.select_for_update().get(pk=self.pk)
+                    if old_instance.avatar and self.avatar != old_instance.avatar:
+                        old_avatar = old_instance.avatar
             except User.DoesNotExist:
                 pass
+
+        # Save the new avatar
         super().save(*args, **kwargs)
+
+        # Delete old file after successful save
+        if old_avatar:
+            old_avatar.delete(save=False)
 
     def delete(self, *args, **kwargs):
         """Delete avatar file when user deleted."""
