@@ -4,11 +4,66 @@ Unified code execution service for handling all code execution logic.
 
 import logging
 from typing import Dict, List, Any, Optional
+from django.conf import settings
+from django.core.checks import register, Warning, Error
 
 from apps.learning.code_execution import code_executor
 from apps.learning.docker_executor import get_code_executor
 
 logger = logging.getLogger(__name__)
+
+
+@register()
+def check_docker_availability(app_configs, **kwargs):
+    """
+    Django system check to verify Docker is available for code execution.
+
+    This is a security-critical check added to prevent deployment without
+    the required Docker infrastructure (CVE-2024-EXEC-001).
+    """
+    errors = []
+
+    # Check if Docker requirement is enabled
+    require_docker = getattr(settings, 'CODE_EXECUTION_REQUIRE_DOCKER', True)
+
+    if not require_docker:
+        errors.append(
+            Warning(
+                'CODE_EXECUTION_REQUIRE_DOCKER is disabled',
+                hint='Docker should be required for production environments',
+                obj='code_execution',
+                id='security.W001',
+            )
+        )
+        return errors
+
+    # Try to connect to Docker
+    try:
+        import docker
+        client = docker.from_env()
+        client.ping()
+        logger.info("Docker availability check passed")
+    except ImportError:
+        errors.append(
+            Error(
+                'Docker Python library is not installed',
+                hint='Install docker library: pip install docker',
+                obj='code_execution',
+                id='security.E001',
+            )
+        )
+    except Exception as e:
+        errors.append(
+            Error(
+                f'Docker is not available: {str(e)}',
+                hint='Ensure Docker daemon is running and accessible. '
+                     'Code execution requires Docker for security.',
+                obj='code_execution',
+                id='security.E002',
+            )
+        )
+
+    return errors
 
 
 class CodeExecutionService:
@@ -51,7 +106,8 @@ class CodeExecutionService:
                 'memory_used': 0
             }
         
-        # Try Docker executor first
+        # 🔒 SECURITY: Docker is REQUIRED - no fallback executors
+        # All fallback execution methods have been removed for security (CVE-2024-EXEC-001)
         try:
             docker_executor = get_code_executor()
             result = docker_executor.execute_code(
@@ -62,40 +118,21 @@ class CodeExecutionService:
                 use_cache=use_cache
             )
             return result
-            
+
         except Exception as e:
-            logger.warning(f"Docker executor failed, using fallback: {e}")
-            
-            # Fallback to basic executor
-            try:
-                execution_result = code_executor.execute_python_code(
-                    code=code,
-                    timeout=time_limit,
-                    memory_limit=memory_limit
-                )
-                
-                return {
-                    'success': execution_result.success,
-                    'stdout': execution_result.output,
-                    'stderr': execution_result.error,
-                    'execution_time': execution_result.execution_time,
-                    'memory_used': execution_result.memory_used * 1024 * 1024,  # Convert to bytes
-                    'timeout': execution_result.timeout,
-                    'from_cache': False,
-                    'test_results': []
-                }
-                
-            except Exception as fallback_error:
-                logger.error(f"Both executors failed: {fallback_error}")
-                return {
-                    'success': False,
-                    'error': 'Code execution failed',
-                    'stdout': '',
-                    'stderr': str(fallback_error),
-                    'execution_time': 0,
-                    'memory_used': 0,
-                    'from_cache': False
-                }
+            # 🔒 SECURITY: No fallback - Docker failure means service unavailable
+            logger.error(
+                f"CODE_EXECUTION_DOCKER_FAILURE: "
+                f"Docker executor failed, service unavailable. "
+                f"Error: {str(e)[:200]}"
+            )
+
+            # Re-raise the exception to be handled by the view layer
+            # This will result in a ServiceUnavailable response to the user
+            raise Exception(
+                "Code execution service unavailable: Docker container system is required "
+                "for secure code execution. Please contact support if this persists."
+            ) from e
     
     @staticmethod
     def execute_with_test_cases(
