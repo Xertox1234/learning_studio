@@ -382,6 +382,11 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
+# Code Execution Security
+# 🔒 CRITICAL SECURITY SETTING: Require Docker for all code execution
+# This prevents the dangerous exec() fallback (CVE-2024-EXEC-001)
+CODE_EXECUTION_REQUIRE_DOCKER = config('CODE_EXECUTION_REQUIRE_DOCKER', default=True, cast=bool)
+
 # Session Configuration
 SESSION_COOKIE_AGE = 86400  # 24 hours
 SESSION_SAVE_EVERY_REQUEST = True
