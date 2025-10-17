@@ -217,6 +217,40 @@ class ProgrammingLanguage(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        """
+        Delete old icon when uploading new one.
+
+        Uses select_for_update() to prevent race conditions when
+        multiple requests attempt to update the same language concurrently.
+        """
+        from django.db import transaction
+
+        old_icon = None
+
+        if self.pk:
+            try:
+                # Lock the row to prevent concurrent modifications
+                with transaction.atomic():
+                    old_instance = ProgrammingLanguage.objects.select_for_update().get(pk=self.pk)
+                    if old_instance.icon and self.icon != old_instance.icon:
+                        old_icon = old_instance.icon
+            except ProgrammingLanguage.DoesNotExist:
+                pass
+
+        # Save the new icon
+        super().save(*args, **kwargs)
+
+        # Delete old file after successful save
+        if old_icon:
+            old_icon.delete(save=False)
+
+    def delete(self, *args, **kwargs):
+        """Delete icon file when language deleted."""
+        if self.icon:
+            self.icon.delete(save=False)
+        super().delete(*args, **kwargs)
+
 
 class Achievement(models.Model):
     """
@@ -265,6 +299,40 @@ class Achievement(models.Model):
     
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        """
+        Delete old icon when uploading new one.
+
+        Uses select_for_update() to prevent race conditions when
+        multiple requests attempt to update the same achievement concurrently.
+        """
+        from django.db import transaction
+
+        old_icon = None
+
+        if self.pk:
+            try:
+                # Lock the row to prevent concurrent modifications
+                with transaction.atomic():
+                    old_instance = Achievement.objects.select_for_update().get(pk=self.pk)
+                    if old_instance.icon and self.icon != old_instance.icon:
+                        old_icon = old_instance.icon
+            except Achievement.DoesNotExist:
+                pass
+
+        # Save the new icon
+        super().save(*args, **kwargs)
+
+        # Delete old file after successful save
+        if old_icon:
+            old_icon.delete(save=False)
+
+    def delete(self, *args, **kwargs):
+        """Delete icon file when achievement deleted."""
+        if self.icon:
+            self.icon.delete(save=False)
+        super().delete(*args, **kwargs)
 
 
 class UserAchievement(models.Model):
