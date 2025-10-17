@@ -6,10 +6,9 @@ Handles serialization/deserialization of all model data.
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
-from pathlib import Path
-from PIL import Image
 from apps.learning.models import *
 from apps.users.models import UserProfile, Achievement, UserFollow, ProgrammingLanguage
+from .validators import ImageUploadValidator
 
 User = get_user_model()
 
@@ -27,6 +26,7 @@ class UserSerializer(serializers.ModelSerializer):
     - Dimension restrictions (50x50 to 2048x2048)
     """
     avatar_url = serializers.SerializerMethodField()
+    avatar_validator = ImageUploadValidator(max_size_mb=5, allow_gif=True, field_name='Avatar')
 
     class Meta:
         model = User
@@ -48,7 +48,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate_avatar(self, value):
         """
-        Comprehensive avatar validation.
+        Comprehensive avatar validation using reusable validator.
 
         Validates:
         1. File extension (whitelist approach)
@@ -66,88 +66,7 @@ class UserSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If validation fails
         """
-        if not value:
-            return value
-
-        # 1. Extension validation
-        ext = Path(value.name).suffix.lower()
-        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
-
-        if ext not in ALLOWED_EXTENSIONS:
-            raise serializers.ValidationError(
-                f'File extension "{ext}" not allowed. '
-                f'Allowed extensions: {", ".join(ALLOWED_EXTENSIONS)}'
-            )
-
-        # 2. MIME type validation (optional - graceful degradation)
-        try:
-            import magic
-            value.seek(0)
-            file_start = value.read(2048)
-            value.seek(0)
-
-            mime = magic.from_buffer(file_start, mime=True)
-            ALLOWED_MIMES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
-
-            if mime not in ALLOWED_MIMES:
-                raise serializers.ValidationError(
-                    f'File content type "{mime}" not allowed. '
-                    f'Detected file is not a valid image.'
-                )
-        except ImportError:
-            # python-magic not installed, skip MIME validation
-            # Model validators will still check with Pillow
-            pass
-
-        # 3. File size validation (5 MB)
-        max_size = 5 * 1024 * 1024  # 5 MB
-        if value.size > max_size:
-            raise serializers.ValidationError(
-                f'File too large ({value.size / (1024 * 1024):.2f} MB). '
-                f'Maximum size: {max_size / (1024 * 1024)} MB'
-            )
-
-        # 4. Image content validation
-        try:
-            value.seek(0)
-            img = Image.open(value)
-            img.verify()
-            value.seek(0)
-
-            # Reopen for format check (verify() closes file)
-            img = Image.open(value)
-
-            # Verify format matches extension
-            ALLOWED_FORMATS = {'JPEG', 'PNG', 'GIF', 'WEBP'}
-            if img.format not in ALLOWED_FORMATS:
-                raise serializers.ValidationError(
-                    f'Image format "{img.format}" not allowed. '
-                    f'Allowed formats: {", ".join(ALLOWED_FORMATS)}'
-                )
-
-            # 5. Dimension validation
-            width, height = img.size
-
-            if width > 2048 or height > 2048:
-                raise serializers.ValidationError(
-                    f'Image dimensions too large ({width}x{height}). '
-                    f'Maximum: 2048x2048 pixels'
-                )
-
-            if width < 50 or height < 50:
-                raise serializers.ValidationError(
-                    f'Image dimensions too small ({width}x{height}). '
-                    f'Minimum: 50x50 pixels'
-                )
-
-            value.seek(0)  # Reset file pointer
-
-        except Exception as e:
-            if isinstance(e, serializers.ValidationError):
-                raise
-            raise serializers.ValidationError(f'Invalid image file: {str(e)}')
-
-        return value
+        return self.avatar_validator(value)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -172,6 +91,7 @@ class AchievementSerializer(serializers.ModelSerializer):
     - Dimension restrictions (50x50 to 2048x2048)
     """
     icon_url = serializers.SerializerMethodField()
+    icon_validator = ImageUploadValidator(max_size_mb=5, allow_gif=True, field_name='Achievement Icon')
 
     class Meta:
         model = Achievement
@@ -192,13 +112,14 @@ class AchievementSerializer(serializers.ModelSerializer):
 
     def validate_icon(self, value):
         """
-        Comprehensive icon validation.
+        Comprehensive icon validation using reusable validator.
 
         Validates:
         1. File extension (whitelist approach)
-        2. File size (5 MB limit)
-        3. Image content (Pillow verification)
-        4. Image dimensions (50x50 to 2048x2048)
+        2. MIME type (content-based detection)
+        3. File size (5 MB limit)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
 
         Args:
             value: UploadedFile instance
@@ -209,68 +130,7 @@ class AchievementSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If validation fails
         """
-        if not value:
-            return value
-
-        # 1. Extension validation
-        ext = Path(value.name).suffix.lower()
-        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
-
-        if ext not in ALLOWED_EXTENSIONS:
-            raise serializers.ValidationError(
-                f'File extension "{ext}" not allowed. '
-                f'Allowed extensions: {", ".join(ALLOWED_EXTENSIONS)}'
-            )
-
-        # 2. File size validation (5 MB)
-        max_size = 5 * 1024 * 1024  # 5 MB
-        if value.size > max_size:
-            raise serializers.ValidationError(
-                f'File too large ({value.size / (1024 * 1024):.2f} MB). '
-                f'Maximum size: {max_size / (1024 * 1024)} MB'
-            )
-
-        # 3. Image content validation
-        try:
-            value.seek(0)
-            img = Image.open(value)
-            img.verify()
-            value.seek(0)
-
-            # Reopen for format check
-            img = Image.open(value)
-
-            # Verify format
-            ALLOWED_FORMATS = {'JPEG', 'PNG', 'GIF', 'WEBP'}
-            if img.format not in ALLOWED_FORMATS:
-                raise serializers.ValidationError(
-                    f'Image format "{img.format}" not allowed. '
-                    f'Allowed formats: {", ".join(ALLOWED_FORMATS)}'
-                )
-
-            # 4. Dimension validation
-            width, height = img.size
-
-            if width > 2048 or height > 2048:
-                raise serializers.ValidationError(
-                    f'Image dimensions too large ({width}x{height}). '
-                    f'Maximum: 2048x2048 pixels'
-                )
-
-            if width < 50 or height < 50:
-                raise serializers.ValidationError(
-                    f'Image dimensions too small ({width}x{height}). '
-                    f'Minimum: 50x50 pixels'
-                )
-
-            value.seek(0)
-
-        except Exception as e:
-            if isinstance(e, serializers.ValidationError):
-                raise
-            raise serializers.ValidationError(f'Invalid image file: {str(e)}')
-
-        return value
+        return self.icon_validator(value)
 
 
 # Learning Management Serializers
@@ -307,6 +167,8 @@ class CourseSerializer(serializers.ModelSerializer):
     user_enrolled = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
     banner_url = serializers.SerializerMethodField()
+    # Course images have higher size limit (10 MB) and no GIF support
+    course_image_validator = ImageUploadValidator(max_size_mb=10, allow_gif=False, field_name='Course Image')
 
     class Meta:
         model = Course
@@ -346,13 +208,19 @@ class CourseSerializer(serializers.ModelSerializer):
             return obj.banner_image.url
         return None
 
-    def _validate_course_image(self, value, field_name):
+    def validate_thumbnail(self, value):
         """
-        Shared validation logic for course images (thumbnail and banner).
+        Validate course thumbnail image using reusable validator.
+
+        Validates:
+        1. File extension (whitelist approach)
+        2. MIME type (content-based detection)
+        3. File size (10 MB limit for course materials)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
 
         Args:
             value: UploadedFile instance
-            field_name: Name of field for error messages
 
         Returns:
             Validated file instance
@@ -360,76 +228,33 @@ class CourseSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If validation fails
         """
-        if not value:
-            return value
-
-        # 1. Extension validation
-        ext = Path(value.name).suffix.lower()
-        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
-
-        if ext not in ALLOWED_EXTENSIONS:
-            raise serializers.ValidationError(
-                f'{field_name}: File extension "{ext}" not allowed. '
-                f'Allowed extensions: {", ".join(ALLOWED_EXTENSIONS)}'
-            )
-
-        # 2. File size validation (10 MB for course materials)
-        max_size = 10 * 1024 * 1024  # 10 MB
-        if value.size > max_size:
-            raise serializers.ValidationError(
-                f'{field_name}: File too large ({value.size / (1024 * 1024):.2f} MB). '
-                f'Maximum size: {max_size / (1024 * 1024)} MB'
-            )
-
-        # 3. Image content validation
-        try:
-            value.seek(0)
-            img = Image.open(value)
-            img.verify()
-            value.seek(0)
-
-            # Reopen for format check
-            img = Image.open(value)
-
-            # Verify format
-            ALLOWED_FORMATS = {'JPEG', 'PNG', 'WEBP'}
-            if img.format not in ALLOWED_FORMATS:
-                raise serializers.ValidationError(
-                    f'{field_name}: Image format "{img.format}" not allowed. '
-                    f'Allowed formats: {", ".join(ALLOWED_FORMATS)}'
-                )
-
-            # 4. Dimension validation
-            width, height = img.size
-
-            if width > 2048 or height > 2048:
-                raise serializers.ValidationError(
-                    f'{field_name}: Image dimensions too large ({width}x{height}). '
-                    f'Maximum: 2048x2048 pixels'
-                )
-
-            if width < 50 or height < 50:
-                raise serializers.ValidationError(
-                    f'{field_name}: Image dimensions too small ({width}x{height}). '
-                    f'Minimum: 50x50 pixels'
-                )
-
-            value.seek(0)
-
-        except Exception as e:
-            if isinstance(e, serializers.ValidationError):
-                raise
-            raise serializers.ValidationError(f'{field_name}: Invalid image file: {str(e)}')
-
-        return value
-
-    def validate_thumbnail(self, value):
-        """Validate course thumbnail image."""
-        return self._validate_course_image(value, 'Thumbnail')
+        # Use shared validator with custom field name
+        validator = ImageUploadValidator(max_size_mb=10, allow_gif=False, field_name='Thumbnail')
+        return validator(value)
 
     def validate_banner_image(self, value):
-        """Validate course banner image."""
-        return self._validate_course_image(value, 'Banner')
+        """
+        Validate course banner image using reusable validator.
+
+        Validates:
+        1. File extension (whitelist approach)
+        2. MIME type (content-based detection)
+        3. File size (10 MB limit for course materials)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
+
+        Args:
+            value: UploadedFile instance
+
+        Returns:
+            Validated file instance
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        # Use shared validator with custom field name
+        validator = ImageUploadValidator(max_size_mb=10, allow_gif=False, field_name='Banner')
+        return validator(value)
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -531,9 +356,12 @@ class ProgrammingLanguageSerializer(serializers.ModelSerializer):
     - File size limits (5 MB max)
     - Image content validation via Pillow
     - Dimension restrictions (50x50 to 2048x2048)
+
+    Note: SVG support removed due to XSS risk (embedded JavaScript)
     """
     exercise_count = serializers.SerializerMethodField()
     icon_url = serializers.SerializerMethodField()
+    icon_validator = ImageUploadValidator(max_size_mb=5, allow_gif=True, field_name='Language Icon')
 
     class Meta:
         model = ProgrammingLanguage
@@ -557,13 +385,14 @@ class ProgrammingLanguageSerializer(serializers.ModelSerializer):
 
     def validate_icon(self, value):
         """
-        Comprehensive icon validation.
+        Comprehensive icon validation using reusable validator.
 
         Validates:
-        1. File extension (whitelist approach)
-        2. File size (5 MB limit)
-        3. Image content (Pillow verification)
-        4. Image dimensions (50x50 to 2048x2048)
+        1. File extension (whitelist approach, no SVG for XSS prevention)
+        2. MIME type (content-based detection)
+        3. File size (5 MB limit)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
 
         Args:
             value: UploadedFile instance
@@ -574,69 +403,7 @@ class ProgrammingLanguageSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If validation fails
         """
-        if not value:
-            return value
-
-        # 1. Extension validation (SVG removed for security)
-        ext = Path(value.name).suffix.lower()
-        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
-
-        if ext not in ALLOWED_EXTENSIONS:
-            raise serializers.ValidationError(
-                f'File extension "{ext}" not allowed. '
-                f'Allowed extensions: {", ".join(ALLOWED_EXTENSIONS)}. '
-                f'Note: SVG not supported due to XSS risk.'
-            )
-
-        # 2. File size validation (5 MB)
-        max_size = 5 * 1024 * 1024  # 5 MB
-        if value.size > max_size:
-            raise serializers.ValidationError(
-                f'File too large ({value.size / (1024 * 1024):.2f} MB). '
-                f'Maximum size: {max_size / (1024 * 1024)} MB'
-            )
-
-        # 3. Image content validation
-        try:
-            value.seek(0)
-            img = Image.open(value)
-            img.verify()
-            value.seek(0)
-
-            # Reopen for format check
-            img = Image.open(value)
-
-            # Verify format
-            ALLOWED_FORMATS = {'JPEG', 'PNG', 'GIF', 'WEBP'}
-            if img.format not in ALLOWED_FORMATS:
-                raise serializers.ValidationError(
-                    f'Image format "{img.format}" not allowed. '
-                    f'Allowed formats: {", ".join(ALLOWED_FORMATS)}'
-                )
-
-            # 4. Dimension validation
-            width, height = img.size
-
-            if width > 2048 or height > 2048:
-                raise serializers.ValidationError(
-                    f'Image dimensions too large ({width}x{height}). '
-                    f'Maximum: 2048x2048 pixels'
-                )
-
-            if width < 50 or height < 50:
-                raise serializers.ValidationError(
-                    f'Image dimensions too small ({width}x{height}). '
-                    f'Minimum: 50x50 pixels'
-                )
-
-            value.seek(0)
-
-        except Exception as e:
-            if isinstance(e, serializers.ValidationError):
-                raise
-            raise serializers.ValidationError(f'Invalid image file: {str(e)}')
-
-        return value
+        return self.icon_validator(value)
 
 
 class ExerciseTypeSerializer(serializers.ModelSerializer):
