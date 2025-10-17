@@ -1,4 +1,5 @@
 {% load static %}
+{% load forum_filters %}
 
 <div class="embed-block mb-4">
     {% if value.caption %}
@@ -8,10 +9,12 @@
             </small>
         </div>
     {% endif %}
-    
+
     <div class="embed-content border rounded p-3 bg-light">
         {% if value.embed_code %}
-            {{ value.embed_code|safe }}
+            {# 🔒 SECURITY FIX (CVE-2024-XSS-002): Sanitize embed code before rendering #}
+            {# The safe_embed filter removes dangerous HTML/JS before the |safe filter #}
+            {{ value.embed_code|safe_embed|safe }}
         {% else %}
             <div class="text-center text-muted py-3">
                 <i class="bi bi-code-square fs-1"></i>

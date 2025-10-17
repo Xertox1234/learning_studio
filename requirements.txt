@@ -55,6 +55,8 @@ sentry-sdk==2.20.0  # Error tracking and performance monitoring
 python-dotenv==1.0.1
 markdown==3.6
 bleach==6.1.0
+beautifulsoup4==4.14.2  # HTML parsing for embed sanitization
+tinycss2==1.4.0  # CSS sanitization for bleach
 
 # Docker Integration
 docker==7.1.0
