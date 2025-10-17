@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static wagtailcore_tags wagtailimages_tags %}
+{% load static wagtailcore_tags wagtailimages_tags forum_filters %}
 
 {% block title %}{{ page.title }} - Python Learning Studio{% endblock %}
 
@@ -147,7 +147,8 @@
                             
                         {% elif block.block_type == 'embed' %}
                             <div class="mb-4">
-                                {{ block.value|safe }}
+                                {# 🔒 SECURITY FIX (CVE-2024-XSS-002): Sanitize embed code #}
+                                {{ block.value|safe_embed|safe }}
                             </div>
                         {% endif %}
                     {% endfor %}

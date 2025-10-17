@@ -382,6 +382,60 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
+# Content Security Policy (CSP) Headers
+# 🔒 SECURITY: Configured for CVE-2024-XSS-002 XSS prevention
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = (
+    "'self'",
+    # Wagtail admin requires unsafe-inline for now
+    # This is acceptable as Wagtail is a trusted admin interface
+    "'unsafe-inline'",  # TODO: Remove when Wagtail supports CSP nonces
+)
+CSP_STYLE_SRC = (
+    "'self'",
+    "'unsafe-inline'",  # Required for Tailwind CSS and inline styles
+    "https://fonts.googleapis.com",
+)
+CSP_FONT_SRC = (
+    "'self'",
+    "https://fonts.gstatic.com",
+    "data:",
+)
+CSP_IMG_SRC = (
+    "'self'",
+    "data:",  # For base64 encoded images
+    "https:",  # Allow HTTPS images from any source
+    "blob:",  # For dynamically generated images
+)
+CSP_MEDIA_SRC = (
+    "'self'",
+    "https:",  # Allow media from HTTPS sources
+)
+CSP_FRAME_SRC = (
+    # Whitelist for trusted embed domains (matches sanitization.py)
+    "https://youtube.com",
+    "https://www.youtube.com",
+    "https://player.vimeo.com",
+    "https://vimeo.com",
+    "https://codepen.io",
+    "https://replit.com",
+    "https://repl.it",
+    "https://codesandbox.io",
+    "https://jsfiddle.net",
+    "https://stackblitz.com",
+)
+CSP_CONNECT_SRC = (
+    "'self'",
+    # Add WebSocket support for real-time features
+    "ws://localhost:8000",  # Development WebSocket
+    "wss://localhost:8000",
+)
+CSP_OBJECT_SRC = ("'none'",)  # Block <object>, <embed>, <applet>
+CSP_BASE_URI = ("'self'",)  # Prevent base tag hijacking
+CSP_FORM_ACTION = ("'self'",)  # Only allow form submissions to same origin
+CSP_FRAME_ANCESTORS = ("'none'",)  # Prevent clickjacking
+CSP_UPGRADE_INSECURE_REQUESTS = True  # Auto-upgrade HTTP to HTTPS
+
 # Session Configuration
 SESSION_COOKIE_AGE = 86400  # 24 hours
 SESSION_SAVE_EVERY_REQUEST = True
