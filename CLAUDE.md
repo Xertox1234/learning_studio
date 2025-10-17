@@ -127,6 +127,8 @@ docker-compose logs -f code-executor       # View logs
    - Real-time statistics via `ForumStatisticsService` (no caching for live data)
    - Signal-driven tracker updates on post/topic creation
    - Review queue for moderation with priority scoring
+   - **ForumCustomization**: Per-forum icon/color theming (OneToOne with Forum)
+   - **PostEditHistory**: Complete edit audit trail with previous content
 
 ## API Endpoints
 
@@ -146,6 +148,20 @@ docker-compose logs -f code-executor       # View logs
 - `POST /api/v1/code-execution/` - Execute code in Docker
 - `POST /api/v1/exercises/{id}/submit/` - Submit exercise solution
 - `GET /api/v1/docker/status/` - Check Docker availability
+
+### Forum (django-machina integration)
+- `GET /api/v1/forums/` - List all forums with categories and stats
+- `GET /api/v1/forums/{slug}/` - Forum detail with moderators
+- `GET /api/v1/forums/{slug}/topics/` - Topics in forum (paginated, filterable)
+- `GET /api/v1/forums/{slug}/stats/` - Detailed forum statistics
+- `GET /api/v1/topics/{slug}/` - Topic detail with posts
+- `POST /api/v1/topics/` - Create new topic (requires authentication)
+- `POST /api/v1/posts/` - Create new post (requires authentication)
+- `PUT /api/v1/posts/{id}/` - Edit post (creates edit history)
+- `GET /api/v1/moderation/queue/` - Review queue (moderators only)
+- `POST /api/v1/moderation/queue/{id}/approve/` - Approve pending content
+- `POST /api/v1/moderation/queue/{id}/reject/` - Reject pending content
+- `GET /api/v1/moderation/statistics/` - Moderation statistics and trends
 
 ## Critical Development Patterns
 
@@ -302,10 +318,128 @@ python manage.py fixtree  # Fix page tree structure
 - Widget validation: Real-time with callback chains
 
 ### Forum Development
+
+#### Core Patterns
 - Use `ForumStatisticsService` for all stats (not hardcoded values)
 - Handle `None` datetime fields in signals
 - TL0 users enter review queue automatically
 - Tracker updates via signals on post/topic creation
+
+#### Permission Checking with django-machina
+```python
+from machina.core.loading import get_class
+PermissionHandler = get_class('forum_permission.handler', 'PermissionHandler')
+perm_handler = PermissionHandler()
+
+# Check forum access
+if perm_handler.can_read_forum(forum, user):
+    # User can view forum
+    pass
+
+# Check moderation permissions
+if (perm_handler.can_lock_topics(forum, user) or
+    perm_handler.can_delete_topics(forum, user) or
+    perm_handler.can_approve_posts(forum, user)):
+    # User is moderator for this forum
+    pass
+```
+
+#### Forum Customization
+```python
+# Access custom icon/color in serializers
+def get_icon(self, obj):
+    if hasattr(obj, 'customization'):
+        return obj.customization.icon
+    return '💬'  # Default emoji
+
+def get_color(self, obj):
+    if hasattr(obj, 'customization'):
+        return obj.customization.color
+    return 'bg-blue-500'  # Default Tailwind class
+```
+
+#### Edit History Tracking
+```python
+from apps.forum_integration.models import PostEditHistory
+
+# Save edit history when updating posts
+PostEditHistory.objects.create(
+    post=instance,
+    edited_by=request.user,
+    previous_content=instance.content.raw,
+    new_content=validated_data['content'],
+    edit_reason=validated_data.get('edit_reason', '')
+)
+
+# Retrieve edit history (limited to last 10)
+history = PostEditHistory.objects.filter(
+    post=obj
+).select_related('edited_by').order_by('-edited_at')[:10]
+```
+
+#### Trust Level-Based Moderation
+```python
+# Check if post needs moderation
+user = request.user
+approved = True
+
+if not user.is_staff and not user.is_superuser:
+    if hasattr(user, 'trust_level'):
+        # TL0 users need moderation
+        if user.trust_level.level == 0:
+            approved = False
+            # Add to review queue
+            from apps.api.services.container import container
+            review_service = container.get_review_queue_service()
+            review_service.check_new_post(post)
+    else:
+        # Users without trust level need moderation
+        approved = False
+```
+
+#### Moderation Statistics
+```python
+# Get moderation statistics (from ModerationViewSet)
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Count, Avg, Q, F
+
+# Trends (last 7 days)
+seven_days_ago = timezone.now() - timedelta(days=7)
+trends = ReviewQueue.objects.filter(
+    created_at__gte=seven_days_ago
+).values('created_at__date').annotate(
+    count=Count('id')
+).order_by('created_at__date')
+
+# Average response time (approved/rejected items only)
+response_time = ReviewQueue.objects.filter(
+    status__in=['approved', 'rejected'],
+    resolved_at__isnull=False
+).annotate(
+    response_time=F('resolved_at') - F('created_at')
+).aggregate(
+    avg_response=Avg('response_time')
+)
+
+# Top moderators by action count
+top_moderators = ModerationLog.objects.values(
+    'moderator__username'
+).annotate(
+    action_count=Count('id')
+).order_by('-action_count')[:5]
+
+# Daily activity breakdown
+daily_activity = ReviewQueue.objects.filter(
+    created_at__gte=seven_days_ago
+).extra(
+    select={'day': 'date(created_at)'}
+).values('day').annotate(
+    pending=Count('id', filter=Q(status='pending')),
+    approved=Count('id', filter=Q(status='approved')),
+    rejected=Count('id', filter=Q(status='rejected'))
+).order_by('day')
+```
 
 ### Code Execution
 - Use `CodeExecutionService` (handles Docker + fallback)
@@ -315,23 +449,85 @@ python manage.py fixtree  # Fix page tree structure
 
 ## Testing Strategy
 
+### Backend Testing
+
+#### Run All Tests
 ```bash
-# Run specific app tests
+# All tests
+DJANGO_SETTINGS_MODULE=learning_community.settings.development python manage.py test
+
+# With coverage
+coverage run --source='.' manage.py test && coverage report
+
+# Specific app
 python manage.py test apps.learning
+python manage.py test apps.forum_integration
+python manage.py test apps.api
+```
+
+#### Run Specific Tests
+```bash
+# Single test module
 python manage.py test apps.api.tests.test_code_execution
+python manage.py test apps.api.tests.test_statistics_service
+python manage.py test apps.api.tests.test_review_queue_service
 
-# Frontend testing
+# Single test class
+python manage.py test apps.api.tests.test_middleware.MiddlewareTests
+
+# Single test method
+python manage.py test apps.api.tests.test_cache_strategies.CacheTests.test_cache_invalidation
+```
+
+#### Test Files Location
+```
+apps/
+├── api/tests/
+│   ├── test_middleware.py
+│   ├── test_statistics_service.py
+│   ├── test_cache_strategies.py
+│   ├── test_review_queue_service.py
+│   └── test_commands.py
+├── learning/tests.py
+├── forum_integration/tests.py
+├── blog/tests.py
+├── exercises/tests.py
+└── users/tests.py
+```
+
+### Frontend Testing
+```bash
 cd frontend && npm test  # When tests are added
+```
 
-# Manual testing endpoints
-curl http://localhost:8000/api/v1/wagtail/exercises/
+### Manual API Testing
+```bash
+# Health check
+curl http://localhost:8000/api/v1/health/
+
+# Authentication
 curl -X POST http://localhost:8000/api/v1/auth/login/ \
   -H "Content-Type: application/json" \
   -d '{"email":"test@pythonlearning.studio","password":"testpass123"}'
+
+# Exercises
+curl http://localhost:8000/api/v1/wagtail/exercises/
+
+# Forums
+curl http://localhost:8000/api/v1/forums/
 ```
 
-## Recent Updates (2025-08-11)
+## Recent Updates
 
+### 2025-10-17: Forum Enhancement & TODO Resolution
+1. **Forum Customization System**: New `ForumCustomization` model with per-forum icons/colors
+2. **Edit History Tracking**: New `PostEditHistory` model for audit trails
+3. **Permission Integration**: Complete integration with django-machina's PermissionHandler
+4. **Moderation Statistics**: Comprehensive stats (trends, response times, top moderators)
+5. **Trust Level Moderation**: TL0 users require approval, TL1+ auto-approved
+6. **Avatar System**: Full avatar URL generation in serializers
+
+### 2025-08-11: Exercise & API Systems
 1. **Exercise System Complete**: Fill-in-blank and multi-step exercises fully functional
 2. **API Refactoring**: Modular structure replacing 3,238-line monolith
 3. **Blog/Courses Redesign**: Modern gradient-based design with consistency

@@ -1,6 +1,7 @@
 ---
 name: code-review-specialist
-description: Use PROACTIVELY after ANY coding task completes. Expert reviewer for React 19, Django, Wagtail CMS ensuring production-ready code with no debug artifacts, proper testing, accessibility, and security. MUST BE USED before considering any coding task complete.
+description: Use PROACTIVELY after ANY coding task completes. Expert reviewer for React 19, Django, Wagtail CMS ensuring 
+production-ready code with no debug artifacts, proper testing, accessibility, and security. MUST BE USED before considering any coding task complete.
 tools: Glob, Grep, LS, ExitPlanMode, Read, NotebookRead, WebFetch, TodoWrite, WebSearch, Task, mcp__ide__getDiagnostics, mcp__ide__executeCode
 color: pink
 ---

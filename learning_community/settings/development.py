@@ -18,12 +18,12 @@ if not TESTING:
     INSTALLED_APPS += [
         'django_extensions',
         'debug_toolbar',
-        'silk',  # Performance profiling
+        # 'silk',  # Performance profiling - commented out temporarily
     ]
 
     # Debug Toolbar Middleware
     MIDDLEWARE += [
-        'silk.middleware.SilkyMiddleware',  # Must be first for accurate profiling
+        # 'silk.middleware.SilkyMiddleware',  # Must be first for accurate profiling - commented out temporarily
         'debug_toolbar.middleware.DebugToolbarMiddleware',
         'apps.api.middleware.QueryLoggingMiddleware',
     ]
