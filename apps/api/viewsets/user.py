@@ -11,6 +11,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from apps.users.models import UserProfile
 from ..serializers import UserSerializer, UserProfileSerializer
 from ..permissions import IsOwnerOrReadOnly, IsOwnerOrAdmin
+from ..throttle import FileUploadThrottle
 
 User = get_user_model()
 
@@ -57,7 +58,8 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         detail=False,
         methods=['post'],
         permission_classes=[permissions.IsAuthenticated],
-        parser_classes=[MultiPartParser, FormParser]
+        parser_classes=[MultiPartParser, FormParser],
+        throttle_classes=[FileUploadThrottle]
     )
     def upload_avatar(self, request):
         """
@@ -67,7 +69,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
         Security:
         - Requires authentication
-        - Rate limited (handled by DRF throttling if configured)
+        - Rate limited to 10 uploads per minute (CWE-400 prevention)
         - Comprehensive validation via UserSerializer.validate_avatar()
         - UUID-based filenames prevent path traversal
         - Old avatars deleted automatically
@@ -78,6 +80,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         Response:
             200: {avatar_url: "https://example.com/media/avatars/user_123/uuid.jpg"}
             400: {avatar: ["Error message"]}
+            429: {"detail": "Request was throttled. Expected available in X seconds."}
         """
         user = request.user
 

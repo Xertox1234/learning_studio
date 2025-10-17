@@ -276,6 +276,10 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'apps.api.pagination.StandardResultsSetPagination',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # 🔒 SECURITY: Rate limiting for file uploads (CWE-400, CVE-2024-FILE-001)
+    'DEFAULT_THROTTLE_RATES': {
+        'file_upload': '10/minute',  # Limit file uploads to prevent abuse
+    },
 }
 
 # JWT Configuration
