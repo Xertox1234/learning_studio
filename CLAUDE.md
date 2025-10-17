@@ -517,7 +517,75 @@ curl http://localhost:8000/api/v1/wagtail/exercises/
 curl http://localhost:8000/api/v1/forums/
 ```
 
+## Security Implementation Patterns
+
+### Object-Level Authorization (IDOR/BOLA Prevention)
+All sensitive API ViewSets implement three-layer defense:
+
+```python
+from apps.api.permissions import IsOwnerOrAdmin
+
+class SensitiveResourceViewSet(viewsets.ModelViewSet):
+    """ViewSet with object-level authorization."""
+    queryset = Model.objects.all()  # For router introspection only
+    serializer_class = ModelSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
+
+    def get_queryset(self):
+        """Layer 1: Queryset filtering at database level."""
+        if self.request.user.is_staff:
+            return Model.objects.all()
+        return Model.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        """Layer 3: Ownership forcing prevents hijacking."""
+        serializer.save(user=self.request.user)
+```
+
+**Security Standards:**
+- ✅ Queryset filtering blocks unauthorized access (returns 404)
+- ✅ IsOwnerOrAdmin checks multiple ownership patterns (user, author, creator, reviewer)
+- ✅ Staff/superuser override for administrative access
+- ✅ Ownership forcing prevents mass assignment attacks
+- ✅ Test coverage for cross-user access, enumeration, admin override
+
+### XSS Prevention in React
+Use centralized sanitization (frontend/src/utils/sanitize.js):
+
+```javascript
+import { sanitize } from '@/utils/sanitize';
+
+// Strict mode - no HTML allowed
+<div>{sanitize.strict(userInput)}</div>
+
+// Default mode - basic formatting only
+<div dangerouslySetInnerHTML={{ __html: sanitize.default(userContent) }} />
+
+// Rich mode - safe HTML subset with link protection
+<div dangerouslySetInnerHTML={{ __html: sanitize.rich(blogContent) }} />
+```
+
+**Never use raw `dangerouslySetInnerHTML` without sanitization!**
+
+### Authentication & Rate Limiting
+All code execution endpoints require authentication and rate limiting:
+
+```python
+from apps.api.mixins import RateLimitMixin
+
+class CodeExecutionViewSet(RateLimitMixin, viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    rate_limit = '10/minute'  # Configurable per endpoint
+```
+
 ## Recent Updates
+
+### 2025-10-17: Critical Security Fixes
+1. **IDOR/BOLA Prevention**: Object-level authorization for UserProfile, CourseReview, PeerReview, CodeReview
+2. **IsOwnerOrAdmin Permission**: Three-layer defense (queryset filtering, object permissions, ownership forcing)
+3. **Security Test Suite**: 22 comprehensive tests covering cross-user access, enumeration, admin override
+4. **CVE-2024-IDOR-001**: OWASP API1:2023 vulnerability fixed (PR #17)
+5. **Documentation**: Complete CVE tracker, security README, and updated audit reports
 
 ### 2025-10-17: Forum Enhancement & TODO Resolution
 1. **Forum Customization System**: New `ForumCustomization` model with per-forum icons/colors
@@ -526,6 +594,13 @@ curl http://localhost:8000/api/v1/forums/
 4. **Moderation Statistics**: Comprehensive stats (trends, response times, top moderators)
 5. **Trust Level Moderation**: TL0 users require approval, TL1+ auto-approved
 6. **Avatar System**: Full avatar URL generation in serializers
+
+### 2025-10-16: XSS & Authentication Security
+1. **XSS Remediation**: All 23 `dangerouslySetInnerHTML` instances sanitized with DOMPurify
+2. **Code Execution Auth**: Authentication required on all code execution endpoints
+3. **CSRF Protection**: All 12 @csrf_exempt removed from authenticated endpoints
+4. **Template Security**: 2 critical |safe filters fixed in Django templates
+5. **Security Test Suite**: 79 tests covering XSS, CSRF, authentication (100% passing)
 
 ### 2025-08-11: Exercise & API Systems
 1. **Exercise System Complete**: Fill-in-blank and multi-step exercises fully functional

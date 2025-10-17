@@ -40,3 +40,9 @@ staticfiles/
 
 # Media files (if not needed in repo)
 media/
+.worktrees
+
+# Playwright E2E Tests
+test-results/
+playwright-report/
+playwright/.cache/
