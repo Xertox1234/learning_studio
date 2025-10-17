@@ -16,12 +16,33 @@ const API_BASE_URL = window.location.port === '3000' ? 'http://localhost:8000/ap
 axios.defaults.baseURL = API_BASE_URL
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 
-// Add token to requests if available and handle token refresh
+// 🔒 SECURITY: Enable credentials for cookie-based authentication (CVE-2024-JWT-003)
+// This ensures httpOnly cookies are sent with all requests
+axios.defaults.withCredentials = true
+
+// Get CSRF token from cookie for mutation requests
+function getCsrfToken() {
+  const name = 'csrftoken'
+  const cookies = document.cookie.split(';')
+
+  for (let cookie of cookies) {
+    cookie = cookie.trim()
+    if (cookie.startsWith(name + '=')) {
+      return decodeURIComponent(cookie.substring(name.length + 1))
+    }
+  }
+  return null
+}
+
+// Add CSRF token to mutation requests (POST, PUT, PATCH, DELETE)
 axios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // Add CSRF token for mutation requests
+    if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        config.headers['X-CSRFToken'] = csrfToken
+      }
     }
     return config
   },
@@ -33,37 +54,23 @@ axios.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
-      
-      // Try to refresh the token
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (refreshToken) {
-        try {
-          const response = await axios.post('/auth/refresh/', {
-            refresh: refreshToken
-          })
-          
-          const newToken = response.data.access
-          localStorage.setItem('authToken', newToken)
-          
-          // Retry the original request with new token
-          originalRequest.headers.Authorization = `Bearer ${newToken}`
-          return axios(originalRequest)
-        } catch (refreshError) {
-          // Refresh failed, redirect to login
-          localStorage.removeItem('authToken')
-          localStorage.removeItem('refreshToken')
-          window.location.href = '/login'
-        }
-      } else {
-        // No refresh token, redirect to login
-        localStorage.removeItem('authToken')
+
+      // Try to refresh the token (reads from httpOnly cookie automatically)
+      try {
+        await axios.post('/auth/refresh/')
+
+        // Token refreshed successfully (new token set in httpOnly cookie)
+        // Retry the original request
+        return axios(originalRequest)
+      } catch (refreshError) {
+        // Refresh failed, redirect to login
         window.location.href = '/login'
       }
     }
-    
+
     return Promise.reject(error)
   }
 )
@@ -79,18 +86,16 @@ export function AuthProvider({ children }) {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('authToken')
-      if (!token) {
-        setLoading(false)
-        return
-      }
-
+      // 🔒 SECURITY: No need to check localStorage
+      // Authentication cookies are sent automatically with withCredentials: true
       const response = await axios.get('/auth/user/')
       setUser(response.data.user || response.data)
     } catch (err) {
-      console.error('Auth check failed:', err)
+      // 🔒 SECURITY: Only log errors in development to avoid exposing internals
+      if (import.meta.env.DEV) {
+        console.error('Auth check failed:', err)
+      }
       // Only log the error, don't crash the app
-      localStorage.removeItem('authToken')
       setUser(null)
     } finally {
       setLoading(false)
@@ -101,14 +106,12 @@ export function AuthProvider({ children }) {
     try {
       setError(null)
       const response = await axios.post('/auth/login/', { email, password })
-      const { token, refresh, user } = response.data
-      
-      localStorage.setItem('authToken', token)
-      if (refresh) {
-        localStorage.setItem('refreshToken', refresh)
-      }
+      const { user } = response.data
+
+      // 🔒 SECURITY: No localStorage! Tokens are in httpOnly cookies
+      // Cookies are set automatically by the server and sent with subsequent requests
       setUser(user)
-      
+
       return { success: true }
     } catch (err) {
       const message = err.response?.data?.error || err.response?.data?.message || 'Login failed'
@@ -121,14 +124,12 @@ export function AuthProvider({ children }) {
     try {
       setError(null)
       const response = await axios.post('/auth/register/', userData)
-      const { token, refresh, user } = response.data
-      
-      localStorage.setItem('authToken', token)
-      if (refresh) {
-        localStorage.setItem('refreshToken', refresh)
-      }
+      const { user } = response.data
+
+      // 🔒 SECURITY: No localStorage! Tokens are in httpOnly cookies
+      // Cookies are set automatically by the server and sent with subsequent requests
       setUser(user)
-      
+
       return { success: true }
     } catch (err) {
       const message = err.response?.data?.error || err.response?.data?.message || 'Registration failed'
@@ -137,10 +138,21 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('refreshToken')
-    setUser(null)
+  const logout = async () => {
+    try {
+      // Call logout endpoint to clear httpOnly cookies
+      await axios.post('/auth/logout/')
+    } catch (err) {
+      // 🔒 SECURITY: Only log errors in development to avoid exposing internals
+      if (import.meta.env.DEV) {
+        console.error('Logout request failed:', err)
+      }
+      // Continue with client-side logout even if server logout fails
+    } finally {
+      // 🔒 SECURITY: No localStorage to clear!
+      // Cookies are cleared by the server's logout endpoint
+      setUser(null)
+    }
   }
 
   const value = {

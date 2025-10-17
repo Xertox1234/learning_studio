@@ -265,7 +265,10 @@ LOGOUT_REDIRECT_URL = '/'
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # 🔒 SECURITY: Cookie-based JWT authentication (CVE-2024-JWT-003)
+        # Primary: Read JWT from httpOnly cookie (XSS-proof)
+        # Fallback: Read JWT from Authorization header (API clients, testing)
+        'apps.api.authentication.JWTCookieAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -289,7 +292,18 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,                   # Generate new refresh token on refresh
     'BLACKLIST_AFTER_ROTATION': True,               # Blacklist old refresh tokens
     'UPDATE_LAST_LOGIN': True,                       # Update user's last_login field
-    
+
+    # 🔒 SECURITY: httpOnly Cookie Storage (CVE-2024-JWT-003)
+    # Tokens stored in httpOnly cookies are NOT accessible to JavaScript,
+    # preventing XSS-based token theft
+    'AUTH_COOKIE': 'access_token',                   # Cookie name for access token
+    'AUTH_COOKIE_REFRESH': 'refresh_token',         # Cookie name for refresh token
+    'AUTH_COOKIE_SECURE': not DEBUG,                # HTTPS only in production
+    'AUTH_COOKIE_HTTP_ONLY': True,                  # Not accessible to JavaScript
+    'AUTH_COOKIE_SAMESITE': 'Lax',                  # CSRF protection
+    'AUTH_COOKIE_PATH': '/',                         # Available for all paths
+    'AUTH_COOKIE_DOMAIN': None,                      # Same domain only
+
     # Signing settings
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
@@ -390,6 +404,19 @@ CODE_EXECUTION_REQUIRE_DOCKER = config('CODE_EXECUTION_REQUIRE_DOCKER', default=
 # Session Configuration
 SESSION_COOKIE_AGE = 86400  # 24 hours
 SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = not DEBUG  # HTTPS only in production
+
+# CSRF Protection for Cookie-Based Authentication
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = not DEBUG  # HTTPS only in production
+CSRF_COOKIE_HTTPONLY = False  # CSRF token needs to be read by JavaScript for API calls
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+]
 
 # Cache Configuration (will be overridden in environment-specific settings)
 CACHES = {

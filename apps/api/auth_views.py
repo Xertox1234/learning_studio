@@ -181,7 +181,7 @@ def register(request):
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
-        
+
         user_data = {
             'id': user.id,
             'username': user.username,
@@ -189,13 +189,36 @@ def register(request):
             'first_name': user.first_name,
             'last_name': user.last_name,
         }
-        
-        return Response({
-            'token': str(access_token),
-            'refresh': str(refresh),
+
+        # 🔒 SECURITY: Set httpOnly cookies (CVE-2024-JWT-003)
+        response = Response({
             'user': user_data,
             'success': True
         })
+
+        # Set access token cookie
+        response.set_cookie(
+            key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+            value=str(access_token),
+            max_age=int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()),
+            secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+            httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+            samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+            path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+        )
+
+        # Set refresh token cookie
+        response.set_cookie(
+            key=settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'],
+            value=str(refresh),
+            max_age=int(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()),
+            secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+            httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+            samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+            path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+        )
+
+        return response
         
     except json.JSONDecodeError:
         return Response({
@@ -212,18 +235,34 @@ def register(request):
 def logout(request):
     """
     Logout endpoint for React frontend.
-    Blacklists the refresh token.
+    🔒 SECURITY: Clears httpOnly cookies and blacklists refresh token (CVE-2024-JWT-003)
     """
     try:
-        refresh_token = request.data.get('refresh')
+        # Try to blacklist the refresh token from cookie
+        refresh_token = request.COOKIES.get(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
         if refresh_token:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-        
-        return Response({
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception as blacklist_error:
+                logger.warning(f"Token blacklist failed (token may be invalid): {blacklist_error}")
+
+        response = Response({
             'success': True,
-            'message': 'Successfully logged out'
+            'detail': 'Successfully logged out'
         })
+
+        # 🔒 SECURITY: Delete httpOnly cookies
+        response.delete_cookie(
+            key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+            path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+        )
+        response.delete_cookie(
+            key=settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'],
+            path=settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
+        )
+
+        return response
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")
         return Response({
