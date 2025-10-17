@@ -34,12 +34,11 @@ def execute_code(request):
     """
     Execute Python code in a secure Docker environment.
 
-    SECURITY NOTE: This endpoint requires authentication. The direct exec()
-    implementation is EXTREMELY DANGEROUS and should ONLY be used in
-    development with Docker as the primary execution method.
+    SECURITY NOTE: This endpoint requires authentication and Docker.
+    The dangerous exec() fallback has been removed (CVE-2024-EXEC-001).
 
-    NEVER deploy to production with exec() - it allows arbitrary code
-    execution and can compromise the entire system.
+    Docker is REQUIRED for secure code execution. If Docker is unavailable,
+    the service will return 503 Service Unavailable.
     """
     try:
         data = request.data
@@ -73,13 +72,12 @@ def execute_code(request):
             f"user_agent={user_agent[:100]}"
         )
 
-        # Try Docker first, fall back to restricted exec only if Docker unavailable
-        start_time = None
-        execution_success = False
-        try:
-            import time as time_module
-            start_time = time_module.time()
+        # 🔒 SECURITY: Docker is REQUIRED - no fallback to exec()
+        # The exec() fallback was removed due to security vulnerability CVE-2024-EXEC-001
+        import time as time_module
+        start_time = time_module.time()
 
+        try:
             result = CodeExecutionService.execute_code(
                 code=code,
                 test_cases=[],
@@ -100,81 +98,22 @@ def execute_code(request):
             )
 
             return Response(result)
+
         except Exception as docker_error:
-            # 🔒 SECURITY AUDIT LOG: Log fallback to exec()
-            logger.warning(
-                f"CODE_EXECUTION_FALLBACK: "
+            # 🔒 SECURITY: Docker unavailable - return error instead of using exec()
+            logger.error(
+                f"CODE_EXECUTION_UNAVAILABLE: "
                 f"user_id={request.user.id} "
                 f"docker_error={str(docker_error)[:200]} "
-                f"Using restricted exec() fallback (UNSAFE)"
+                f"Service unavailable - exec() fallback has been removed for security"
             )
 
-            # Restricted exec as last resort (development only)
-            import sys
-            from io import StringIO
-            import signal
-
-            def timeout_handler(signum, frame):
-                raise TimeoutError("Code execution time limit exceeded")
-
-            # Set 5-second timeout
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(5)
-
-            # Capture stdout
-            old_stdout = sys.stdout
-            sys.stdout = StringIO()
-
-            try:
-                # Restricted globals - remove dangerous builtins
-                safe_globals = {
-                    '__builtins__': {
-                        'print': print,
-                        'len': len,
-                        'range': range,
-                        'str': str,
-                        'int': int,
-                        'float': float,
-                        'list': list,
-                        'dict': dict,
-                        'tuple': tuple,
-                        'set': set,
-                        'abs': abs,
-                        'min': min,
-                        'max': max,
-                        'sum': sum,
-                        'sorted': sorted,
-                        'enumerate': enumerate,
-                        'zip': zip,
-                        # Block dangerous functions like open, eval, exec, import, etc.
-                    }
-                }
-
-                # Execute with restricted environment
-                exec(code, safe_globals, {})
-                output = sys.stdout.getvalue()
-                success = True
-                error = None
-
-            except TimeoutError as e:
-                output = sys.stdout.getvalue()
-                error = "Execution timeout (5 seconds)"
-                success = False
-            except Exception as e:
-                output = sys.stdout.getvalue()
-                error = str(e)
-                success = False
-            finally:
-                signal.alarm(0)  # Cancel timeout
-                sys.stdout = old_stdout
-
             return Response({
-                'success': success,
-                'output': output if success else f"Error: {error}\n\nOutput so far:\n{output}",
-                'error': error,
-                'execution_time': '0.001s',
-                'warning': 'Code executed in restricted mode. Docker recommended for production.'
-            })
+                'success': False,
+                'error': 'Code execution service temporarily unavailable',
+                'message': 'Our secure code execution environment is currently offline. Please try again in a few moments.',
+                'details': 'Docker container service is required for secure code execution.'
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     except Exception as e:
         logger.error(f"Code execution error: {e}")
