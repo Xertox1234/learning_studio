@@ -200,6 +200,7 @@ class CourseReviewViewSet(viewsets.ModelViewSet):
         - IsAuthenticated: Requires user to be logged in
         - IsOwnerOrAdmin: Checks ownership at object level
     """
+    queryset = CourseReview.objects.all()  # For router introspection only
     serializer_class = CourseReviewSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
 

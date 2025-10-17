@@ -137,6 +137,7 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         - IsAuthenticated: Requires user to be logged in
         - IsOwnerOrAdmin: Checks ownership at object level
     """
+    queryset = PeerReview.objects.all()  # For router introspection only
     serializer_class = PeerReviewSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
 
@@ -178,6 +179,7 @@ class CodeReviewViewSet(viewsets.ModelViewSet):
         - IsAuthenticated: Requires user to be logged in
         - IsOwnerOrAdmin: Checks ownership at object level
     """
+    queryset = CodeReview.objects.all()  # For router introspection only
     serializer_class = CodeReviewSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
 
