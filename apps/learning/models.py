@@ -4,11 +4,18 @@ These models handle courses, lessons, progress tracking, and AI-enhanced content
 """
 
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 import json
+from apps.users.validators import (
+    SecureCourseImageUpload,
+    validate_course_image_file_size,
+    validate_image_dimensions,
+    validate_image_content,
+    validate_mime_type,
+)
 
 User = get_user_model()
 
@@ -87,8 +94,36 @@ class Course(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
     # Images
-    thumbnail = models.ImageField(upload_to='course_thumbnails/', blank=True, null=True)
-    banner_image = models.ImageField(upload_to='course_banners/', blank=True, null=True)
+    thumbnail = models.ImageField(
+        upload_to=SecureCourseImageUpload('course_thumbnails'),
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['jpg', 'jpeg', 'png', 'webp']
+            ),
+            validate_course_image_file_size,
+            validate_image_dimensions,
+            validate_image_content,
+            validate_mime_type,
+        ],
+        help_text='Course thumbnail (max 10 MB, JPG/PNG/WEBP, 50x50 to 2048x2048)'
+    )
+    banner_image = models.ImageField(
+        upload_to=SecureCourseImageUpload('course_banners'),
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['jpg', 'jpeg', 'png', 'webp']
+            ),
+            validate_course_image_file_size,
+            validate_image_dimensions,
+            validate_image_content,
+            validate_mime_type,
+        ],
+        help_text='Course banner image (max 10 MB, JPG/PNG/WEBP, 50x50 to 2048x2048)'
+    )
     
     # Statistics (auto-calculated)
     total_lessons = models.PositiveIntegerField(default=0)

@@ -3,8 +3,18 @@ User models for Python Learning Studio.
 """
 
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.urls import reverse
+from .validators import (
+    SecureAvatarUpload,
+    SecureIconUpload,
+    SecureAchievementIconUpload,
+    validate_image_file_size,
+    validate_image_dimensions,
+    validate_image_content,
+    validate_mime_type,
+)
 
 
 class User(AbstractUser):
@@ -13,7 +23,21 @@ class User(AbstractUser):
     """
     email = models.EmailField(unique=True)
     bio = models.TextField(max_length=500, blank=True)
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    avatar = models.ImageField(
+        upload_to=SecureAvatarUpload(),
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['jpg', 'jpeg', 'png', 'gif', 'webp']
+            ),
+            validate_image_file_size,
+            validate_image_dimensions,
+            validate_image_content,
+            validate_mime_type,
+        ],
+        help_text='Profile picture (max 5 MB, JPG/PNG/GIF/WEBP, 50x50 to 2048x2048)'
+    )
     location = models.CharField(max_length=100, blank=True)
     website = models.URLField(blank=True)
     github_username = models.CharField(max_length=100, blank=True)
@@ -65,6 +89,24 @@ class User(AbstractUser):
             return 0
         completed = enrollments.filter(completed=True).count()
         return int((completed / enrollments.count()) * 100)
+
+    def save(self, *args, **kwargs):
+        """Delete old avatar when uploading new one."""
+        if self.pk:
+            try:
+                old_instance = User.objects.get(pk=self.pk)
+                if old_instance.avatar and self.avatar != old_instance.avatar:
+                    # Delete old file from storage
+                    old_instance.avatar.delete(save=False)
+            except User.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Delete avatar file when user deleted."""
+        if self.avatar:
+            self.avatar.delete(save=False)
+        super().delete(*args, **kwargs)
 
 
 class UserProfile(models.Model):
@@ -122,7 +164,21 @@ class ProgrammingLanguage(models.Model):
     name = models.CharField(max_length=50, unique=True)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
-    icon = models.ImageField(upload_to='language_icons/', blank=True, null=True)
+    icon = models.ImageField(
+        upload_to=SecureIconUpload(),
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
+            ),
+            validate_image_file_size,
+            validate_image_dimensions,
+            validate_image_content,
+            validate_mime_type,
+        ],
+        help_text='Language icon (max 5 MB, JPG/PNG/GIF/WEBP/SVG)'
+    )
     official_website = models.URLField(blank=True)
     
     # Popularity and difficulty
@@ -153,7 +209,22 @@ class Achievement(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     description = models.TextField()
-    icon = models.ImageField(upload_to='achievement_icons/', blank=True, null=True)
+    icon = models.ImageField(
+        upload_to=SecureAchievementIconUpload(),
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['jpg', 'jpeg', 'png', 'gif', 'webp']
+            ),
+            validate_image_file_size,
+            validate_image_dimensions,
+            validate_image_content,
+            validate_mime_type,
+        ],
+        help_text='Achievement icon (max 5 MB, JPG/PNG/GIF/WEBP)'
+    )
+
     
     # Achievement criteria
     achievement_type = models.CharField(
