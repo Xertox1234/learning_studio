@@ -17,7 +17,7 @@ from ..serializers import (
     LearningPathSerializer, CourseReviewSerializer,
     ExerciseSerializer
 )
-from ..permissions import IsOwnerOrReadOnly, IsInstructorOrReadOnly
+from ..permissions import IsOwnerOrReadOnly, IsInstructorOrReadOnly, IsOwnerOrAdmin
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -188,14 +188,41 @@ class LearningPathViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class CourseReviewViewSet(viewsets.ModelViewSet):
-    """ViewSet for CourseReview model."""
+    """
+    ViewSet for CourseReview model with object-level authorization.
+
+    Security:
+        - Users can only view/edit their own reviews
+        - Staff can view/edit all reviews
+        - Implements IDOR/BOLA prevention
+
+    Permissions:
+        - IsAuthenticated: Requires user to be logged in
+        - IsOwnerOrAdmin: Checks ownership at object level
+    """
     serializer_class = CourseReviewSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
+
     def get_queryset(self):
-        if self.request.user.is_authenticated:
-            return CourseReview.objects.filter(user=self.request.user)
-        return CourseReview.objects.none()
-    
+        """
+        Filter queryset to only user's own reviews.
+        Staff can see all reviews.
+
+        Security: Prevents IDOR attacks by filtering at queryset level.
+        """
+        user = self.request.user
+
+        if user.is_staff or user.is_superuser:
+            # Staff can see all reviews
+            return CourseReview.objects.all()
+
+        # Regular users can only see their own reviews
+        return CourseReview.objects.filter(user=user)
+
     def perform_create(self, serializer):
+        """
+        Force ownership to authenticated user.
+
+        Security: Prevents ownership hijacking
+        """
         serializer.save(user=self.request.user)
