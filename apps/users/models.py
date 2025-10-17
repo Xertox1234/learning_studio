@@ -170,14 +170,14 @@ class ProgrammingLanguage(models.Model):
         null=True,
         validators=[
             FileExtensionValidator(
-                allowed_extensions=['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
+                allowed_extensions=['jpg', 'jpeg', 'png', 'gif', 'webp']
             ),
             validate_image_file_size,
             validate_image_dimensions,
             validate_image_content,
             validate_mime_type,
         ],
-        help_text='Language icon (max 5 MB, JPG/PNG/GIF/WEBP/SVG)'
+        help_text='Language icon (max 5 MB, JPG/PNG/GIF/WEBP)'
     )
     official_website = models.URLField(blank=True)
     

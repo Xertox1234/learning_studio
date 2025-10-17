@@ -632,7 +632,25 @@ class Badge(models.Model):
             'legendary': '#fd7e14',
         }
         return colors.get(self.rarity, '#6c757d')
-    
+
+    def save(self, *args, **kwargs):
+        """Delete old badge image when uploading new one."""
+        if self.pk:
+            try:
+                old_instance = Badge.objects.get(pk=self.pk)
+                if old_instance.image and self.image != old_instance.image:
+                    # Delete old file from storage
+                    old_instance.image.delete(save=False)
+            except Badge.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Delete badge image file when badge deleted."""
+        if self.image:
+            self.image.delete(save=False)
+        super().delete(*args, **kwargs)
+
     def check_condition(self, user):
         """
         Check if user meets the condition for this badge

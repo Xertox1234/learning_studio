@@ -70,11 +70,19 @@ class SecureAvatarUpload:
 
 @deconstructible
 class SecureIconUpload:
-    """Secure upload path generator for programming language icons."""
+    """
+    Secure upload path generator for programming language icons.
+
+    Security Note: SVG support removed due to XSS risk.
+    SVG files can contain embedded JavaScript and should not be uploaded
+    without comprehensive sanitization (stripping <script> tags, event handlers, etc.).
+    Use raster formats (PNG/JPG/GIF/WEBP) for maximum security.
+    """
 
     def __call__(self, instance, filename):
         ext = Path(filename).suffix.lower()
-        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'}
+        # SVG removed - can contain embedded JavaScript (XSS vulnerability)
+        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
         ext = ext if ext in ALLOWED_EXTENSIONS else '.png'
         return os.path.join('language_icons', f'{uuid.uuid4()}{ext}')
 

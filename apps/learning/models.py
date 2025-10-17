@@ -148,10 +148,32 @@ class Course(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
+        """Delete old images when uploading new ones, then save."""
+        if self.pk:
+            try:
+                old_instance = Course.objects.get(pk=self.pk)
+                # Clean up old thumbnail
+                if old_instance.thumbnail and self.thumbnail != old_instance.thumbnail:
+                    old_instance.thumbnail.delete(save=False)
+                # Clean up old banner
+                if old_instance.banner_image and self.banner_image != old_instance.banner_image:
+                    old_instance.banner_image.delete(save=False)
+            except Course.DoesNotExist:
+                pass
+
+        # Existing published_at logic
         if self.is_published and not self.published_at:
             self.published_at = timezone.now()
         super().save(*args, **kwargs)
-    
+
+    def delete(self, *args, **kwargs):
+        """Delete image files when course deleted."""
+        if self.thumbnail:
+            self.thumbnail.delete(save=False)
+        if self.banner_image:
+            self.banner_image.delete(save=False)
+        super().delete(*args, **kwargs)
+
     def get_absolute_url(self):
         return reverse('course_detail', kwargs={'slug': self.slug})
     
