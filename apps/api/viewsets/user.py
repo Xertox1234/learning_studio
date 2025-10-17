@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from apps.users.models import UserProfile
 from ..serializers import UserSerializer, UserProfileSerializer
-from ..permissions import IsOwnerOrReadOnly
+from ..permissions import IsOwnerOrReadOnly, IsOwnerOrAdmin
 
 User = get_user_model()
 
@@ -35,15 +35,43 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class UserProfileViewSet(viewsets.ModelViewSet):
-    """ViewSet for UserProfile model."""
-    queryset = UserProfile.objects.all()
+    """
+    ViewSet for UserProfile model with object-level authorization.
+
+    Security:
+        - Users can only view/edit their own profile
+        - Staff can view/edit all profiles
+        - Implements IDOR/BOLA prevention via queryset filtering and permissions
+
+    Permissions:
+        - IsAuthenticated: Requires user to be logged in
+        - IsOwnerOrAdmin: Checks ownership at object level
+    """
+    queryset = UserProfile.objects.all()  # For router introspection only
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
+
     def get_queryset(self):
-        if self.action == 'list':
-            return UserProfile.objects.filter(user__is_active=True)
-        return super().get_queryset()
-    
+        """
+        Filter queryset to only user's own profile.
+        Staff can see all profiles.
+
+        Security: Prevents IDOR attacks by filtering at queryset level.
+        This ensures users cannot enumerate or access other users' profiles.
+        """
+        user = self.request.user
+
+        if user.is_staff or user.is_superuser:
+            # Admins see all profiles
+            return UserProfile.objects.all()
+
+        # Regular users can only see their own profile
+        return UserProfile.objects.filter(user=user)
+
     def perform_create(self, serializer):
+        """
+        Force ownership to authenticated user.
+
+        Security: Prevents ownership hijacking by forcing user=request.user
+        """
         serializer.save(user=self.request.user)

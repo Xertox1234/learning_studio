@@ -101,15 +101,68 @@ class IsModerator(permissions.BasePermission):
     """
     Permission for moderators and staff.
     """
-    
+
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        
+
         return request.user.is_staff or request.user.is_superuser
-    
+
     def has_object_permission(self, request, view, obj):
         if not request.user.is_authenticated:
             return False
-        
+
         return request.user.is_staff or request.user.is_superuser
+
+
+class IsOwnerOrAdmin(permissions.BasePermission):
+    """
+    Object-level permission to only allow owners or admins to access.
+
+    This permission provides IDOR/BOLA protection by ensuring users can only
+    access their own resources, while allowing staff/superusers full access.
+
+    Usage:
+        class MyViewSet(viewsets.ModelViewSet):
+            permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+
+    Security:
+        - Implements has_permission() to require authentication
+        - Implements has_object_permission() for object-level checks
+        - Checks multiple ownership patterns (user, author, creator, etc.)
+        - Grants full access to staff/superusers
+    """
+    message = 'You must be the owner or an administrator to access this resource.'
+    code = 'not_owner_or_admin'
+
+    def has_permission(self, request, view):
+        """
+        View-level permission check.
+        Requires user to be authenticated.
+        """
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        """
+        Object-level permission check.
+        Admin/staff can access all resources.
+        Regular users can only access their own resources.
+        """
+        # Staff and superusers can access everything
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+
+        # Check multiple possible owner attributes
+        if hasattr(obj, 'user'):
+            return obj.user == request.user
+        elif hasattr(obj, 'author'):
+            return obj.author == request.user
+        elif hasattr(obj, 'creator'):
+            return obj.creator == request.user
+        elif hasattr(obj, 'reviewer'):
+            return obj.reviewer == request.user
+        elif hasattr(obj, 'organizer'):
+            return obj.organizer == request.user
+
+        # Default to checking if object is the user themselves
+        return obj == request.user

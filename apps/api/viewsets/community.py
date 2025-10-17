@@ -19,7 +19,7 @@ from ..serializers import (
     LearningBuddySerializer, LearningSessionSerializer,
     NotificationSerializer
 )
-from ..permissions import IsOwnerOrReadOnly
+from ..permissions import IsOwnerOrReadOnly, IsOwnerOrAdmin
 from ..mixins import RateLimitMixin
 
 
@@ -125,24 +125,86 @@ class StudyGroupPostViewSet(viewsets.ModelViewSet):
 
 
 class PeerReviewViewSet(viewsets.ModelViewSet):
-    """ViewSet for PeerReview model."""
-    queryset = PeerReview.objects.all().order_by('-created_at')
+    """
+    ViewSet for PeerReview model with object-level authorization.
+
+    Security:
+        - Users can only view/edit their own peer reviews
+        - Staff can view/edit all peer reviews
+        - Implements IDOR/BOLA prevention
+
+    Permissions:
+        - IsAuthenticated: Requires user to be logged in
+        - IsOwnerOrAdmin: Checks ownership at object level
+    """
+    queryset = PeerReview.objects.all()  # For router introspection only
     serializer_class = PeerReviewSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
+
+    def get_queryset(self):
+        """
+        Filter queryset to only user's own peer reviews.
+        Staff can see all peer reviews.
+
+        Security: Prevents IDOR attacks by filtering at queryset level.
+        """
+        user = self.request.user
+
+        if user.is_staff or user.is_superuser:
+            # Staff can see all peer reviews
+            return PeerReview.objects.all().order_by('-created_at')
+
+        # Regular users can only see their own peer reviews
+        return PeerReview.objects.filter(author=user).order_by('-created_at')
+
     def perform_create(self, serializer):
+        """
+        Force ownership to authenticated user.
+
+        Security: Prevents ownership hijacking
+        """
         serializer.save(author=self.request.user)
 
 
 class CodeReviewViewSet(viewsets.ModelViewSet):
-    """ViewSet for CodeReview model."""
+    """
+    ViewSet for CodeReview model with object-level authorization.
+
+    Security:
+        - Users can only view/edit their own code reviews
+        - Staff can view/edit all code reviews
+        - Implements IDOR/BOLA prevention
+
+    Permissions:
+        - IsAuthenticated: Requires user to be logged in
+        - IsOwnerOrAdmin: Checks ownership at object level
+    """
+    queryset = CodeReview.objects.all()  # For router introspection only
     serializer_class = CodeReviewSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
+
     def get_queryset(self):
-        return CodeReview.objects.all().select_related('reviewer', 'peer_review')
-    
+        """
+        Filter queryset to only user's own code reviews.
+        Staff can see all code reviews.
+
+        Security: Prevents IDOR attacks by filtering at queryset level.
+        """
+        user = self.request.user
+
+        if user.is_staff or user.is_superuser:
+            # Staff can see all code reviews
+            return CodeReview.objects.all().select_related('reviewer', 'peer_review')
+
+        # Regular users can only see their own code reviews
+        return CodeReview.objects.filter(reviewer=user).select_related('reviewer', 'peer_review')
+
     def perform_create(self, serializer):
+        """
+        Force ownership to authenticated user.
+
+        Security: Prevents ownership hijacking
+        """
         serializer.save(reviewer=self.request.user)
 
 
