@@ -6,7 +6,8 @@
 **Effort**: 6-8 hours
 **Deadline**: Within 2 weeks
 **Resolved Date**: 2025-10-17
-**Commit**: ccae68c
+**Implementation Commit**: 8b4b029
+**Test Commit**: 0772ea5
 
 ## Problem
 
@@ -519,16 +520,18 @@ Network tab shows:
 
 ## Checklist
 
-- [ ] Backend cursor pagination implemented
-- [ ] Database index added for created_at
-- [ ] useInfiniteQuery hook created
-- [ ] ForumTopicPage refactored to use infinite scroll
-- [ ] Intersection observer for auto-loading
-- [ ] Optimistic updates on new reply
-- [ ] Loading states implemented
-- [ ] Error boundary added
-- [ ] Tests added and passing
-- [ ] Manual testing confirms bandwidth reduction
+- [x] Backend cursor pagination implemented (8b4b029)
+- [x] Database index documented (django-machina includes by default)
+- [x] useInfiniteQuery hook created (8b4b029)
+- [x] ForumTopicPage refactored to use infinite scroll (8b4b029)
+- [x] Intersection observer for auto-loading (8b4b029)
+- [x] Optimistic updates on new reply (8b4b029)
+- [x] Loading states implemented (8b4b029)
+- [x] Error handling added (8b4b029)
+- [x] Tests added and passing - 49 total tests (0772ea5)
+  - Backend: 18 tests (apps/api/forum/tests/test_topic_pagination.py)
+  - Frontend: 31 tests (frontend/src/hooks/__tests__/useForumQuery.test.jsx)
+- [ ] Manual testing confirms bandwidth reduction (pending live verification)
 
 ## Expected Results
 
