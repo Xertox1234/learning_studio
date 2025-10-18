@@ -150,7 +150,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class CourseSerializer(serializers.ModelSerializer):
     """
-    Serializer for Course model with secure image upload validation.
+    Serializer for Course model with secure image upload validation and optimized queries.
 
     Security Features:
     - Extension whitelist (JPEG, PNG, WEBP only for course images)
@@ -158,37 +158,78 @@ class CourseSerializer(serializers.ModelSerializer):
     - File size limits (10 MB max for course materials)
     - Image content validation via Pillow
     - Dimension restrictions (50x50 to 2048x2048)
+
+    Performance Optimizations:
+    - Uses annotated fields (enrollment_count, user_enrolled) from ViewSet
+    - Eliminates N+1 queries by reading pre-computed database annotations
     """
     instructor = UserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
     instructor_id = serializers.IntegerField(write_only=True)
-    enrollment_count = serializers.SerializerMethodField()
-    user_enrolled = serializers.SerializerMethodField()
+
+    # Annotated fields from ViewSet queryset (performance optimization)
+    enrollment_count = serializers.IntegerField(read_only=True)
+    user_enrolled = serializers.BooleanField(read_only=True)
+
+    # Computed fields using source (efficient with select_related)
+    instructor_name = serializers.CharField(
+        source='instructor.get_full_name',
+        read_only=True
+    )
+    category_name = serializers.CharField(
+        source='category.name',
+        read_only=True
+    )
+
+    # Image URL fields
     thumbnail_url = serializers.SerializerMethodField()
     banner_url = serializers.SerializerMethodField()
+
     # Course images have higher size limit (10 MB) and no GIF support
     course_image_validator = ImageUploadValidator(max_size_mb=10, allow_gif=False, field_name='Course Image')
 
     class Meta:
         model = Course
-        fields = '__all__'
+        fields = [
+            'id',
+            'title',
+            'slug',
+            'description',
+            'short_description',
+            'instructor',
+            'instructor_name',
+            'instructor_id',
+            'category',
+            'category_name',
+            'category_id',
+            'difficulty_level',
+            'enrollment_count',    # Annotated for performance
+            'user_enrolled',       # Annotated for performance
+            'is_published',
+            'created_at',
+            'updated_at',
+            'published_at',
+            'total_lessons',
+            'total_enrollments',
+            'average_rating',
+            'total_reviews',
+            'thumbnail',
+            'thumbnail_url',
+            'banner_image',
+            'banner_url',
+            'estimated_duration',
+            'prerequisites',
+        ]
         read_only_fields = ['created_at', 'updated_at', 'published_at', 'total_lessons',
                            'total_enrollments', 'average_rating', 'total_reviews',
-                           'thumbnail_url', 'banner_url']
+                           'thumbnail_url', 'banner_url', 'enrollment_count', 'user_enrolled']
         extra_kwargs = {
             'thumbnail': {'write_only': True},
-            'banner_image': {'write_only': True}
+            'banner_image': {'write_only': True},
+            'instructor_id': {'write_only': True},
+            'category_id': {'write_only': True}
         }
-
-    def get_enrollment_count(self, obj):
-        return obj.enrollments.count()
-
-    def get_user_enrolled(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.enrollments.filter(user=request.user).exists()
-        return False
 
     def get_thumbnail_url(self, obj):
         """Return thumbnail URL or None."""
@@ -258,30 +299,34 @@ class CourseSerializer(serializers.ModelSerializer):
 
 
 class LessonSerializer(serializers.ModelSerializer):
-    """Serializer for Lesson model."""
+    """Serializer for Lesson model with optimized annotated fields."""
     course = CourseSerializer(read_only=True)
     course_id = serializers.IntegerField(write_only=True)
     next_lesson = serializers.SerializerMethodField()
     previous_lesson = serializers.SerializerMethodField()
     user_progress = serializers.SerializerMethodField()
-    
+
+    # Annotated fields for optimization
+    completion_count = serializers.IntegerField(read_only=True, required=False)
+    user_completed = serializers.BooleanField(read_only=True, required=False)
+
     class Meta:
         model = Lesson
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
-    
+
     def get_next_lesson(self, obj):
         next_lesson = obj.get_next_lesson()
         if next_lesson:
             return {'id': next_lesson.id, 'title': next_lesson.title, 'slug': next_lesson.slug}
         return None
-    
+
     def get_previous_lesson(self, obj):
         prev_lesson = obj.get_previous_lesson()
         if prev_lesson:
             return {'id': prev_lesson.id, 'title': prev_lesson.title, 'slug': prev_lesson.slug}
         return None
-    
+
     def get_user_progress(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -422,27 +467,45 @@ class TestCaseSerializer(serializers.ModelSerializer):
 
 
 class ExerciseSerializer(serializers.ModelSerializer):
-    """Serializer for Exercise model."""
+    """Serializer for Exercise model with optimized annotated fields."""
     lesson = LessonSerializer(read_only=True)
     exercise_type = ExerciseTypeSerializer(read_only=True)
     programming_language = ProgrammingLanguageSerializer(read_only=True)
     lesson_id = serializers.IntegerField(write_only=True)
     exercise_type_id = serializers.IntegerField(write_only=True)
     programming_language_id = serializers.IntegerField(write_only=True)
-    
+
     test_cases = TestCaseSerializer(many=True, read_only=True)
+
+    # Annotated fields from ViewSet queryset (no database queries)
+    submission_count = serializers.IntegerField(read_only=True)
+    user_has_submitted = serializers.BooleanField(read_only=True)
+    user_best_score = serializers.IntegerField(read_only=True, allow_null=True)
+
+    # Legacy fields using SerializerMethodField (fallback for compatibility)
     user_progress = serializers.SerializerMethodField()
     success_rate = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Exercise
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at', 'total_submissions', 
+        read_only_fields = ['created_at', 'updated_at', 'total_submissions',
                            'successful_submissions', 'average_attempts']
-    
+
     def get_user_progress(self, obj):
+        """Legacy method - prefer using annotated fields (user_has_submitted, user_best_score)."""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            # Use annotated fields if available (from optimized ViewSet)
+            if hasattr(obj, 'user_has_submitted') and hasattr(obj, 'user_best_score'):
+                return {
+                    'started': obj.user_has_submitted,
+                    'completed': obj.user_best_score is not None and obj.user_best_score >= 80,
+                    'best_score': obj.user_best_score or 0,
+                    'total_attempts': 0  # Not included in annotation for performance
+                }
+
+            # Fallback to database query (for backwards compatibility)
             try:
                 progress = StudentProgress.objects.get(user=request.user, exercise=obj)
                 return {
@@ -454,9 +517,10 @@ class ExerciseSerializer(serializers.ModelSerializer):
             except StudentProgress.DoesNotExist:
                 return None
         return None
-    
+
     def get_success_rate(self, obj):
         return obj.get_success_rate()
+
 
 
 class SubmissionSerializer(serializers.ModelSerializer):

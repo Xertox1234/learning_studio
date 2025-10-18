@@ -2,6 +2,7 @@
 Exercise system ViewSets for programming exercises, submissions, and progress tracking.
 """
 
+from django.db.models import Count, Exists, Max, Q, OuterRef
 from django.utils import timezone
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
@@ -36,30 +37,64 @@ class ExerciseTypeViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ExerciseViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for Exercise model."""
-    queryset = Exercise.objects.filter(is_published=True)
+    """ViewSet for Exercise model with optimized annotations."""
+    queryset = Exercise.objects.filter(is_published=True)  # For router introspection only
     serializer_class = ExerciseSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    
+
     def get_queryset(self):
+        """Optimized queryset with annotations to reduce database queries."""
+        user = self.request.user
         queryset = super().get_queryset()
-        
+
         # Filter by lesson
         lesson = self.request.query_params.get('lesson')
         if lesson:
             queryset = queryset.filter(lesson__slug=lesson)
-        
+
         # Filter by difficulty
         difficulty = self.request.query_params.get('difficulty')
         if difficulty:
             queryset = queryset.filter(difficulty_level=difficulty)
-        
+
         # Filter by programming language
         language = self.request.query_params.get('language')
         if language:
             queryset = queryset.filter(programming_language__slug=language)
-        
-        return queryset.select_related('lesson', 'exercise_type', 'programming_language')
+
+        # Apply select_related for foreign keys
+        queryset = queryset.select_related('lesson', 'exercise_type', 'programming_language')
+
+        # Add annotations for optimized data retrieval
+        if user.is_authenticated:
+            # Subquery for user submissions
+            user_submission = Submission.objects.filter(
+                exercise=OuterRef('pk'),
+                user=user
+            )
+
+            queryset = queryset.annotate(
+                # Total submissions across all users
+                submission_count=Count('submissions', distinct=True),
+
+                # Check if current user has submitted
+                user_has_submitted=Exists(user_submission),
+
+                # User's best score
+                user_best_score=Max(
+                    'submissions__score',
+                    filter=Q(submissions__user=user)
+                )
+            )
+        else:
+            # For unauthenticated users, only provide submission count
+            queryset = queryset.annotate(
+                submission_count=Count('submissions', distinct=True),
+                user_has_submitted=False,  # Default value
+                user_best_score=None  # Default value
+            )
+
+        return queryset
     
     @action(detail=True, methods=['get'])
     def test_cases(self, request, pk=None):

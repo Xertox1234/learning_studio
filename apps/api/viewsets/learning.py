@@ -2,7 +2,7 @@
 Learning management ViewSets for courses, lessons, and progress tracking.
 """
 
-from django.db.models import Q
+from django.db.models import Q, Count, Exists, OuterRef
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -36,34 +36,58 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class CourseViewSet(viewsets.ModelViewSet):
-    """ViewSet for Course model."""
+    """ViewSet for Course model with optimized queryset annotations."""
     queryset = Course.objects.filter(is_published=True)
     serializer_class = CourseSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsInstructorOrReadOnly]
-    
+
     def get_queryset(self):
-        queryset = super().get_queryset()
-        
+        """
+        Optimize queryset with annotations to avoid N+1 queries.
+        """
+        user = self.request.user
+
+        # Subquery to check if user is enrolled
+        user_enrollment = CourseEnrollment.objects.filter(
+            course=OuterRef('pk'),
+            user=user
+        )
+
+        queryset = Course.objects.filter(
+            is_published=True
+        ).select_related(
+            'instructor',
+            'category'
+        ).prefetch_related(
+            'lessons'
+        ).annotate(
+            # Count total enrollments
+            enrollment_count=Count('enrollments', distinct=True),
+
+            # Check if current user is enrolled
+            user_enrolled=Exists(user_enrollment)
+        )
+
         # Filter by category
         category = self.request.query_params.get('category')
         if category:
             queryset = queryset.filter(category__slug=category)
-        
+
         # Filter by difficulty
         difficulty = self.request.query_params.get('difficulty')
         if difficulty:
             queryset = queryset.filter(difficulty_level=difficulty)
-        
+
         # Search
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(
-                Q(title__icontains=search) | 
+                Q(title__icontains=search) |
                 Q(description__icontains=search) |
                 Q(short_description__icontains=search)
             )
-        
-        return queryset.select_related('instructor', 'category')
+
+        return queryset
     
     def perform_create(self, serializer):
         serializer.save(instructor=self.request.user)
@@ -109,20 +133,40 @@ class CourseViewSet(viewsets.ModelViewSet):
 
 
 class LessonViewSet(viewsets.ModelViewSet):
-    """ViewSet for Lesson model."""
+    """ViewSet for Lesson model with optimized annotations."""
     queryset = Lesson.objects.filter(is_published=True)
     serializer_class = LessonSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsInstructorOrReadOnly]
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
-        
+        user = self.request.user
+
         # Filter by course
         course = self.request.query_params.get('course')
         if course:
             queryset = queryset.filter(course__slug=course)
-        
-        return queryset.select_related('course')
+
+        # Subquery for user completion
+        user_progress = UserProgress.objects.filter(
+            lesson=OuterRef('pk'),
+            user=user,
+            completed=True
+        )
+
+        # Apply annotations
+        queryset = queryset.select_related(
+            'course'
+        ).annotate(
+            completion_count=Count(
+                'user_progress',
+                filter=Q(user_progress__completed=True),
+                distinct=True
+            ),
+            user_completed=Exists(user_progress)
+        )
+
+        return queryset
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def start(self, request, pk=None):

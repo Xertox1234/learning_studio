@@ -26,6 +26,7 @@ if not TESTING:
         # 'silk.middleware.SilkyMiddleware',  # Must be first for accurate profiling - commented out temporarily
         'debug_toolbar.middleware.DebugToolbarMiddleware',
         'apps.api.middleware.QueryLoggingMiddleware',
+        'apps.api.middleware.query_count_middleware.QueryCountMiddleware',
     ]
 
     # Debug Toolbar Configuration
