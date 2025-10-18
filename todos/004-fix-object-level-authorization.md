@@ -1,9 +1,14 @@
 # Fix Missing Object-Level Authorization
 
+**Status**: ✅ RESOLVED
 **Priority**: 🔴 P1 - CRITICAL
 **Category**: Security
 **Effort**: 20-30 hours
 **Deadline**: Within 2 weeks
+**Resolved Date**: 2025-10-17
+**PR**: #17
+**Commit**: 0a8363a
+**CVE**: CVE-2024-IDOR-001
 
 ## Problem
 

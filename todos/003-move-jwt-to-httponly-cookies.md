@@ -1,9 +1,14 @@
 # Move JWT Tokens to httpOnly Cookies
 
+**Status**: ✅ RESOLVED
 **Priority**: 🔴 P1 - CRITICAL
 **Category**: Security
 **Effort**: 8-12 hours
 **Deadline**: Within 1 week
+**Resolved Date**: 2025-10-17
+**PR**: #15
+**Commit**: 10a719f
+**CVE**: CVE-2024-JWT-003
 
 ## Problem
 
