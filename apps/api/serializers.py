@@ -5,19 +5,68 @@ Handles serialization/deserialization of all model data.
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from apps.learning.models import *
-from apps.users.models import UserProfile, Achievement, UserFollow
+from apps.users.models import UserProfile, Achievement, UserFollow, ProgrammingLanguage
+from .validators import ImageUploadValidator
 
 User = get_user_model()
 
 
 # User Management Serializers
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer for User model."""
+    """
+    Serializer for User model with secure avatar upload validation.
+
+    Security Features:
+    - Extension whitelist (JPEG, PNG, GIF, WEBP only)
+    - MIME type validation via python-magic
+    - File size limits (5 MB max)
+    - Image content validation via Pillow
+    - Dimension restrictions (50x50 to 2048x2048)
+    """
+    avatar_url = serializers.SerializerMethodField()
+    avatar_validator = ImageUploadValidator(max_size_mb=5, allow_gif=True, field_name='Avatar')
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined', 'is_active']
-        read_only_fields = ['id', 'date_joined']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name',
+                 'avatar', 'avatar_url', 'date_joined', 'is_active']
+        read_only_fields = ['id', 'date_joined', 'avatar_url']
+        extra_kwargs = {
+            'avatar': {'write_only': True}  # Don't expose file path in responses
+        }
+
+    def get_avatar_url(self, obj):
+        """Return avatar URL or None."""
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
+
+    def validate_avatar(self, value):
+        """
+        Comprehensive avatar validation using reusable validator.
+
+        Validates:
+        1. File extension (whitelist approach)
+        2. MIME type (content-based detection)
+        3. File size (5 MB limit)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
+
+        Args:
+            value: UploadedFile instance
+
+        Returns:
+            Validated file instance
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        return self.avatar_validator(value)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -31,11 +80,57 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class AchievementSerializer(serializers.ModelSerializer):
-    """Serializer for Achievement model."""
+    """
+    Serializer for Achievement model with secure icon upload validation.
+
+    Security Features:
+    - Extension whitelist (JPEG, PNG, GIF, WEBP only)
+    - MIME type validation via python-magic
+    - File size limits (5 MB max)
+    - Image content validation via Pillow
+    - Dimension restrictions (50x50 to 2048x2048)
+    """
+    icon_url = serializers.SerializerMethodField()
+    icon_validator = ImageUploadValidator(max_size_mb=5, allow_gif=True, field_name='Achievement Icon')
+
     class Meta:
         model = Achievement
         fields = '__all__'
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'icon_url']
+        extra_kwargs = {
+            'icon': {'write_only': True}
+        }
+
+    def get_icon_url(self, obj):
+        """Return icon URL or None."""
+        if obj.icon:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.icon.url)
+            return obj.icon.url
+        return None
+
+    def validate_icon(self, value):
+        """
+        Comprehensive icon validation using reusable validator.
+
+        Validates:
+        1. File extension (whitelist approach)
+        2. MIME type (content-based detection)
+        3. File size (5 MB limit)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
+
+        Args:
+            value: UploadedFile instance
+
+        Returns:
+            Validated file instance
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        return self.icon_validator(value)
 
 
 # Learning Management Serializers
@@ -54,28 +149,112 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class CourseSerializer(serializers.ModelSerializer):
-    """Serializer for Course model."""
+    """
+    Serializer for Course model with secure image upload validation.
+
+    Security Features:
+    - Extension whitelist (JPEG, PNG, WEBP only for course images)
+    - MIME type validation via python-magic
+    - File size limits (10 MB max for course materials)
+    - Image content validation via Pillow
+    - Dimension restrictions (50x50 to 2048x2048)
+    """
     instructor = UserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
     instructor_id = serializers.IntegerField(write_only=True)
     enrollment_count = serializers.SerializerMethodField()
     user_enrolled = serializers.SerializerMethodField()
-    
+    thumbnail_url = serializers.SerializerMethodField()
+    banner_url = serializers.SerializerMethodField()
+    # Course images have higher size limit (10 MB) and no GIF support
+    course_image_validator = ImageUploadValidator(max_size_mb=10, allow_gif=False, field_name='Course Image')
+
     class Meta:
         model = Course
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at', 'published_at', 'total_lessons', 
-                           'total_enrollments', 'average_rating', 'total_reviews']
-    
+        read_only_fields = ['created_at', 'updated_at', 'published_at', 'total_lessons',
+                           'total_enrollments', 'average_rating', 'total_reviews',
+                           'thumbnail_url', 'banner_url']
+        extra_kwargs = {
+            'thumbnail': {'write_only': True},
+            'banner_image': {'write_only': True}
+        }
+
     def get_enrollment_count(self, obj):
         return obj.enrollments.count()
-    
+
     def get_user_enrolled(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.enrollments.filter(user=request.user).exists()
         return False
+
+    def get_thumbnail_url(self, obj):
+        """Return thumbnail URL or None."""
+        if obj.thumbnail:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.thumbnail.url)
+            return obj.thumbnail.url
+        return None
+
+    def get_banner_url(self, obj):
+        """Return banner image URL or None."""
+        if obj.banner_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.banner_image.url)
+            return obj.banner_image.url
+        return None
+
+    def validate_thumbnail(self, value):
+        """
+        Validate course thumbnail image using reusable validator.
+
+        Validates:
+        1. File extension (whitelist approach)
+        2. MIME type (content-based detection)
+        3. File size (10 MB limit for course materials)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
+
+        Args:
+            value: UploadedFile instance
+
+        Returns:
+            Validated file instance
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        # Use shared validator with custom field name
+        validator = ImageUploadValidator(max_size_mb=10, allow_gif=False, field_name='Thumbnail')
+        return validator(value)
+
+    def validate_banner_image(self, value):
+        """
+        Validate course banner image using reusable validator.
+
+        Validates:
+        1. File extension (whitelist approach)
+        2. MIME type (content-based detection)
+        3. File size (10 MB limit for course materials)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
+
+        Args:
+            value: UploadedFile instance
+
+        Returns:
+            Validated file instance
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        # Use shared validator with custom field name
+        validator = ImageUploadValidator(max_size_mb=10, allow_gif=False, field_name='Banner')
+        return validator(value)
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -168,16 +347,63 @@ class CourseReviewSerializer(serializers.ModelSerializer):
 
 # Exercise System Serializers
 class ProgrammingLanguageSerializer(serializers.ModelSerializer):
-    """Serializer for ProgrammingLanguage model."""
+    """
+    Serializer for ProgrammingLanguage model with secure icon upload validation.
+
+    Security Features:
+    - Extension whitelist (JPEG, PNG, GIF, WEBP only)
+    - MIME type validation via python-magic
+    - File size limits (5 MB max)
+    - Image content validation via Pillow
+    - Dimension restrictions (50x50 to 2048x2048)
+
+    Note: SVG support removed due to XSS risk (embedded JavaScript)
+    """
     exercise_count = serializers.SerializerMethodField()
-    
+    icon_url = serializers.SerializerMethodField()
+    icon_validator = ImageUploadValidator(max_size_mb=5, allow_gif=True, field_name='Language Icon')
+
     class Meta:
         model = ProgrammingLanguage
         fields = '__all__'
-        read_only_fields = ['created_at']
-    
+        read_only_fields = ['created_at', 'icon_url']
+        extra_kwargs = {
+            'icon': {'write_only': True}
+        }
+
     def get_exercise_count(self, obj):
         return obj.exercises.filter(is_published=True).count()
+
+    def get_icon_url(self, obj):
+        """Return icon URL or None."""
+        if obj.icon:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.icon.url)
+            return obj.icon.url
+        return None
+
+    def validate_icon(self, value):
+        """
+        Comprehensive icon validation using reusable validator.
+
+        Validates:
+        1. File extension (whitelist approach, no SVG for XSS prevention)
+        2. MIME type (content-based detection)
+        3. File size (5 MB limit)
+        4. Image content (Pillow verification)
+        5. Image dimensions (50x50 to 2048x2048)
+
+        Args:
+            value: UploadedFile instance
+
+        Returns:
+            Validated file instance
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        return self.icon_validator(value)
 
 
 class ExerciseTypeSerializer(serializers.ModelSerializer):

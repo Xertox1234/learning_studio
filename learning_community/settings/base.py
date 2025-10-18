@@ -229,6 +229,17 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# 🔒 SECURITY: File Upload Settings (CVE-2024-FILE-001)
+# Maximum file size for in-memory uploads (5 MB)
+# Files larger than this will be streamed to disk
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
+
+# Maximum total request size (10 MB) - prevents memory exhaustion
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+
+# Maximum number of form fields (prevents memory exhaustion attacks)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -276,6 +287,10 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'apps.api.pagination.StandardResultsSetPagination',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # 🔒 SECURITY: Rate limiting for file uploads (CWE-400, CVE-2024-FILE-001)
+    'DEFAULT_THROTTLE_RATES': {
+        'file_upload': '10/minute',  # Limit file uploads to prevent abuse
+    },
 }
 
 # JWT Configuration
@@ -386,6 +401,17 @@ LOGGING = {
         'django': {
             'handlers': ['console', 'file'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        # 🔒 SECURITY: File upload security events (CVE-2024-FILE-001)
+        'apps.api.validators': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'apps.users.validators': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
             'propagate': False,
         },
     },

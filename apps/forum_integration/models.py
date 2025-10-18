@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.utils import timezone
 from datetime import timedelta
 from wagtail.models import Page
@@ -12,6 +12,13 @@ from wagtail.images.blocks import ImageChooserBlock
 from machina.core.db.models import get_model
 from machina.apps.forum.models import Forum
 from machina.apps.forum_conversation.models import Topic, Post
+from apps.users.validators import (
+    SecureBadgeImageUpload,
+    validate_badge_image_file_size,
+    validate_image_dimensions,
+    validate_image_content,
+    validate_mime_type,
+)
 
 User = get_user_model()
 
@@ -568,7 +575,21 @@ class Badge(models.Model):
     
     # Visual representation
     icon = models.CharField(max_length=50, default='bi-award', help_text="Bootstrap icon class")
-    image = models.ImageField(upload_to='badges/', blank=True, null=True, help_text="Custom badge image")
+    image = models.ImageField(
+        upload_to=SecureBadgeImageUpload(),
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['jpg', 'jpeg', 'png', 'gif', 'webp']
+            ),
+            validate_badge_image_file_size,
+            validate_image_dimensions,
+            validate_image_content,
+            validate_mime_type,
+        ],
+        help_text="Custom badge image (max 2 MB, JPG/PNG/GIF/WEBP)"
+    )
     color = models.CharField(max_length=7, default='#ffd700', help_text="Badge color (hex)")
     rarity = models.CharField(max_length=10, choices=RARITY_CHOICES, default='common')
     
@@ -611,7 +632,41 @@ class Badge(models.Model):
             'legendary': '#fd7e14',
         }
         return colors.get(self.rarity, '#6c757d')
-    
+
+    def save(self, *args, **kwargs):
+        """
+        Delete old badge image when uploading new one.
+
+        Uses select_for_update() to prevent race conditions when
+        multiple requests attempt to update the same badge concurrently.
+        """
+        from django.db import transaction
+
+        old_image = None
+
+        if self.pk:
+            try:
+                # Lock the row to prevent concurrent modifications
+                with transaction.atomic():
+                    old_instance = Badge.objects.select_for_update().get(pk=self.pk)
+                    if old_instance.image and self.image != old_instance.image:
+                        old_image = old_instance.image
+            except Badge.DoesNotExist:
+                pass
+
+        # Save the new image
+        super().save(*args, **kwargs)
+
+        # Delete old file after successful save
+        if old_image:
+            old_image.delete(save=False)
+
+    def delete(self, *args, **kwargs):
+        """Delete badge image file when badge deleted."""
+        if self.image:
+            self.image.delete(save=False)
+        super().delete(*args, **kwargs)
+
     def check_condition(self, user):
         """
         Check if user meets the condition for this badge

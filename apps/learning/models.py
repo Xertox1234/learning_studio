@@ -4,11 +4,18 @@ These models handle courses, lessons, progress tracking, and AI-enhanced content
 """
 
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 import json
+from apps.users.validators import (
+    SecureCourseImageUpload,
+    validate_course_image_file_size,
+    validate_image_dimensions,
+    validate_image_content,
+    validate_mime_type,
+)
 
 User = get_user_model()
 
@@ -87,8 +94,36 @@ class Course(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
     # Images
-    thumbnail = models.ImageField(upload_to='course_thumbnails/', blank=True, null=True)
-    banner_image = models.ImageField(upload_to='course_banners/', blank=True, null=True)
+    thumbnail = models.ImageField(
+        upload_to=SecureCourseImageUpload('course_thumbnails'),
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['jpg', 'jpeg', 'png', 'webp']
+            ),
+            validate_course_image_file_size,
+            validate_image_dimensions,
+            validate_image_content,
+            validate_mime_type,
+        ],
+        help_text='Course thumbnail (max 10 MB, JPG/PNG/WEBP, 50x50 to 2048x2048)'
+    )
+    banner_image = models.ImageField(
+        upload_to=SecureCourseImageUpload('course_banners'),
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['jpg', 'jpeg', 'png', 'webp']
+            ),
+            validate_course_image_file_size,
+            validate_image_dimensions,
+            validate_image_content,
+            validate_mime_type,
+        ],
+        help_text='Course banner image (max 10 MB, JPG/PNG/WEBP, 50x50 to 2048x2048)'
+    )
     
     # Statistics (auto-calculated)
     total_lessons = models.PositiveIntegerField(default=0)
@@ -113,10 +148,54 @@ class Course(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
+        """
+        Delete old images when uploading new ones.
+
+        Uses select_for_update() to prevent race conditions when
+        multiple requests attempt to update the same course concurrently.
+        """
+        from django.db import transaction
+
+        old_thumbnail = None
+        old_banner = None
+
+        if self.pk:
+            try:
+                # Lock the row to prevent concurrent modifications
+                with transaction.atomic():
+                    old_instance = Course.objects.select_for_update().get(pk=self.pk)
+
+                    # Capture old thumbnail
+                    if old_instance.thumbnail and self.thumbnail != old_instance.thumbnail:
+                        old_thumbnail = old_instance.thumbnail
+
+                    # Capture old banner
+                    if old_instance.banner_image and self.banner_image != old_instance.banner_image:
+                        old_banner = old_instance.banner_image
+            except Course.DoesNotExist:
+                pass
+
+        # Existing published_at logic
         if self.is_published and not self.published_at:
             self.published_at = timezone.now()
+
+        # Save the new images
         super().save(*args, **kwargs)
-    
+
+        # Delete old files after successful save
+        if old_thumbnail:
+            old_thumbnail.delete(save=False)
+        if old_banner:
+            old_banner.delete(save=False)
+
+    def delete(self, *args, **kwargs):
+        """Delete image files when course deleted."""
+        if self.thumbnail:
+            self.thumbnail.delete(save=False)
+        if self.banner_image:
+            self.banner_image.delete(save=False)
+        super().delete(*args, **kwargs)
+
     def get_absolute_url(self):
         return reverse('course_detail', kwargs={'slug': self.slug})
     
