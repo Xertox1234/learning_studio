@@ -270,6 +270,36 @@ OPENAI_API_KEY=your-api-key  # Optional - graceful fallback if missing
 DATABASE_URL=postgresql://user:pass@localhost/dbname
 ```
 
+#### System Dependencies
+
+**libmagic (Required for File Upload Security):**
+
+```bash
+# macOS
+brew install libmagic
+
+# Ubuntu/Debian
+sudo apt-get install libmagic1 libmagic-dev
+
+# CentOS/RHEL/Fedora
+sudo yum install file-devel
+
+# Windows
+pip install python-magic-bin
+
+# Verify installation
+python3 -c "import magic; print('libmagic installed correctly')"
+```
+
+**Why libmagic?**
+- Required for CVE-2024-FILE-001 fix (file upload security)
+- Detects MIME types from file content (not just extension)
+- Prevents extension spoofing attacks
+- Graceful degradation if unavailable (reduced security)
+- **Strongly recommended for production deployment**
+
+See `DEPENDENCIES.md` for complete installation guide.
+
 ## Common Troubleshooting
 
 ### Django Settings Issues
@@ -302,6 +332,51 @@ python manage.py fixtree  # Fix page tree structure
 2. API URL conflicts: Wagtail exercises use `/api/v1/wagtail/exercises/`
 3. Verify slug matches: Use exact slug from Wagtail admin
 
+### File Upload Issues
+
+#### libmagic ImportError
+```bash
+# Error: "ImportError: failed to find libmagic"
+# Solution 1: Install system library
+brew install libmagic  # macOS
+sudo apt-get install libmagic1  # Ubuntu
+
+# Solution 2: Set library path (macOS)
+export DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH
+
+# Solution 3: Windows - use bundled version
+pip uninstall python-magic
+pip install python-magic-bin
+
+# Verify installation
+python3 -c "import magic; print('OK')"
+```
+
+#### File Upload Validation Errors
+```bash
+# Check file is valid image
+file --mime-type <image-file>
+# Should show: image/jpeg, image/png, etc.
+
+# Test with Python
+python3 -c "from PIL import Image; img = Image.open('<image-file>'); print(f'{img.format} {img.size}')"
+
+# Check file size
+ls -lh <image-file>
+# Must be < 5MB for avatars, < 10MB for course images
+
+# Run upload tests
+python manage.py test apps.api.tests.test_image_upload_validation -v 2
+```
+
+#### Allowed File Formats
+- ✅ JPEG (.jpg, .jpeg)
+- ✅ PNG (.png)
+- ✅ GIF (.gif)
+- ✅ WebP (.webp)
+- ❌ SVG (.svg) - Removed for XSS prevention
+- ❌ All other formats rejected
+
 ## Key Implementation Notes
 
 ### Adding New Features
@@ -310,6 +385,48 @@ python manage.py fixtree  # Fix page tree structure
 3. **Business Logic**: Extract to `apps/api/services/`
 4. **Wagtail Pages**: Define in `apps/blog/models.py`, add API endpoint
 5. **Routing**: Update `frontend/src/App.jsx` and `apps/api/urls.py`
+
+### Adding ImageField to Models
+
+When adding ImageField to Django models, ALWAYS use secure upload handlers and validators:
+
+```python
+from apps.users.validators import (
+    SecureAvatarUpload,  # or appropriate upload handler
+    validate_image_file_size,
+    validate_mime_type,
+    validate_image_content,
+    validate_image_dimensions
+)
+
+class YourModel(models.Model):
+    image = models.ImageField(
+        upload_to=SecureAvatarUpload(),  # UUID-based paths
+        validators=[
+            validate_image_file_size,     # Size limits
+            validate_mime_type,            # MIME validation (libmagic)
+            validate_image_content,        # Content validation (Pillow)
+            validate_image_dimensions,     # Dimension limits
+        ],
+        blank=True,
+        null=True
+    )
+```
+
+**NEVER:**
+- ❌ Use user input in `upload_to` paths
+- ❌ Accept user-provided filenames
+- ❌ Allow SVG uploads (XSS risk)
+- ❌ Skip validation
+- ❌ Use extension-only validation
+
+**ALWAYS:**
+- ✅ Use UUID-based filenames
+- ✅ Validate with python-magic (MIME types)
+- ✅ Validate with Pillow (content)
+- ✅ Enforce size limits
+- ✅ Enforce dimension limits
+- ✅ Apply rate limiting to upload endpoints
 
 ### Exercise System
 - Template syntax: `{{BLANK_N}}` (not `___param___`)
@@ -471,12 +588,30 @@ python manage.py test apps.api
 python manage.py test apps.api.tests.test_code_execution
 python manage.py test apps.api.tests.test_statistics_service
 python manage.py test apps.api.tests.test_review_queue_service
+python manage.py test apps.api.tests.test_image_upload_validation
 
 # Single test class
 python manage.py test apps.api.tests.test_middleware.MiddlewareTests
 
 # Single test method
 python manage.py test apps.api.tests.test_cache_strategies.CacheTests.test_cache_invalidation
+```
+
+#### Security Testing
+```bash
+# All security tests
+DJANGO_SETTINGS_MODULE=learning_community.settings.development \
+  python manage.py test \
+  apps.api.tests.test_xss_protection \
+  apps.api.tests.test_csrf_protection \
+  apps.api.tests.test_object_permissions \
+  apps.api.tests.test_image_upload_validation
+
+# File upload security tests (28 tests)
+python manage.py test apps.api.tests.test_image_upload_validation
+
+# Object-level authorization tests (22 tests)
+python manage.py test apps.api.tests.test_object_permissions
 ```
 
 #### Test Files Location
@@ -487,6 +622,10 @@ apps/
 │   ├── test_statistics_service.py
 │   ├── test_cache_strategies.py
 │   ├── test_review_queue_service.py
+│   ├── test_image_upload_validation.py  # File upload security
+│   ├── test_object_permissions.py       # IDOR/BOLA prevention
+│   ├── test_xss_protection.py          # XSS prevention
+│   ├── test_csrf_protection.py         # CSRF protection
 │   └── test_commands.py
 ├── learning/tests.py
 ├── forum_integration/tests.py
@@ -578,7 +717,176 @@ class CodeExecutionViewSet(RateLimitMixin, viewsets.ViewSet):
     rate_limit = '10/minute'  # Configurable per endpoint
 ```
 
+### File Upload Security (CVE-2024-FILE-001)
+All ImageField uploads implement six-layer defense strategy:
+
+```python
+from apps.users.validators import (
+    SecureAvatarUpload,
+    validate_image_file_size,
+    validate_image_dimensions,
+    validate_image_content,
+    validate_mime_type
+)
+
+class User(AbstractUser):
+    """User model with secure avatar upload."""
+    avatar = models.ImageField(
+        upload_to=SecureAvatarUpload(),  # Layer 1: UUID-based filenames
+        validators=[
+            validate_image_file_size,     # Layer 2: Size limits (5MB)
+            validate_mime_type,            # Layer 3: MIME validation (python-magic)
+            validate_image_content,        # Layer 4: Content validation (Pillow)
+            validate_image_dimensions,     # Layer 5: Dimension limits
+        ],
+        blank=True,
+        null=True
+    )
+```
+
+**Security Features:**
+- ✅ UUID-based filenames (no user input in paths)
+- ✅ Extension whitelist (JPEG, PNG, GIF, WEBP only)
+- ✅ MIME type validation via libmagic (content-based detection)
+- ✅ Pillow content validation (prevents polyglot attacks)
+- ✅ File size limits (5MB avatars, 10MB course images)
+- ✅ Dimension validation (50x50 to 2048x2048 pixels)
+- ✅ Rate limiting (10 uploads/minute)
+- ❌ SVG support removed (XSS prevention)
+
+**Reusable Validator Pattern (API Serializers):**
+
+```python
+from apps.api.validators import ImageUploadValidator
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    # Create validator instance
+    avatar_validator = ImageUploadValidator(
+        max_size_mb=5,
+        allow_gif=True,
+        field_name='Avatar'
+    )
+
+    def validate_avatar(self, value):
+        """Validate avatar upload with comprehensive checks."""
+        return self.avatar_validator(value)
+
+    class Meta:
+        model = User
+        fields = ['avatar', ...]
+```
+
+**Secure Upload Path Generators:**
+
+```python
+from apps.users.validators import (
+    SecureAvatarUpload,           # User avatars
+    SecureCourseImageUpload,      # Course thumbnails/banners
+    SecureIconUpload,             # Programming language icons
+    SecureBadgeImageUpload,       # Forum badge images
+    SecureAchievementIconUpload   # Achievement icons
+)
+
+# Usage in models
+class Course(models.Model):
+    thumbnail = models.ImageField(
+        upload_to=SecureCourseImageUpload('course_thumbnails'),
+        validators=[validate_course_image_file_size, ...]
+    )
+```
+
+**Path Traversal Prevention:**
+
+```python
+# NEVER use user input in file paths
+# BAD - vulnerable to path traversal
+def bad_upload_path(instance, filename):
+    return f"uploads/{filename}"  # ❌ filename could be "../../../etc/passwd"
+
+# GOOD - UUID-based paths
+def secure_upload_path(instance, filename):
+    ext = Path(filename).suffix.lower()
+    ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
+    ext = ext if ext in ALLOWED_EXTENSIONS else '.jpg'
+    return f"avatars/user_{instance.id}/{uuid.uuid4()}{ext}"  # ✅ No user input
+```
+
+**Rate Limiting Configuration:**
+
+```python
+# settings/base.py
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '1000/hour',
+        'file_upload': '10/minute',  # Strict limit for uploads
+    }
+}
+
+# Apply to ViewSets
+from rest_framework.throttling import UserRateThrottle
+
+class FileUploadThrottle(UserRateThrottle):
+    scope = 'file_upload'
+
+@action(methods=['POST'], throttle_classes=[FileUploadThrottle])
+def upload_avatar(self, request):
+    pass
+```
+
+**Required System Dependencies:**
+
+File upload security requires **libmagic** for MIME type validation:
+
+```bash
+# macOS
+brew install libmagic
+
+# Ubuntu/Debian
+sudo apt-get install libmagic1 libmagic-dev
+
+# CentOS/RHEL/Fedora
+sudo yum install file-devel
+
+# Windows
+pip install python-magic-bin
+
+# Verify installation
+python3 -c "import magic; print(magic.from_file('/etc/hosts', mime=True))"
+```
+
+**Graceful Degradation:**
+
+If libmagic is not installed, validation gracefully degrades:
+- ✅ Extension validation still active
+- ✅ Content validation (Pillow) still active
+- ❌ MIME type validation disabled
+
+**Production deployment strongly recommends libmagic installation for defense-in-depth security.**
+
+**Testing File Uploads:**
+
+```bash
+# Run file upload security tests
+DJANGO_SETTINGS_MODULE=learning_community.settings.development \
+  python manage.py test apps.api.tests.test_image_upload_validation
+
+# Expected: 28 tests, all passing
+```
+
 ## Recent Updates
+
+### 2025-10-17: File Upload Security (CVE-2024-FILE-001)
+1. **Path Traversal Prevention**: UUID-based filenames with zero user input in paths
+2. **Six-Layer Defense**: Extension whitelist, MIME validation, content validation, size limits, dimension validation, rate limiting
+3. **SVG XSS Prevention**: SVG support removed from all ImageField uploads
+4. **ImageUploadValidator**: Reusable validator class for API serializers
+5. **libmagic Integration**: Content-based MIME detection (graceful degradation if unavailable)
+6. **Race Condition Prevention**: Transaction-based old file cleanup
+7. **Security Test Suite**: 28 comprehensive tests covering all attack vectors
+8. **Documentation**: Complete file upload security audit, CVE-2024-FILE-001 tracker entry, DEPENDENCIES.md
 
 ### 2025-10-17: Critical Security Fixes
 1. **IDOR/BOLA Prevention**: Object-level authorization for UserProfile, CourseReview, PeerReview, CodeReview
