@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { sanitizeHTML } from '../utils/sanitize'
 import {
@@ -21,7 +21,7 @@ import {
   Shield
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { useTopicDetail, useTopicPosts, useDeletePost, useLockTopic, usePinTopic } from '../hooks/useForumQuery'
+import { useTopicDetail, useInfiniteTopicPosts, useDeletePost, useLockTopic, usePinTopic } from '../hooks/useForumQuery'
 import { useAuth } from '../contexts/AuthContext'
 import { useQueryClient } from '@tanstack/react-query'
 import PostCreateForm from '../components/forum/PostCreateForm'
@@ -37,15 +37,26 @@ export default function ForumTopicPage() {
   const [showModerationMenu, setShowModerationMenu] = useState(false)
   const menuRef = useRef(null)
   const menuButtonRef = useRef(null)
+  const observerTarget = useRef(null)
 
   // Fetch topic and posts with React Query
   const { data: topic, isLoading: loadingTopic, error: topicError } = useTopicDetail(topicId)
-  const { data: postsData, isLoading: loadingPosts } = useTopicPosts(topicId, { page: 1, page_size: 100 })
+  const {
+    data: postsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: loadingPosts,
+  } = useInfiniteTopicPosts(topicId)
   const deletePostMutation = useDeletePost()
   const lockTopicMutation = useLockTopic()
   const pinTopicMutation = usePinTopic()
 
-  const posts = postsData?.results || []
+  // Flatten all pages into single array (memoized for performance)
+  const posts = useMemo(
+    () => postsData?.pages.flatMap((page) => page.results) || [],
+    [postsData]
+  )
   const loading = loadingTopic || loadingPosts
   const error = topicError?.message || null
   const moderationLoading = lockTopicMutation.isPending || pinTopicMutation.isPending
@@ -72,6 +83,24 @@ export default function ForumTopicPage() {
     }
   }, [showModerationMenu])
 
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!observerTarget.current) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 1.0 }
+    )
+
+    observer.observe(observerTarget.current)
+
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
   const formatTimeAgo = (date) => {
     if (!date) return 'unknown'
     const now = new Date()
@@ -95,16 +124,43 @@ export default function ForumTopicPage() {
   }
 
   const handleReplyCreated = (newPost) => {
-    // React Query will automatically refetch the posts and topic
-    queryClient.invalidateQueries({ queryKey: ['topics', topicId, 'posts'] })
-    queryClient.invalidateQueries({ queryKey: ['topics', topicId] })
+    // Optimistically update the posts cache
+    queryClient.setQueryData(['topics', 'details', topicId, 'posts'], (oldData) => {
+      if (!oldData) return oldData
+
+      // Add new post to the last page
+      const newPages = [...oldData.pages]
+      const lastPage = newPages[newPages.length - 1]
+
+      return {
+        ...oldData,
+        pages: [
+          ...newPages.slice(0, -1),
+          {
+            ...lastPage,
+            results: [...lastPage.results, newPost],
+          },
+        ],
+      }
+    })
+
+    // Update topic details (post count, last post, etc.)
+    queryClient.invalidateQueries({ queryKey: ['topics', 'details', topicId] })
+
     setShowReplyForm(false)
     toast.success('Reply posted successfully!')
+
+    // Scroll to new post
+    setTimeout(() => {
+      const postElements = document.querySelectorAll('[data-post-id]')
+      const lastPost = postElements[postElements.length - 1]
+      lastPost?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 100)
   }
 
   const handlePostEdited = (updatedPost) => {
     // React Query will automatically refetch the posts
-    queryClient.invalidateQueries({ queryKey: ['topics', topicId, 'posts'] })
+    queryClient.invalidateQueries({ queryKey: ['topics', 'details', topicId, 'posts'] })
     setEditingPostId(null)
     toast.success('Post updated successfully!')
   }
@@ -118,7 +174,6 @@ export default function ForumTopicPage() {
       await deletePostMutation.mutateAsync(postId)
       toast.success('Post deleted successfully!')
     } catch (error) {
-      console.error('Failed to delete post:', error)
       toast.error('Failed to delete post. Please try again.')
     }
   }
@@ -154,8 +209,8 @@ export default function ForumTopicPage() {
       toast.success(`Topic ${lock ? 'locked' : 'unlocked'} successfully!`)
       setShowModerationMenu(false)
     } catch (error) {
-      console.error('Failed to lock/unlock topic:', error)
-      toast.error(`Failed to ${isCurrentlyLocked ? 'unlock' : 'lock'} topic: ${error.message}`)
+      const action = isCurrentlyLocked ? 'unlock' : 'lock'
+      toast.error(`Failed to ${action} topic. Please try again.`)
     }
   }
 
@@ -174,8 +229,8 @@ export default function ForumTopicPage() {
       toast.success(`Topic ${pin ? 'pinned' : 'unpinned'} successfully!`)
       setShowModerationMenu(false)
     } catch (error) {
-      console.error('Failed to pin/unpin topic:', error)
-      toast.error(`Failed to ${isCurrentlyPinned ? 'unpin' : 'pin'} topic: ${error.message}`)
+      const action = isCurrentlyPinned ? 'unpin' : 'pin'
+      toast.error(`Failed to ${action} topic. Please try again.`)
     }
   }
 
@@ -361,7 +416,11 @@ export default function ForumTopicPage() {
       <div className="container-custom py-8">
         <div className="space-y-6">
           {posts.map((post, index) => (
-            <div key={post.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div
+              key={post.id}
+              data-post-id={post.id}
+              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+            >
               {/* Post Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-3">
@@ -436,6 +495,27 @@ export default function ForumTopicPage() {
               )}
             </div>
           ))}
+
+          {/* Infinite scroll trigger and loading state */}
+          {hasNextPage && (
+            <div ref={observerTarget} className="py-8 text-center">
+              {isFetchingNextPage ? (
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Loading more posts...</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fetchNextPage()}
+                  className="btn-secondary inline-flex items-center space-x-2"
+                  aria-label="Load more posts"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span>Load More Posts</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Reply Section */}

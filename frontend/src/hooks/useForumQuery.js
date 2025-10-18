@@ -3,7 +3,7 @@
  * Provides caching, background refetching, and optimistic updates
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as forumApi from '../api/forumApi'
 
 // ===========================
@@ -137,6 +137,38 @@ export const useTopicPosts = (topicId, params = {}, options = {}) => {
     queryFn: () => forumApi.getTopicPosts(topicId, params),
     enabled: !!topicId,
     staleTime: 1 * 60 * 1000, // 1 minute
+    ...options,
+  })
+}
+
+/**
+ * Get posts for a specific topic with infinite scroll (cursor pagination)
+ */
+export const useInfiniteTopicPosts = (topicId, options = {}) => {
+  return useInfiniteQuery({
+    queryKey: topicKeys.posts(topicId),
+    queryFn: async ({ pageParam = null }) => {
+      const params = {}
+      if (pageParam) {
+        params.cursor = pageParam
+      }
+      return forumApi.getTopicPosts(topicId, params)
+    },
+    getNextPageParam: (lastPage) => {
+      // Extract cursor from 'next' URL
+      if (lastPage.next) {
+        try {
+          const url = new URL(lastPage.next, window.location.origin)
+          return url.searchParams.get('cursor')
+        } catch (e) {
+          // Silently fail - cursor pagination will stop if URL is invalid
+          return undefined
+        }
+      }
+      return undefined
+    },
+    enabled: !!topicId,
+    staleTime: 30 * 1000, // 30 seconds
     ...options,
   })
 }

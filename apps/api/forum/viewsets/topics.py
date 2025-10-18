@@ -5,6 +5,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+from rest_framework.pagination import CursorPagination
 from django.shortcuts import get_object_or_404
 from machina.apps.forum_conversation.models import Topic, Post
 from ..serializers import (
@@ -13,6 +14,23 @@ from ..serializers import (
     TopicCreateSerializer,
     PostListSerializer
 )
+
+
+class PostCursorPagination(CursorPagination):
+    """
+    Cursor-based pagination for forum posts.
+    More efficient than offset pagination for large datasets.
+    Prevents page drift when new items are added.
+
+    IMPORTANT: Requires database index on 'created' field for performance.
+    The django-machina Post model includes this index by default.
+    Verify with: Post._meta.get_field('created').db_index
+    """
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+    ordering = 'created'  # MUST be indexed for performance!
+    cursor_query_param = 'cursor'
 
 
 class TopicViewSet(viewsets.ModelViewSet):
@@ -113,11 +131,14 @@ class TopicViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def posts(self, request, pk=None):
         """
-        Get posts for a specific topic with pagination.
+        Get posts for a specific topic with cursor pagination.
 
         Query params:
-        - page: Page number (default: 1)
+        - cursor: Cursor for pagination (automatically managed)
         - page_size: Items per page (default: 20, max: 100)
+
+        Uses cursor-based pagination for better performance and to prevent
+        page drift when new posts are added during browsing.
         """
         topic = self.get_object()
 
@@ -125,12 +146,8 @@ class TopicViewSet(viewsets.ModelViewSet):
         topic.views_count += 1
         topic.save(update_fields=['views_count'])
 
-        # Get query parameters
-        page = int(request.GET.get('page', 1))
-        page_size = min(int(request.GET.get('page_size', 20)), 100)
-
-        # Get posts
-        posts = Post.objects.filter(
+        # Get posts with optimized query
+        posts_queryset = Post.objects.filter(
             topic=topic,
             approved=True
         ).select_related(
@@ -138,27 +155,15 @@ class TopicViewSet(viewsets.ModelViewSet):
             'poster__trust_level'
         ).order_by('created')
 
-        # Calculate pagination
-        start = (page - 1) * page_size
-        end = start + page_size
-        total_count = posts.count()
-
-        page_posts = posts[start:end]
+        # Apply cursor pagination
+        paginator = PostCursorPagination()
+        paginated_posts = paginator.paginate_queryset(posts_queryset, request, view=self)
 
         # Serialize
-        serializer = PostListSerializer(page_posts, many=True, context={'request': request})
+        serializer = PostListSerializer(paginated_posts, many=True, context={'request': request})
 
-        return Response({
-            'results': serializer.data,
-            'pagination': {
-                'current_page': page,
-                'page_size': page_size,
-                'total_count': total_count,
-                'total_pages': (total_count + page_size - 1) // page_size,
-                'has_next': end < total_count,
-                'has_previous': page > 1,
-            }
-        })
+        # Return paginated response using DRF's built-in method
+        return paginator.get_paginated_response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def subscribe(self, request, pk=None):
