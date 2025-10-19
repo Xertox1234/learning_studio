@@ -5,13 +5,31 @@ import { sanitizeHTML } from '../../utils/sanitize'
 const ProgressiveHintPanel = ({
   exerciseData,
   currentAnswers = {},
-  timeSpent = 0,
+  startTime,
   wrongAttempts = 0,
   onHintRequested = () => {}
 }) => {
   const [currentHintLevel, setCurrentHintLevel] = useState(0)
   const [hintsRevealed, setHintsRevealed] = useState([])
   const [autoHintTriggered, setAutoHintTriggered] = useState(false)
+  const [timeSpent, setTimeSpent] = useState(0)
+
+  // Internal timer for tracking time (doesn't affect parent component)
+  useEffect(() => {
+    if (!startTime) return
+
+    // Calculate initial elapsed time
+    const initialElapsed = Math.floor((Date.now() - startTime) / 1000)
+    setTimeSpent(initialElapsed)
+
+    // Update every second
+    const timer = setInterval(() => {
+      const newElapsed = Math.floor((Date.now() - startTime) / 1000)
+      setTimeSpent(newElapsed)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [startTime])
 
   // Progressive hint structure - each exercise should define these levels
   const getProgressiveHints = () => {
