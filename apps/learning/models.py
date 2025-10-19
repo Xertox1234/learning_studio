@@ -140,9 +140,32 @@ class Course(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True)
-    
+
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['is_published', 'difficulty_level'],
+                name='course_pub_diff_idx'
+            ),
+            models.Index(
+                fields=['is_featured', '-created_at'],
+                name='course_feat_created_idx'
+            ),
+            models.Index(
+                fields=['category', 'is_published'],
+                name='course_cat_pub_idx'
+            ),
+            models.Index(
+                fields=['instructor', 'is_published'],
+                name='course_instr_pub_idx'
+            ),
+            models.Index(
+                fields=['-created_at'],
+                name='course_created_idx'
+            ),
+        ]
     
     def __str__(self):
         return self.title
@@ -350,6 +373,21 @@ class Lesson(models.Model):
     class Meta:
         ordering = ['course', 'order']
         unique_together = ['course', 'slug']
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['course', 'order'],
+                name='lesson_course_order_idx'
+            ),
+            models.Index(
+                fields=['course', 'is_published'],
+                name='lesson_course_pub_idx'
+            ),
+            models.Index(
+                fields=['course', 'lesson_type'],
+                name='lesson_course_type_idx'
+            ),
+        ]
     
     def __str__(self):
         return f"{self.course.title} - {self.title}"
@@ -489,6 +527,25 @@ class CourseEnrollment(models.Model):
     class Meta:
         unique_together = ['user', 'course']
         ordering = ['-enrolled_at']
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['user', '-enrolled_at'],
+                name='enrollment_user_date_idx'
+            ),
+            models.Index(
+                fields=['user', 'completed'],
+                name='enrollment_user_comp_idx'
+            ),
+            models.Index(
+                fields=['course', '-enrolled_at'],
+                name='enrollment_course_date_idx'
+            ),
+            models.Index(
+                fields=['user', '-last_activity'],
+                name='enrollment_user_act_idx'
+            ),
+        ]
     
     def __str__(self):
         return f"{self.user.username} - {self.course.title}"
@@ -545,6 +602,25 @@ class UserProgress(models.Model):
     class Meta:
         unique_together = ['user', 'lesson']
         ordering = ['-last_accessed']
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['user', 'completed'],
+                name='progress_user_comp_idx'
+            ),
+            models.Index(
+                fields=['user', '-last_accessed'],
+                name='progress_user_access_idx'
+            ),
+            models.Index(
+                fields=['lesson', 'completed'],
+                name='progress_lesson_comp_idx'
+            ),
+            models.Index(
+                fields=['user', 'bookmarked'],
+                name='progress_user_book_idx'
+            ),
+        ]
     
     def __str__(self):
         return f"{self.user.username} - {self.lesson.title}"
@@ -613,7 +689,22 @@ class LearningPath(models.Model):
     
     class Meta:
         ordering = ['-created_at']
-    
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['is_published', 'is_featured', '-created_at'],
+                name='path_pub_feat_date_idx'
+            ),
+            models.Index(
+                fields=['is_published', 'difficulty_level'],
+                name='path_pub_diff_idx'
+            ),
+            models.Index(
+                fields=['creator', 'is_published'],
+                name='path_creator_pub_idx'
+            ),
+        ]
+
     def __str__(self):
         return self.title
     
@@ -687,7 +778,26 @@ class StudySession(models.Model):
     
     class Meta:
         ordering = ['-started_at']
-    
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['user', '-started_at'],
+                name='session_user_start_idx'
+            ),
+            models.Index(
+                fields=['lesson', '-started_at'],
+                name='session_lesson_start_idx'
+            ),
+            models.Index(
+                fields=['user', 'lesson', '-started_at'],
+                name='session_user_lesson_idx'
+            ),
+            models.Index(
+                fields=['user', 'completed_lesson'],
+                name='session_user_comp_idx'
+            ),
+        ]
+
     def __str__(self):
         return f"{self.user.username} - {self.lesson.title} ({self.started_at.date()})"
     
