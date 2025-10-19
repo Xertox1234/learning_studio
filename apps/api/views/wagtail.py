@@ -24,8 +24,13 @@ def blog_index(request):
         page = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('page_size', 9))
         
-        # Get all published blog pages
-        blog_pages = BlogPage.objects.live().public().order_by('-first_published_at')
+        # Get all published blog pages with optimized prefetch
+        blog_pages = BlogPage.objects.live().public().prefetch_related(
+            'categories',  # M2M relationship - prevents N+1 for categories
+            'tags',        # M2M relationship - prevents N+1 for tags
+        ).select_related(
+            'author'       # FK relationship - fetch author in same query
+        ).order_by('-first_published_at')
         
         # Filter by category if provided
         if category_slug:
@@ -123,8 +128,14 @@ def blog_post_detail(request, post_slug):
     try:
         from apps.blog.models import BlogPage
         
-        # Get the blog post
-        post = get_object_or_404(BlogPage.objects.live().public(), slug=post_slug)
+        # Get the blog post with optimized prefetch
+        post = get_object_or_404(
+            BlogPage.objects.live().public().prefetch_related(
+                'categories',
+                'tags'
+            ).select_related('author'),
+            slug=post_slug
+        )
         
         # Get categories
         categories = [
@@ -143,12 +154,15 @@ def blog_post_detail(request, post_slug):
         # Serialize full body content via shared serializer
         body_content = serialize_streamfield(post.body, request)
         
-        # Get related posts
+        # Get related posts with optimized prefetch
         related_posts = BlogPage.objects.live().public().exclude(
             id=post.id
         ).filter(
             categories__in=post.categories.all()
-        ).distinct().order_by('-first_published_at')[:3]
+        ).distinct().prefetch_related(
+            'categories',
+            'tags'
+        ).select_related('author').order_by('-first_published_at')[:3]
         
         related_posts_data = [
             {
@@ -197,8 +211,9 @@ def blog_categories(request):
     try:
         from apps.blog.models import BlogCategory
         
-        categories = BlogCategory.objects.all().order_by('name')
-        
+        # Optimize with prefetch_related to avoid N+1 on post_count
+        categories = BlogCategory.objects.all().prefetch_related('blogpage_set').order_by('name')
+
         categories_data = [
             {
                 'id': cat.id,
@@ -230,7 +245,9 @@ def wagtail_homepage(request):
         homepage = HomePage.objects.live().first()
         if not homepage:
             # Return default homepage data when HomePage doesn't exist yet
-            recent_posts = BlogPage.objects.live().public().order_by('-first_published_at')[:3]
+            recent_posts = BlogPage.objects.live().public().prefetch_related(
+                'categories', 'tags'
+            ).select_related('author').order_by('-first_published_at')[:3]
             recent_posts_data = [
                 {
                     'id': post.id,
@@ -284,8 +301,10 @@ def wagtail_homepage(request):
                     'description': block.value.get('description', '')
                 })
         
-        # Get recent blog posts
-        recent_posts = BlogPage.objects.live().public().order_by('-first_published_at')[:3]
+        # Get recent blog posts with optimized prefetch
+        recent_posts = BlogPage.objects.live().public().prefetch_related(
+            'categories', 'tags'
+        ).select_related('author').order_by('-first_published_at')[:3]
         recent_posts_data = [
             {
                 'id': post.id,
@@ -331,9 +350,15 @@ def learning_index(request):
                 'error': 'Learning index page not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Get featured courses
+        # Get featured courses with optimized prefetch
         featured_courses = CoursePage.objects.live().public().filter(
             featured=True
+        ).prefetch_related(
+            'categories',          # M2M for categories
+            'tags'                 # M2M for tags
+        ).select_related(
+            'instructor',          # FK for instructor
+            'skill_level'          # FK for skill level
         ).order_by('-first_published_at')[:6]
         
         featured_courses_data = []
@@ -413,8 +438,14 @@ def courses_list(request):
         page_num = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('page_size', 12))
         
-        # Start with base queryset
-        courses = CoursePage.objects.live().public().order_by('-first_published_at')
+        # Start with base queryset with optimized prefetch
+        courses = CoursePage.objects.live().public().prefetch_related(
+            'categories',          # M2M for categories
+            'tags'                 # M2M for tags
+        ).select_related(
+            'instructor',          # FK for instructor
+            'skill_level'          # FK for skill level
+        ).order_by('-first_published_at')
         
         # Apply filters
         if skill_level_slug:
@@ -508,7 +539,18 @@ def course_detail(request, course_slug):
     try:
         from apps.blog.models import CoursePage
 
-        course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
+        # Get course with optimized prefetch
+        course = get_object_or_404(
+            CoursePage.objects.live().public().prefetch_related(
+                'learning_objectives',
+                'categories',
+                'tags'
+            ).select_related(
+                'instructor',
+                'skill_level'
+            ),
+            slug=course_slug
+        )
 
         # Serialize course data
         course_data = {
@@ -565,6 +607,7 @@ def course_exercises(request, course_slug):
     try:
         from apps.blog.models import CoursePage, ExercisePage, StepBasedExercisePage, LessonPage
 
+        # Get course (no prefetch needed since we only use basic attributes)
         course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
 
         exercises = []
@@ -673,9 +716,13 @@ def exercises_list(request):
         include_step_based = request.GET.get('step_based', 'true').lower() == 'true'
         
         exercises = []
-        
-        # Get regular exercises
-        regular_exercises = ExercisePage.objects.live().public().order_by('-first_published_at')
+
+        # Get regular exercises with optimized prefetch
+        regular_exercises = ExercisePage.objects.live().public().prefetch_related(
+            'tags'
+        ).select_related(
+            'owner'
+        ).order_by('-first_published_at')
         
         # Apply filters
         if exercise_type:
@@ -709,9 +756,13 @@ def exercises_list(request):
                 'course_title': exercise.get_parent().get_parent().title if exercise.get_parent() and exercise.get_parent().get_parent() else None,
             })
         
-        # Get step-based exercises if requested
+        # Get step-based exercises if requested with optimized prefetch
         if include_step_based:
-            step_exercises = StepBasedExercisePage.objects.live().public().order_by('-first_published_at')
+            step_exercises = StepBasedExercisePage.objects.live().public().prefetch_related(
+                'tags'
+            ).select_related(
+                'owner'
+            ).order_by('-first_published_at')
             
             # Apply general filters (difficulty only applies to step-based)
             if difficulty:
@@ -773,9 +824,12 @@ def exercise_detail(request, exercise_slug):
     """Get detailed information about a specific exercise."""
     try:
         from apps.blog.models import ExercisePage
-        
-        # Get the exercise
-        exercise = get_object_or_404(ExercisePage.objects.live().public(), slug=exercise_slug)
+
+        # Get the exercise with optimized prefetch
+        exercise = get_object_or_404(
+            ExercisePage.objects.live().public().prefetch_related('tags').select_related('owner'),
+            slug=exercise_slug
+        )
         
         # Parse progressive hints JSON
         progressive_hints = []
@@ -918,9 +972,12 @@ def step_exercise_detail(request, exercise_slug):
     """Get detailed information about a specific step-based exercise."""
     try:
         from apps.blog.models import StepBasedExercisePage
-        
-        # Get the exercise
-        exercise = get_object_or_404(StepBasedExercisePage.objects.live().public(), slug=exercise_slug)
+
+        # Get the exercise with optimized prefetch
+        exercise = get_object_or_404(
+            StepBasedExercisePage.objects.live().public().prefetch_related('tags').select_related('owner'),
+            slug=exercise_slug
+        )
         
         # Serialize exercise steps
         steps = []
@@ -1013,6 +1070,7 @@ def wagtail_course_enroll(request, course_slug):
     try:
         from apps.blog.models import CoursePage, WagtailCourseEnrollment
 
+        # Simple fetch - no related data needed for enrollment
         course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
 
         # Check if already enrolled
@@ -1053,6 +1111,7 @@ def wagtail_course_unenroll(request, course_slug):
     try:
         from apps.blog.models import CoursePage, WagtailCourseEnrollment
 
+        # Simple fetch - no related data needed for unenrollment
         course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
 
         enrollment = WagtailCourseEnrollment.objects.filter(
@@ -1083,6 +1142,7 @@ def wagtail_course_enrollment_status(request, course_slug):
     try:
         from apps.blog.models import CoursePage, WagtailCourseEnrollment
 
+        # Simple fetch - no related data needed for status check
         course = get_object_or_404(CoursePage.objects.live().public(), slug=course_slug)
 
         enrollment = WagtailCourseEnrollment.objects.filter(
