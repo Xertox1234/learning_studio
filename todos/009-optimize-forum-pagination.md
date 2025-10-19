@@ -6,6 +6,7 @@
 **Effort**: 6-8 hours
 **Deadline**: Within 2 weeks
 **Resolved Date**: 2025-10-17
+**GitHub Issue**: #11 (closed)
 **Implementation Commit**: 8b4b029
 **Test Commit**: 0772ea5
 
