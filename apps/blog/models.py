@@ -119,7 +119,14 @@ class BlogCategory(models.Model):
     class Meta:
         verbose_name_plural = 'Blog Categories'
         ordering = ['name']
-    
+        indexes = [
+            # Index on slug for fast lookups
+            models.Index(
+                fields=['slug'],
+                name='blogcat_slug_idx'
+            ),
+        ]
+
     def __str__(self):
         return self.name
 
@@ -1524,6 +1531,25 @@ class WagtailCourseEnrollment(models.Model):
         ordering = ['-enrolled_at']
         verbose_name = 'Wagtail Course Enrollment'
         verbose_name_plural = 'Wagtail Course Enrollments'
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['user', '-enrolled_at'],
+                name='wgtl_enroll_user_date_idx'
+            ),
+            models.Index(
+                fields=['user', 'completed'],
+                name='wgtl_enroll_user_comp_idx'
+            ),
+            models.Index(
+                fields=['course', '-enrolled_at'],
+                name='wgtl_enroll_course_date_idx'
+            ),
+            models.Index(
+                fields=['user', '-last_activity'],
+                name='wgtl_enroll_user_act_idx'
+            ),
+        ]
     
     def __str__(self):
         return f"{self.user.username} enrolled in {self.course.title}"

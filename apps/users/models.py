@@ -168,7 +168,28 @@ class UserProfile(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
+    class Meta:
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['skill_level', 'profile_visibility'],
+                name='profile_skill_vis_idx'
+            ),
+            models.Index(
+                fields=['profile_visibility', '-total_courses_completed'],
+                name='profile_vis_courses_idx'
+            ),
+            models.Index(
+                fields=['profile_visibility', '-total_exercises_solved'],
+                name='profile_vis_exercises_idx'
+            ),
+            models.Index(
+                fields=['-created_at'],
+                name='profile_created_idx'
+            ),
+        ]
+
     def __str__(self):
         return f"{self.user.username}'s Profile"
 

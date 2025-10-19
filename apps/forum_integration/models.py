@@ -103,6 +103,19 @@ class TrustLevel(models.Model):
         indexes = [
             models.Index(fields=['level']),
             models.Index(fields=['last_visit_date']),
+            # Composite indexes for common query patterns (leaderboards, analytics)
+            models.Index(
+                fields=['level', '-posts_created'],
+                name='trustlevel_level_posts_idx'
+            ),
+            models.Index(
+                fields=['level', '-likes_received'],
+                name='trustlevel_level_likes_idx'
+            ),
+            models.Index(
+                fields=['-posts_created'],
+                name='trustlevel_posts_idx'
+            ),
         ]
     
     def __str__(self):

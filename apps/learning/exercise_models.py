@@ -162,6 +162,25 @@ class Exercise(models.Model):
     class Meta:
         ordering = ['lesson', 'order']
         unique_together = [['lesson', 'slug']]
+        indexes = [
+            # Composite indexes for common query patterns
+            models.Index(
+                fields=['lesson', 'order'],
+                name='exercise_lesson_order_idx'
+            ),
+            models.Index(
+                fields=['lesson', 'is_published'],
+                name='exercise_lesson_pub_idx'
+            ),
+            models.Index(
+                fields=['difficulty_level', 'is_published'],
+                name='exercise_diff_pub_idx'
+            ),
+            models.Index(
+                fields=['exercise_type', 'is_published'],
+                name='exercise_type_pub_idx'
+            ),
+        ]
 
     def __str__(self):
         return f"{self.lesson.title} - {self.title}"
