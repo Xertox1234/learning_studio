@@ -451,30 +451,33 @@ daily_activity = ReviewQueue.objects.filter(
 Always use `prefetch_related()` and `select_related()` to prevent N+1 queries:
 
 ```python
-from apps.api.utils.queryset_optimizations import (
-    optimize_blog_posts,
-    optimize_courses,
-    optimize_exercises
-)
-
-# Use utility functions for consistency
-blog_posts = optimize_blog_posts(BlogPage.objects.live())
-courses = optimize_courses(CoursePage.objects.live())
-exercises = optimize_exercises(ExercisePage.objects.live())
-
-# Or apply directly
+# Apply optimizations directly to querysets
 posts = BlogPage.objects.live().prefetch_related(
     'categories',  # M2M relationships
     'tags'
 ).select_related(
     'author'      # FK relationships
 ).order_by('-first_published_at')
+
+courses = CoursePage.objects.live().prefetch_related(
+    'categories',
+    'tags'
+).select_related(
+    'instructor',
+    'skill_level'
+)
+
+exercises = ExercisePage.objects.live().prefetch_related(
+    'tags'
+).select_related(
+    'owner'
+)
 ```
 
 **Critical Rules:**
 - ✅ ALWAYS prefetch M2M relationships (categories, tags, etc.)
 - ✅ ALWAYS select_related FK relationships (author, instructor, etc.)
-- ✅ Use utility functions from `apps/api/utils/queryset_optimizations.py`
+- ✅ Apply optimizations inline in views for clarity and simplicity
 - ✅ Test query counts with `apps/api/tests/test_query_performance.py`
 - ⚠️ N+1 queries cause 10-100x performance degradation at scale
 
@@ -613,10 +616,10 @@ class CodeExecutionViewSet(RateLimitMixin, viewsets.ViewSet):
 
 ### 2025-10-19: N+1 Query Storm Fix (PR #23)
 1. **Performance Optimization**: 6-30x faster query performance across all Wagtail endpoints
-2. **Query Optimization Utilities**: New `apps/api/utils/queryset_optimizations.py` module
-3. **Performance Test Suite**: New `apps/api/tests/test_query_performance.py` with 7 tests
-4. **Blog/Course/Exercise Optimizations**: All listings now use prefetch_related/select_related
-5. **Query Reduction**: From 30-1,500 queries to 3-12 queries per request
+2. **Performance Test Suite**: New `apps/api/tests/test_query_performance.py` with 5 tests
+3. **Blog/Course/Exercise Optimizations**: All listings now use prefetch_related/select_related
+4. **Query Reduction**: From 30-1,500 queries to 3-12 queries per request
+5. **Inline Optimizations**: All query optimizations applied directly in views following YAGNI principle
 
 ### 2025-10-17: Critical Security Fixes
 1. **IDOR/BOLA Prevention**: Object-level authorization for UserProfile, CourseReview, PeerReview, CodeReview

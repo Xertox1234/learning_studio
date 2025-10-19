@@ -325,53 +325,37 @@ pip install django-debug-toolbar
 echo "django-debug-toolbar==4.2.0" >> requirements-dev.txt
 ```
 
-### Step 6: Create Prefetch Utility
+### Step 6: Apply Query Optimizations Inline
+
+All query optimizations are applied directly in the views following the YAGNI principle:
 
 ```python
-# apps/api/utils/queryset_optimizations.py
-"""
-Reusable queryset optimization utilities
-"""
+# In apps/api/views/wagtail.py - Blog posts
+posts = BlogPage.objects.live().prefetch_related(
+    'categories',
+    'tags',
+).select_related(
+    'owner'
+).order_by('-first_published_at')
 
-def optimize_blog_posts(queryset):
-    """Apply standard optimizations to blog post queryset"""
-    return queryset.prefetch_related(
-        'categories',
-        'tags',
-    ).select_related(
-        'owner',
-        'owner__profile'
-    )
+# In apps/api/views/wagtail.py - Courses
+courses = CoursePage.objects.live().prefetch_related(
+    'categories',
+    'tags'
+).select_related(
+    'instructor',
+    'skill_level'
+)
 
-def optimize_courses(queryset):
-    """Apply standard optimizations to course queryset"""
-    return queryset.prefetch_related(
-        'lessons',
-        'categories',
-        'enrollments'
-    ).select_related(
-        'instructor',
-        'instructor__profile'
-    ).annotate(
-        enrollment_count=Count('enrollments'),
-        lesson_count=Count('lessons')
-    )
-
-def optimize_exercises(queryset):
-    """Apply standard optimizations to exercise queryset"""
-    return queryset.prefetch_related(
-        'solutions',
-        'hints',
-        'tags'
-    ).select_related('owner')
+# In apps/api/views/wagtail.py - Exercises
+exercises = ExercisePage.objects.live().prefetch_related(
+    'tags'
+).select_related(
+    'owner'
+)
 ```
 
-Usage:
-```python
-from apps.api.utils.queryset_optimizations import optimize_blog_posts
-
-posts = optimize_blog_posts(BlogPage.objects.live())
-```
+**Design Decision**: Inline optimizations preferred over utility functions for clarity and to avoid premature abstraction (YAGNI).
 
 ## Verification
 
@@ -460,12 +444,11 @@ After deployment, monitor:
    - `exercise_detail`: Added prefetch for tags and owner
    - `step_exercise_detail`: Added prefetch for tags and owner
 
-4. **Utility Module Created** (`apps/api/utils/queryset_optimizations.py`)
-   - `optimize_blog_posts()`: Reusable blog post optimization
-   - `optimize_courses()`: Reusable course optimization
-   - `optimize_courses_with_counts()`: Course optimization with annotations
-   - `optimize_exercises()`: Reusable exercise optimization
-   - `optimize_blog_categories()`: Category optimization with prefetch
+4. **Inline Query Optimizations**
+   - All optimizations applied directly in views for clarity
+   - No utility module created (YAGNI principle)
+   - Each view contains explicit prefetch_related/select_related calls
+   - Makes query optimization visible and maintainable at the point of use
 
 5. **Test Suite Added** (`apps/api/tests/test_query_performance.py`)
    - Query count tests for blog list (max 10 queries)

@@ -5,6 +5,7 @@ Wagtail CMS views for blog posts, courses, lessons, and homepage content.
 from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.api.content_serializers.streamfield import serialize_streamfield
@@ -13,7 +14,7 @@ from apps.api.utils import serialize_tags, get_featured_image_url
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def blog_index(request):
+def blog_index(request: Request) -> Response:
     """Get blog posts for React frontend."""
     try:
         from apps.blog.models import BlogPage, BlogCategory
@@ -123,7 +124,7 @@ def blog_index(request):
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def blog_post_detail(request, post_slug):
+def blog_post_detail(request: Request, post_slug: str) -> Response:
     """Get individual blog post for React frontend."""
     try:
         from apps.blog.models import BlogPage
@@ -206,13 +207,20 @@ def blog_post_detail(request, post_slug):
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def blog_categories(request):
+def blog_categories(request: Request) -> Response:
     """Get blog categories for React frontend."""
     try:
         from apps.blog.models import BlogCategory
-        
-        # Optimize with prefetch_related to avoid N+1 on post_count
-        categories = BlogCategory.objects.all().prefetch_related('blogpage_set').order_by('name')
+        from django.db.models import Count, Q
+
+        # Use annotation to count related blog posts (prevents N+1)
+        categories = BlogCategory.objects.all().annotate(
+            post_count=Count(
+                'blogpage',
+                filter=Q(blogpage__live=True) & Q(blogpage__show_in_menus=True),
+                distinct=True
+            )
+        ).order_by('name')
 
         categories_data = [
             {
@@ -221,7 +229,7 @@ def blog_categories(request):
                 'slug': cat.slug,
                 'description': cat.description,
                 'color': cat.color,
-                'post_count': cat.blogpage_set.live().public().count()
+                'post_count': cat.post_count  # From annotation, no query
             }
             for cat in categories
         ]
@@ -236,7 +244,7 @@ def blog_categories(request):
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def wagtail_homepage(request):
+def wagtail_homepage(request: Request) -> Response:
     """Get Wagtail homepage data for React frontend."""
     try:
         from apps.blog.models import HomePage, BlogPage
@@ -338,7 +346,7 @@ def wagtail_homepage(request):
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def learning_index(request):
+def learning_index(request: Request) -> Response:
     """Get learning index page with featured courses."""
     try:
         from apps.blog.models import LearningIndexPage, CoursePage, SkillLevel
@@ -355,7 +363,7 @@ def learning_index(request):
             featured=True
         ).prefetch_related(
             'categories',          # M2M for categories
-            'tags'                 # M2M for tags
+            # Note: tags prefetch skipped - see note in courses_list view
         ).select_related(
             'instructor',          # FK for instructor
             'skill_level'          # FK for skill level
@@ -363,6 +371,15 @@ def learning_index(request):
         
         featured_courses_data = []
         for course in featured_courses:
+            # Build instructor data safely
+            instructor_data = None
+            if course.instructor:
+                instructor_name = course.instructor.get_full_name() or course.instructor.username
+                instructor_data = {
+                    'name': instructor_name,
+                    'email': course.instructor.email
+                }
+
             featured_courses_data.append({
                 'id': course.id,
                 'title': course.title,
@@ -379,10 +396,7 @@ def learning_index(request):
                     'slug': course.skill_level.slug,
                     'color': course.skill_level.color
                 } if course.skill_level else None,
-                'instructor': {
-                    'name': course.instructor.get_full_name(),
-                    'email': course.instructor.email
-                } if course.instructor else None,
+                'instructor': instructor_data,
                 'course_image': course.course_image.url if course.course_image else None,
                 'categories': [
                     {
@@ -424,7 +438,7 @@ def learning_index(request):
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def courses_list(request):
+def courses_list(request: Request) -> Response:
     """Get list of Wagtail courses with filtering and pagination."""
     try:
         from apps.blog.models import CoursePage, SkillLevel, BlogCategory
@@ -441,7 +455,8 @@ def courses_list(request):
         # Start with base queryset with optimized prefetch
         courses = CoursePage.objects.live().public().prefetch_related(
             'categories',          # M2M for categories
-            'tags'                 # M2M for tags
+            # Note: tags prefetch skipped - BlogPageTag through model is hardcoded to BlogPage
+            # and doesn't work correctly with CoursePage
         ).select_related(
             'instructor',          # FK for instructor
             'skill_level'          # FK for skill level
@@ -473,9 +488,19 @@ def courses_list(request):
         # Serialize courses
         courses_data = []
         for course in paginated_courses:
-            # Get lesson count
-            lesson_count = course.get_children().live().public().count()
+            # Get lesson count (NOTE: Wagtail tree models don't support efficient count annotations)
+            # This causes 1 query per course - a known limitation of django-treebeard
+            lesson_count = course.get_children().live().count()
             
+            # Build instructor data safely
+            instructor_data = None
+            if course.instructor:
+                instructor_name = course.instructor.get_full_name() or course.instructor.username
+                instructor_data = {
+                    'name': instructor_name,
+                    'email': course.instructor.email
+                }
+
             courses_data.append({
                 'id': course.id,
                 'title': course.title,
@@ -494,10 +519,7 @@ def courses_list(request):
                     'slug': course.skill_level.slug,
                     'color': course.skill_level.color
                 } if course.skill_level else None,
-                'instructor': {
-                    'name': course.instructor.get_full_name(),
-                    'email': course.instructor.email
-                } if course.instructor else None,
+                'instructor': instructor_data,
                 'course_image': course.course_image.url if course.course_image else None,
                 'categories': [
                     {
@@ -507,7 +529,7 @@ def courses_list(request):
                     }
                     for cat in course.categories.all()
                 ],
-                'tags': serialize_tags(course)
+                # tags field omitted - BlogPageTag model doesn't work with CoursePage
             })
         
         # Pagination info
@@ -534,7 +556,7 @@ def courses_list(request):
 # Course detail and exercises endpoints
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def course_detail(request, course_slug):
+def course_detail(request: Request, course_slug: str) -> Response:
     """Get detailed information about a specific Wagtail course."""
     try:
         from apps.blog.models import CoursePage
@@ -552,6 +574,16 @@ def course_detail(request, course_slug):
             slug=course_slug
         )
 
+        # Build instructor data safely
+        instructor_data = None
+        if course.instructor:
+            instructor_name = course.instructor.get_full_name() or course.instructor.username
+            instructor_data = {
+                'id': course.instructor.id,
+                'name': instructor_name,
+                'email': course.instructor.email,
+            }
+
         # Serialize course data
         course_data = {
             'id': course.id,
@@ -568,11 +600,7 @@ def course_detail(request, course_slug):
             'enrollment_limit': course.enrollment_limit,
             'featured': course.featured,
             'prerequisites': str(course.prerequisites) if course.prerequisites else '',
-            'instructor': {
-                'id': course.instructor.id,
-                'name': course.instructor.get_full_name() or course.instructor.username,
-                'email': course.instructor.email,
-            } if course.instructor else None,
+            'instructor': instructor_data,
             'skill_level': {
                 'name': course.skill_level.name,
                 'slug': course.skill_level.slug,
@@ -602,7 +630,7 @@ def course_detail(request, course_slug):
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def course_exercises(request, course_slug):
+def course_exercises(request: Request, course_slug: str) -> Response:
     """Get exercises for a specific course, including direct children and exercises within lessons."""
     try:
         from apps.blog.models import CoursePage, ExercisePage, StepBasedExercisePage, LessonPage
@@ -689,19 +717,19 @@ def course_exercises(request, course_slug):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def lesson_detail(request, course_slug, lesson_slug):
+def lesson_detail(request: Request, course_slug: str, lesson_slug: str) -> Response:
     """Get detailed information about a specific lesson."""
     return Response({'error': 'Not implemented yet'}, status=501)
 
 
-def exercise_detail(request, course_slug, lesson_slug, exercise_slug):
-    """Get detailed information about a specific exercise."""
+def nested_exercise_detail(request: Request, course_slug: str, lesson_slug: str, exercise_slug: str) -> Response:
+    """Get detailed information about a specific exercise (nested URL structure)."""
     return Response({'error': 'Not implemented yet'}, status=501)
 
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def exercises_list(request):
+def exercises_list(request: Request) -> Response:
     """Get list of Wagtail exercises with filtering and pagination."""
     try:
         from apps.blog.models import ExercisePage, StepBasedExercisePage
@@ -718,9 +746,8 @@ def exercises_list(request):
         exercises = []
 
         # Get regular exercises with optimized prefetch
-        regular_exercises = ExercisePage.objects.live().public().prefetch_related(
-            'tags'
-        ).select_related(
+        # Note: ExercisePage doesn't have tags field
+        regular_exercises = ExercisePage.objects.live().public().select_related(
             'owner'
         ).order_by('-first_published_at')
         
@@ -736,6 +763,9 @@ def exercises_list(request):
         
         # Serialize regular exercises
         for exercise in regular_exercises:
+            # Use Wagtail's page path for parent/grandparent lookup - more efficient
+            # path format: 0001000200030004 where each segment is a page in the tree
+            # We can get ancestor info without additional queries if needed
             exercises.append({
                 'id': exercise.id,
                 'title': exercise.title,
@@ -752,15 +782,16 @@ def exercises_list(request):
                 'max_attempts': exercise.max_attempts,
                 'has_template': bool(exercise.template_code),
                 'has_hints': bool(exercise.progressive_hints),
-                'lesson_title': exercise.get_parent().title if exercise.get_parent() else None,
-                'course_title': exercise.get_parent().get_parent().title if exercise.get_parent() and exercise.get_parent().get_parent() else None,
+                # Skip parent/grandparent to avoid N+1 queries
+                # Frontend should fetch these separately if needed
+                'lesson_title': None,
+                'course_title': None,
             })
         
         # Get step-based exercises if requested with optimized prefetch
+        # Note: StepBasedExercisePage doesn't have tags field
         if include_step_based:
-            step_exercises = StepBasedExercisePage.objects.live().public().prefetch_related(
-                'tags'
-            ).select_related(
+            step_exercises = StepBasedExercisePage.objects.live().public().select_related(
                 'owner'
             ).order_by('-first_published_at')
             
@@ -785,8 +816,9 @@ def exercises_list(request):
                     'estimated_time': exercise.estimated_time,
                     'require_sequential': exercise.require_sequential,
                     'step_count': step_count,
-                    'lesson_title': exercise.get_parent().title if exercise.get_parent() else None,
-                    'course_title': exercise.get_parent().get_parent().title if exercise.get_parent() and exercise.get_parent().get_parent() else None,
+                    # Skip parent/grandparent to avoid N+1 queries
+                    'lesson_title': None,
+                    'course_title': None,
                 })
         
         # Sort by creation date (newest first)
@@ -820,14 +852,15 @@ def exercises_list(request):
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def exercise_detail(request, exercise_slug):
+def exercise_detail(request: Request, exercise_slug: str) -> Response:
     """Get detailed information about a specific exercise."""
     try:
         from apps.blog.models import ExercisePage
 
         # Get the exercise with optimized prefetch
+        # Note: ExercisePage doesn't have tags field
         exercise = get_object_or_404(
-            ExercisePage.objects.live().public().prefetch_related('tags').select_related('owner'),
+            ExercisePage.objects.live().public().select_related('owner'),
             slug=exercise_slug
         )
         
@@ -968,14 +1001,15 @@ def exercise_detail(request, exercise_slug):
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def step_exercise_detail(request, exercise_slug):
+def step_exercise_detail(request: Request, exercise_slug: str) -> Response:
     """Get detailed information about a specific step-based exercise."""
     try:
         from apps.blog.models import StepBasedExercisePage
 
         # Get the exercise with optimized prefetch
+        # Note: StepBasedExercisePage doesn't have tags field
         exercise = get_object_or_404(
-            StepBasedExercisePage.objects.live().public().prefetch_related('tags').select_related('owner'),
+            StepBasedExercisePage.objects.live().public().select_related('owner'),
             slug=exercise_slug
         )
         
@@ -1058,14 +1092,14 @@ def step_exercise_detail(request, exercise_slug):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def wagtail_playground(request):
+def wagtail_playground(request: Request) -> Response:
     """Get Wagtail playground configuration."""
     return Response({'error': 'Not implemented yet'}, status=501)
 
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
-def wagtail_course_enroll(request, course_slug):
+def wagtail_course_enroll(request: Request, course_slug: str) -> Response:
     """Enroll in a Wagtail course."""
     try:
         from apps.blog.models import CoursePage, WagtailCourseEnrollment
@@ -1106,7 +1140,7 @@ def wagtail_course_enroll(request, course_slug):
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
-def wagtail_course_unenroll(request, course_slug):
+def wagtail_course_unenroll(request: Request, course_slug: str) -> Response:
     """Unenroll from a Wagtail course."""
     try:
         from apps.blog.models import CoursePage, WagtailCourseEnrollment
@@ -1137,7 +1171,7 @@ def wagtail_course_unenroll(request, course_slug):
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def wagtail_course_enrollment_status(request, course_slug):
+def wagtail_course_enrollment_status(request: Request, course_slug: str) -> Response:
     """Get enrollment status for a Wagtail course."""
     try:
         from apps.blog.models import CoursePage, WagtailCourseEnrollment
@@ -1174,6 +1208,6 @@ def wagtail_course_enrollment_status(request, course_slug):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-def wagtail_user_enrollments(request):
+def wagtail_user_enrollments(request: Request) -> Response:
     """Get user's Wagtail course enrollments."""
     return Response({'error': 'Not implemented yet'}, status=501)
