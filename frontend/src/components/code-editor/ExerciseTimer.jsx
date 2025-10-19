@@ -26,8 +26,14 @@ const ExerciseTimer = memo(({ startTime, className = '' }) => {
   }
 
   return (
-    <div className={`flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400 ${className}`}>
-      <Clock className="w-4 h-4" />
+    <div
+      className={`flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400 ${className}`}
+      role="timer"
+      aria-label={`Time elapsed: ${formatTime(elapsed)}`}
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <Clock className="w-4 h-4" aria-hidden="true" />
       <span className="font-mono">{formatTime(elapsed)}</span>
     </div>
   )

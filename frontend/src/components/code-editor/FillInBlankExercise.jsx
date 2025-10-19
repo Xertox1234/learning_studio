@@ -34,8 +34,10 @@ const FillInBlankExercise = ({
 
   const { isAuthenticated, user } = useAuth()
 
-  // Performance monitoring in development mode
-  if (import.meta.env.DEV) {
+  // Performance monitoring in development mode (disabled by default)
+  const ENABLE_RENDER_TRACKING = false // Set to true only when debugging performance
+
+  if (import.meta.env.DEV && ENABLE_RENDER_TRACKING) {
     const renderCountRef = useRef(0)
     renderCountRef.current++
 
@@ -118,9 +120,11 @@ const FillInBlankExercise = ({
     // Check if all correct - show success message
     const allCorrect = Object.values(results).every(result => result === true)
 
-    console.log('Validation Results:', results)
-    console.log('All Correct?', allCorrect)
-    console.log('Values:', values)
+    if (import.meta.env.DEV) {
+      console.log('Validation Results:', results)
+      console.log('All Correct?', allCorrect)
+      console.log('Values:', values)
+    }
 
     if (allCorrect) {
       setShowSuccessMessage(true)
@@ -165,6 +169,7 @@ const FillInBlankExercise = ({
       setExecutionOutput(result)
       onSubmit(completeCode, result, fillBlankValues)
     } catch (error) {
+      // TODO: Replace with proper error tracking service (e.g., Sentry, LogRocket)
       console.error('Error running code:', error)
       // executeCode already handles errors and returns mock results
       const errorResult = {
@@ -183,7 +188,9 @@ const FillInBlankExercise = ({
   const handleHintRequested = useCallback((hint) => {
     setHintLevel(hint.level)
     // Could track hint usage analytics here
-    console.log(`Hint level ${hint.level} requested:`, hint)
+    if (import.meta.env.DEV) {
+      console.log(`Hint level ${hint.level} requested:`, hint)
+    }
   }, [])
 
   // Helper function to calculate current time spent (on-demand)

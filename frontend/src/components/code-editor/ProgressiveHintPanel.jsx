@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { ChevronRight, Lightbulb, Clock, Eye, CheckCircle } from 'lucide-react'
 import { sanitizeHTML } from '../../utils/sanitize'
 
@@ -87,6 +87,16 @@ const ProgressiveHintPanel = ({
   const progressiveHints = getProgressiveHints()
   const maxHintLevel = progressiveHints.length
 
+  // Memoize handleRevealHint to prevent unnecessary effect re-runs
+  const handleRevealHint = useCallback((level) => {
+    const hint = progressiveHints.find(h => h.level === level)
+    if (hint && !hintsRevealed.includes(level)) {
+      setHintsRevealed([...hintsRevealed, level])
+      setCurrentHintLevel(Math.max(currentHintLevel, level))
+      onHintRequested(hint)
+    }
+  }, [progressiveHints, hintsRevealed, currentHintLevel, onHintRequested])
+
   // Auto-trigger hints based on time and attempts
   useEffect(() => {
     if (autoHintTriggered || progressiveHints.length === 0) return
@@ -95,7 +105,7 @@ const ProgressiveHintPanel = ({
     if (!currentHint) return
 
     const shouldTrigger = (
-      (timeSpent >= currentHint.triggerTime) || 
+      (timeSpent >= currentHint.triggerTime) ||
       (wrongAttempts >= currentHint.triggerAttempts)
     ) && !hintsRevealed.includes(currentHint.level)
 
@@ -106,16 +116,7 @@ const ProgressiveHintPanel = ({
         handleRevealHint(currentHint.level)
       }
     }
-  }, [timeSpent, wrongAttempts, currentHintLevel, hintsRevealed, autoHintTriggered, progressiveHints])
-
-  const handleRevealHint = (level) => {
-    const hint = progressiveHints.find(h => h.level === level)
-    if (hint && !hintsRevealed.includes(level)) {
-      setHintsRevealed([...hintsRevealed, level])
-      setCurrentHintLevel(Math.max(currentHintLevel, level))
-      onHintRequested(hint)
-    }
-  }
+  }, [timeSpent, wrongAttempts, currentHintLevel, hintsRevealed, autoHintTriggered, progressiveHints, handleRevealHint])
 
   const getNextHintLevel = () => {
     const revealedLevels = hintsRevealed.length
