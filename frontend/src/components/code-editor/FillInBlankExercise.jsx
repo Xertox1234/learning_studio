@@ -4,6 +4,7 @@ import ProgressiveHintPanel from './ProgressiveHintPanel'
 import AIFloatingAssistant from '../ai/AIFloatingAssistant'
 import CodeEditorErrorBoundary from './CodeEditorErrorBoundary'
 import AIErrorBoundary from '../ai/AIErrorBoundary'
+import ExerciseTimer from './ExerciseTimer'
 import { executeCode } from '../../utils/api'
 import { useAuth } from '../../contexts/AuthContext'
 import { sanitizeHTML } from '../../utils/sanitize'
@@ -24,50 +25,32 @@ const FillInBlankExercise = ({
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
 
   // Progressive hint tracking
-  const [timeSpent, setTimeSpent] = useState(0)
   const [wrongAttempts, setWrongAttempts] = useState(0)
   const [hintLevel, setHintLevel] = useState(0)
   const startTimeRef = useRef(Date.now())
-  const timerRef = useRef(null)
 
   // No need to parse positions - the MatchDecorator handles this automatically
   // We just need to track which blanks exist and their solutions
 
   const { isAuthenticated, user } = useAuth()
 
-  // Timer effect for tracking time spent
+  // Performance monitoring in development mode (disabled by default)
+  const ENABLE_RENDER_TRACKING = false // Set to true only when debugging performance
+
+  if (import.meta.env.DEV && ENABLE_RENDER_TRACKING) {
+    const renderCountRef = useRef(0)
+    renderCountRef.current++
+
+    useEffect(() => {
+      console.log(`[FillInBlankExercise] Render #${renderCountRef.current}`)
+    })
+  }
+
+  // Reset start time when exercise changes
   useEffect(() => {
-    // Only start timer if we have exercise data
     if (!exerciseData?.id) return
-    
     startTimeRef.current = Date.now()
-    setTimeSpent(0) // Reset time counter
-    
-    const timer = setInterval(() => {
-      if (startTimeRef.current) {
-        setTimeSpent(Math.floor((Date.now() - startTimeRef.current) / 1000))
-      }
-    }, 1000)
-    
-    timerRef.current = timer
-
-    return () => {
-      if (timer) {
-        clearInterval(timer)
-      }
-      timerRef.current = null
-    }
-  }, [exerciseData?.id]) // Restart timer when exercise changes
-
-  // Cleanup timer on component unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
-      }
-    }
-  }, [])
+  }, [exerciseData?.id])
 
   // Handle fill-in-blank changes
   const handleFillBlankChange = useCallback((blankId, value, allValues) => {
@@ -137,9 +120,11 @@ const FillInBlankExercise = ({
     // Check if all correct - show success message
     const allCorrect = Object.values(results).every(result => result === true)
 
-    console.log('Validation Results:', results)
-    console.log('All Correct?', allCorrect)
-    console.log('Values:', values)
+    if (import.meta.env.DEV) {
+      console.log('Validation Results:', results)
+      console.log('All Correct?', allCorrect)
+      console.log('Values:', values)
+    }
 
     if (allCorrect) {
       setShowSuccessMessage(true)
@@ -184,6 +169,7 @@ const FillInBlankExercise = ({
       setExecutionOutput(result)
       onSubmit(completeCode, result, fillBlankValues)
     } catch (error) {
+      // TODO: Replace with proper error tracking service (e.g., Sentry, LogRocket)
       console.error('Error running code:', error)
       // executeCode already handles errors and returns mock results
       const errorResult = {
@@ -202,7 +188,14 @@ const FillInBlankExercise = ({
   const handleHintRequested = useCallback((hint) => {
     setHintLevel(hint.level)
     // Could track hint usage analytics here
-    console.log(`Hint level ${hint.level} requested:`, hint)
+    if (import.meta.env.DEV) {
+      console.log(`Hint level ${hint.level} requested:`, hint)
+    }
+  }, [])
+
+  // Helper function to calculate current time spent (on-demand)
+  const getTimeSpent = useCallback(() => {
+    return Math.floor((Date.now() - startTimeRef.current) / 1000)
   }, [])
 
   // Reset exercise
@@ -212,7 +205,6 @@ const FillInBlankExercise = ({
     setValidationResults({})
     setCode(exerciseData?.template || '')
     setExecutionOutput(null)
-    setTimeSpent(0)
     setWrongAttempts(0)
     setHintLevel(0)
     startTimeRef.current = Date.now()
@@ -238,7 +230,7 @@ const FillInBlankExercise = ({
       {/* Exercise Header */}
       <div className="exercise-header bg-slate-100 dark:bg-slate-800 p-4 rounded-t-lg border-b">
         <div className="flex justify-between items-center">
-          <div>
+          <div className="flex-1">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {exerciseData?.title || 'Fill in the Blanks'}
             </h3>
@@ -254,17 +246,22 @@ const FillInBlankExercise = ({
               </p>
             )}
           </div>
-          
-          <div className="flex items-center space-x-2">
+
+          <div className="flex items-center space-x-4">
+            {/* Timer - re-renders itself but not parent */}
+            <ExerciseTimer startTime={startTimeRef.current} />
+
             {/* Progress indicator */}
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Progress: {Math.round(progress)}%
-            </div>
-            <div className="w-20 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-500 transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+            <div className="flex items-center space-x-2">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                Progress: {Math.round(progress)}%
+              </div>
+              <div className="w-20 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -383,7 +380,7 @@ const FillInBlankExercise = ({
       <ProgressiveHintPanel
         exerciseData={exerciseData}
         currentAnswers={fillBlankValues}
-        timeSpent={timeSpent}
+        startTime={startTimeRef.current}
         wrongAttempts={wrongAttempts}
         onHintRequested={handleHintRequested}
       />

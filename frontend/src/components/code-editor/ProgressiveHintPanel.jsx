@@ -1,17 +1,35 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { ChevronRight, Lightbulb, Clock, Eye, CheckCircle } from 'lucide-react'
 import { sanitizeHTML } from '../../utils/sanitize'
 
 const ProgressiveHintPanel = ({
   exerciseData,
   currentAnswers = {},
-  timeSpent = 0,
+  startTime,
   wrongAttempts = 0,
   onHintRequested = () => {}
 }) => {
   const [currentHintLevel, setCurrentHintLevel] = useState(0)
   const [hintsRevealed, setHintsRevealed] = useState([])
   const [autoHintTriggered, setAutoHintTriggered] = useState(false)
+  const [timeSpent, setTimeSpent] = useState(0)
+
+  // Internal timer for tracking time (doesn't affect parent component)
+  useEffect(() => {
+    if (!startTime) return
+
+    // Calculate initial elapsed time
+    const initialElapsed = Math.floor((Date.now() - startTime) / 1000)
+    setTimeSpent(initialElapsed)
+
+    // Update every second
+    const timer = setInterval(() => {
+      const newElapsed = Math.floor((Date.now() - startTime) / 1000)
+      setTimeSpent(newElapsed)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [startTime])
 
   // Progressive hint structure - each exercise should define these levels
   const getProgressiveHints = () => {
@@ -69,6 +87,16 @@ const ProgressiveHintPanel = ({
   const progressiveHints = getProgressiveHints()
   const maxHintLevel = progressiveHints.length
 
+  // Memoize handleRevealHint to prevent unnecessary effect re-runs
+  const handleRevealHint = useCallback((level) => {
+    const hint = progressiveHints.find(h => h.level === level)
+    if (hint && !hintsRevealed.includes(level)) {
+      setHintsRevealed([...hintsRevealed, level])
+      setCurrentHintLevel(Math.max(currentHintLevel, level))
+      onHintRequested(hint)
+    }
+  }, [progressiveHints, hintsRevealed, currentHintLevel, onHintRequested])
+
   // Auto-trigger hints based on time and attempts
   useEffect(() => {
     if (autoHintTriggered || progressiveHints.length === 0) return
@@ -77,7 +105,7 @@ const ProgressiveHintPanel = ({
     if (!currentHint) return
 
     const shouldTrigger = (
-      (timeSpent >= currentHint.triggerTime) || 
+      (timeSpent >= currentHint.triggerTime) ||
       (wrongAttempts >= currentHint.triggerAttempts)
     ) && !hintsRevealed.includes(currentHint.level)
 
@@ -88,16 +116,7 @@ const ProgressiveHintPanel = ({
         handleRevealHint(currentHint.level)
       }
     }
-  }, [timeSpent, wrongAttempts, currentHintLevel, hintsRevealed, autoHintTriggered, progressiveHints])
-
-  const handleRevealHint = (level) => {
-    const hint = progressiveHints.find(h => h.level === level)
-    if (hint && !hintsRevealed.includes(level)) {
-      setHintsRevealed([...hintsRevealed, level])
-      setCurrentHintLevel(Math.max(currentHintLevel, level))
-      onHintRequested(hint)
-    }
-  }
+  }, [timeSpent, wrongAttempts, currentHintLevel, hintsRevealed, autoHintTriggered, progressiveHints, handleRevealHint])
 
   const getNextHintLevel = () => {
     const revealedLevels = hintsRevealed.length

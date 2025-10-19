@@ -252,4 +252,17 @@ const InteractiveCodeEditor = ({
   )
 }
 
-export default InteractiveCodeEditor
+// Memoize component to prevent unnecessary re-renders
+// Only re-render when value or onFillBlankChange actually changes
+export default React.memo(InteractiveCodeEditor, (prevProps, nextProps) => {
+  // Return true if props are equal (component should NOT re-render)
+  // Return false if props are different (component SHOULD re-render)
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.onChange === nextProps.onChange &&
+    prevProps.language === nextProps.language &&
+    prevProps.readOnly === nextProps.readOnly &&
+    prevProps.className === nextProps.className &&
+    prevProps.onFillBlankChange === nextProps.onFillBlankChange
+  )
+})
