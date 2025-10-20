@@ -227,6 +227,19 @@ const FillInBlankExercise = ({
 
   return (
     <div className={`fill-blank-exercise ${className}`}>
+      {/* ✅ Screen reader instructions (visually hidden) */}
+      <div
+        id="blank-instructions"
+        className="sr-only"
+        role="alert"
+        aria-live="polite"
+      >
+        Fill in the blanks to complete the code.
+        Use Tab or arrow keys to navigate between blanks.
+        Press Enter to submit your answer.
+        Press Escape to clear the current blank.
+      </div>
+
       {/* Exercise Header */}
       <div className="exercise-header bg-slate-100 dark:bg-slate-800 p-4 rounded-t-lg border-b">
         <div className="flex justify-between items-center">
@@ -234,6 +247,36 @@ const FillInBlankExercise = ({
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {exerciseData?.title || 'Fill in the Blanks'}
             </h3>
+
+            {/* ✅ Visual keyboard shortcut hints */}
+            {expectedBlanks.length > 0 && (
+              <div className="exercise-instructions text-xs text-slate-600 dark:text-slate-400 mt-2 flex flex-wrap items-center gap-2" aria-hidden="true">
+                <span className="font-medium">Keyboard shortcuts:</span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-2 py-0.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-[10px] font-mono">Tab</kbd>
+                  <span>or</span>
+                  <kbd className="px-2 py-0.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-[10px] font-mono">→</kbd>
+                  <span className="text-slate-500">next</span>
+                </span>
+                <span className="text-slate-400">·</span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-2 py-0.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-[10px] font-mono">Shift+Tab</kbd>
+                  <span>or</span>
+                  <kbd className="px-2 py-0.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-[10px] font-mono">←</kbd>
+                  <span className="text-slate-500">previous</span>
+                </span>
+                <span className="text-slate-400">·</span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-2 py-0.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-[10px] font-mono">Enter</kbd>
+                  <span className="text-slate-500">submit</span>
+                </span>
+                <span className="text-slate-400">·</span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-2 py-0.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-[10px] font-mono">Esc</kbd>
+                  <span className="text-slate-500">clear</span>
+                </span>
+              </div>
+            )}
             <div
               className="text-sm text-slate-600 dark:text-slate-400 mt-1 prose prose-sm dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={{
@@ -275,6 +318,7 @@ const FillInBlankExercise = ({
             onChange={setCode}
             language={exerciseData?.language || 'python'}
             onFillBlankChange={handleFillBlankChange}
+            onValidate={validateAnswers}
             readOnly={true}
             className="min-h-[300px]"
           />
@@ -351,10 +395,14 @@ const FillInBlankExercise = ({
           <button
             onClick={validateAnswers}
             disabled={!allBlanksFilled}
+            data-testid="submit-button"
+            type="submit"
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            aria-label="Validate exercise answers"
           >
             <CheckCircle className="w-4 h-4" />
             <span>Validate</span>
+            <kbd className="ml-2 px-1.5 py-0.5 bg-blue-700 rounded text-xs">Enter</kbd>
           </button>
           
           <button
