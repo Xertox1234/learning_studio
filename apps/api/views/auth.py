@@ -133,15 +133,27 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 del response.data['refresh']
 
             # Add user data to response (for frontend)
-            if request.user and request.user.is_authenticated:
-                user_data = {
-                    'id': request.user.id,
-                    'username': request.user.username,
-                    'email': request.user.email,
-                    'first_name': request.user.first_name,
-                    'last_name': request.user.last_name,
-                }
-                response.data['user'] = user_data
+            # Get user from the access token instead of request.user
+            # (request.user is AnonymousUser before login completes)
+            if access_token:
+                from rest_framework_simplejwt.tokens import AccessToken
+                try:
+                    token = AccessToken(access_token)
+                    user_id = token.get('user_id')
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    user = User.objects.get(id=user_id)
+                    user_data = {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                    }
+                    response.data['user'] = user_data
+                    response.data['success'] = True
+                except (Exception,):
+                    pass  # If we can't get user, just return without user data
 
         return super().finalize_response(request, response, *args, **kwargs)
 

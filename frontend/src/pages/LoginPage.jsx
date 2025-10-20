@@ -31,7 +31,7 @@ export default function LoginPage() {
 
     try {
       const result = await login(formData.email, formData.password)
-      
+
       if (result.success) {
         navigate(from, { replace: true })
       } else {
