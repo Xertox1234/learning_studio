@@ -5,7 +5,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
 from rest_framework.response import Response
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Case, When, IntegerField
 from machina.apps.forum.models import Forum
 from ..serializers import ForumListSerializer, ForumDetailSerializer
 
@@ -115,30 +115,37 @@ class ForumViewSet(viewsets.ReadOnlyModelViewSet):
         if pinned_only:
             queryset = queryset.filter(type__in=[Topic.TOPIC_STICKY, Topic.TOPIC_ANNOUNCE])
 
-        # Apply sorting
+        # ✅ Database-level sorting with pinned topics first
+        # Annotate pin_priority: 1 for pinned topics, 0 for regular topics
+        # This happens in SQL, not Python (prevents OOM)
+        queryset = queryset.annotate(
+            pin_priority=Case(
+                When(type__in=[Topic.TOPIC_STICKY, Topic.TOPIC_ANNOUNCE], then=1),
+                default=0,
+                output_field=IntegerField()
+            )
+        )
+
+        # Apply sorting (pinned topics always first)
         if sort_by == 'created':
-            queryset = queryset.order_by('-created')
+            queryset = queryset.order_by('-pin_priority', '-created')
         elif sort_by == 'title':
-            queryset = queryset.order_by('subject')
+            queryset = queryset.order_by('-pin_priority', 'subject')
         elif sort_by == 'views':
-            queryset = queryset.order_by('-views_count')
+            queryset = queryset.order_by('-pin_priority', '-views_count')
         else:  # activity (default)
-            queryset = queryset.order_by('-last_post_on')
+            queryset = queryset.order_by('-pin_priority', '-last_post_on')
 
-        # Separate pinned topics from regular topics
-        pinned_topics = queryset.filter(type__in=[Topic.TOPIC_STICKY, Topic.TOPIC_ANNOUNCE])
-        regular_topics = queryset.filter(type=Topic.TOPIC_POST)
+        # ✅ Get total count (single COUNT query, no data loaded)
+        total_count = queryset.count()
 
-        # Calculate pagination
+        # ✅ Database-level pagination using SQL LIMIT/OFFSET
+        # Only loads the requested page, not all topics!
         start = (page - 1) * page_size
         end = start + page_size
+        page_topics = queryset[start:end]
 
-        # Combine pinned + regular topics
-        all_topics = list(pinned_topics) + list(regular_topics)
-        total_count = len(all_topics)
-        page_topics = all_topics[start:end]
-
-        # Serialize
+        # Serialize (only the page of topics, not all)
         serializer = TopicListSerializer(page_topics, many=True, context={'request': request})
 
         return Response({
