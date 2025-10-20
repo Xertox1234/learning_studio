@@ -2,10 +2,11 @@
 User models for Python Learning Studio.
 """
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager as DjangoUserManager
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from .validators import (
     SecureAvatarUpload,
     SecureIconUpload,
@@ -17,9 +18,38 @@ from .validators import (
 )
 
 
+class UserManager(DjangoUserManager):
+    """
+    Custom User manager that filters out soft-deleted users by default.
+
+    Prevents soft-deleted users from appearing in queries unless explicitly requested.
+    Implements GDPR "right to be forgotten" at database level.
+
+    Related: Todo #024 - Implement Soft Delete Infrastructure
+    """
+
+    def get_queryset(self):
+        """Return only non-deleted users by default."""
+        return super().get_queryset().filter(is_deleted=False)
+
+    def all_with_deleted(self):
+        """Return all users including soft-deleted ones (admin use only)."""
+        return super().get_queryset()
+
+    def deleted_only(self):
+        """Return only soft-deleted users (admin recovery use)."""
+        return super().get_queryset().filter(is_deleted=True)
+
+
 class User(AbstractUser):
     """
     Custom User model extending Django's AbstractUser.
+
+    Implements soft delete to prevent CASCADE deletion of related objects.
+    When deleted, user data is anonymized for GDPR compliance while preserving
+    community content (forum posts, course reviews, etc.).
+
+    Related: Todo #024 - Implement Soft Delete Infrastructure
     """
     email = models.EmailField(unique=True)
     bio = models.TextField(max_length=500, blank=True)
@@ -42,7 +72,7 @@ class User(AbstractUser):
     website = models.URLField(blank=True)
     github_username = models.CharField(max_length=100, blank=True)
     linkedin_url = models.URLField(blank=True)
-    
+
     # Learning preferences
     preferred_programming_languages = models.CharField(max_length=200, blank=True)
     experience_level = models.CharField(
@@ -56,31 +86,62 @@ class User(AbstractUser):
         default='beginner'
     )
     learning_goals = models.TextField(max_length=1000, blank=True)
-    
+
     # Profile settings
     is_mentor = models.BooleanField(default=False)
     accepts_mentees = models.BooleanField(default=False)
     email_notifications = models.BooleanField(default=True)
-    
+
+    # Soft delete fields
+    is_deleted = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='Soft delete flag - user is hidden but data preserved'
+    )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Timestamp when user was soft deleted'
+    )
+    deletion_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Reason for account deletion (e.g., "user_request", "terms_violation")'
+    )
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
+    # Custom manager
+    objects = UserManager()
+
+    class Meta:
+        indexes = [
+            # Soft delete filtering (most frequent query)
+            models.Index(fields=['is_deleted'], name='user_is_deleted_idx'),
+            # Recovery queries (admin searching deleted users)
+            models.Index(fields=['is_deleted', 'deleted_at'], name='user_deleted_at_idx'),
+            # Active users lookup
+            models.Index(fields=['is_deleted', 'is_active'], name='user_active_idx'),
+        ]
+
     def __str__(self):
         return self.username
-    
+
     def get_absolute_url(self):
         return reverse('users:profile', kwargs={'username': self.username})
-    
+
     def get_full_display_name(self):
         """Return full name if available, otherwise username."""
         return self.get_full_name() or self.username
-    
+
     @property
     def total_achievements(self):
         """Return count of user achievements."""
         return self.achievements.count()
-    
+
     @property
     def completion_rate(self):
         """Calculate course completion rate."""
@@ -90,12 +151,138 @@ class User(AbstractUser):
         completed = enrollments.filter(completed=True).count()
         return int((completed / enrollments.count()) * 100)
 
+    def soft_delete(self, reason='user_request'):
+        """
+        Soft delete user account (GDPR "right to be forgotten").
+
+        Anonymizes personal data while preserving community contributions:
+        - Forum posts remain but show "[Deleted User]"
+        - Course reviews remain for other students
+        - Enrollment history preserved for statistics
+        - Personal data (email, name, bio) anonymized
+
+        Idempotent - safe to call multiple times.
+
+        Args:
+            reason: Deletion reason (e.g., "user_request", "terms_violation")
+
+        Related: Todo #024 - Implement Soft Delete Infrastructure
+        """
+        from django.db import transaction
+
+        with transaction.atomic():
+            # Use all_with_deleted() to prevent DoesNotExist if already deleted
+            user = User.objects.all_with_deleted().select_for_update().get(pk=self.pk)
+
+            # Idempotent check - skip if already deleted
+            if user.is_deleted:
+                return
+
+            # Mark as deleted
+            user.is_deleted = True
+            user.deleted_at = timezone.now()
+            user.deletion_reason = reason
+            user.is_active = False  # Prevent login
+
+            # Anonymize personal data
+            user.anonymize_personal_data()
+
+            user.save()
+
+    def anonymize_personal_data(self):
+        """
+        Anonymize user's personal data for GDPR compliance.
+
+        Removes PII while keeping username structure for foreign key integrity.
+        Community content (posts, reviews) remains with "[Deleted User]" attribution.
+
+        Fields anonymized:
+        - Email: deleted_user_{id}@deleted.local
+        - Name: [Deleted User]
+        - Bio, location, website, social links: cleared
+        - Avatar: deleted
+        - Learning preferences: cleared
+        """
+        import uuid
+
+        # Generate unique anonymous email (prevents unique constraint violations)
+        self.email = f'deleted_user_{self.pk}@deleted.local'
+
+        # Anonymize name
+        self.first_name = '[Deleted'
+        self.last_name = 'User]'
+
+        # Clear personal information
+        self.bio = ''
+        self.location = ''
+        self.website = ''
+        self.github_username = ''
+        self.linkedin_url = ''
+
+        # Clear learning preferences
+        self.preferred_programming_languages = ''
+        self.learning_goals = ''
+
+        # Delete avatar file
+        if self.avatar:
+            self.avatar.delete(save=False)
+            self.avatar = None
+
+        # Clear profile settings
+        self.is_mentor = False
+        self.accepts_mentees = False
+        self.email_notifications = False
+
+    def restore(self):
+        """
+        Restore soft-deleted user (admin recovery only).
+
+        WARNING: Cannot restore anonymized data. Only un-deletes the account.
+        User must re-enter personal information after restoration.
+
+        Related: Todo #024 - Implement Soft Delete Infrastructure
+        """
+        from django.db import transaction
+
+        if not self.is_deleted:
+            return  # Already active
+
+        with transaction.atomic():
+            user = User.objects.all_with_deleted().select_for_update().get(pk=self.pk)
+            user.is_deleted = False
+            user.deleted_at = None
+            user.is_active = True
+            user.save()
+
+    def hard_delete(self):
+        """
+        Permanently delete user and ALL related data.
+
+        WARNING: This is irreversible and will CASCADE delete:
+        - Forum posts, topics
+        - Course enrollments, reviews
+        - Exercise submissions
+        - All related objects (90+ models)
+
+        Only use when required by law (GDPR "right to erasure" after grace period).
+
+        Related: Todo #024 - Implement Soft Delete Infrastructure
+        """
+        # Delete avatar file first
+        if self.avatar:
+            self.avatar.delete(save=False)
+
+        # Bypass soft delete manager to permanently delete
+        super(User, self).delete()
+
     def save(self, *args, **kwargs):
         """
         Delete old avatar when uploading new one.
 
         Uses select_for_update() to prevent race conditions when
         multiple requests attempt to update the same user concurrently.
+
+        Handles soft-deleted users correctly using all_with_deleted().
         """
         from django.db import transaction
 
@@ -103,9 +290,9 @@ class User(AbstractUser):
 
         if self.pk:
             try:
-                # Lock the row to prevent concurrent modifications
+                # Use all_with_deleted() to handle soft-deleted users
                 with transaction.atomic():
-                    old_instance = User.objects.select_for_update().get(pk=self.pk)
+                    old_instance = User.objects.all_with_deleted().select_for_update().get(pk=self.pk)
                     if old_instance.avatar and self.avatar != old_instance.avatar:
                         old_avatar = old_instance.avatar
             except User.DoesNotExist:
