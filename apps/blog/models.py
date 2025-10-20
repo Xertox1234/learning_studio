@@ -703,6 +703,27 @@ class CoursePage(Page):
     parent_page_types = ['blog.LearningIndexPage']
     subpage_types = ['blog.LessonPage', 'blog.ExercisePage', 'blog.StepBasedExercisePage']
 
+    class Meta:
+        indexes = [
+            # Featured courses (homepage, course listings)
+            models.Index(
+                fields=['featured'],
+                name='course_page_featured_idx'
+            ),
+
+            # Filter by difficulty and free status (course search)
+            models.Index(
+                fields=['difficulty_level', 'is_free'],
+                name='course_page_diff_free_idx'
+            ),
+
+            # Featured + difficulty combination (filtered listings)
+            models.Index(
+                fields=['featured', 'difficulty_level'],
+                name='course_page_feat_diff_idx'
+            ),
+        ]
+
     def get_context(self, request):
         context = super().get_context(request)
         
@@ -1146,6 +1167,27 @@ class ExercisePage(Page):
     # Parent page rules
     parent_page_types = ['blog.LessonPage', 'blog.CoursePage']
 
+    class Meta:
+        indexes = [
+            # Exercise type + difficulty (exercise listings)
+            models.Index(
+                fields=['exercise_type', 'difficulty'],
+                name='exercise_page_type_diff_idx'
+            ),
+
+            # Programming language + difficulty (language-specific search)
+            models.Index(
+                fields=['programming_language', 'difficulty'],
+                name='exercise_page_lang_diff_idx'
+            ),
+
+            # Sequence number for ordering within lessons
+            models.Index(
+                fields=['sequence_number'],
+                name='exercise_page_seq_idx'
+            ),
+        ]
+
     def get_context(self, request):
         context = super().get_context(request)
         
@@ -1296,10 +1338,25 @@ class StepBasedExercisePage(Page):
     
     # Parent page rules
     parent_page_types = ['blog.LessonPage', 'blog.CoursePage']
-    
+
+    class Meta:
+        indexes = [
+            # Difficulty filtering (exercise search)
+            models.Index(
+                fields=['difficulty'],
+                name='step_exercise_page_diff_idx'
+            ),
+
+            # Sequence number for ordering within parent
+            models.Index(
+                fields=['sequence_number'],
+                name='step_exercise_page_seq_idx'
+            ),
+        ]
+
     def get_context(self, request):
         context = super().get_context(request)
-        
+
         # Add parent context
         parent = self.get_parent().specific
         if hasattr(parent, 'get_parent'):
