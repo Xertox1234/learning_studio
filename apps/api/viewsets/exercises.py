@@ -2,11 +2,14 @@
 Exercise system ViewSets for programming exercises, submissions, and progress tracking.
 """
 
-from django.db.models import Count, Exists, Max, Q, OuterRef
+from typing import Any, Optional, Dict
+from django.db.models import Count, Exists, Max, Q, OuterRef, QuerySet
 from django.utils import timezone
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import Serializer
 
 from apps.learning.models import (
     ProgrammingLanguage, ExerciseType, Exercise,
@@ -42,23 +45,23 @@ class ExerciseViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ExerciseSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Exercise]:
         """Optimized queryset with annotations to reduce database queries."""
         user = self.request.user
         queryset = super().get_queryset()
 
         # Filter by lesson
-        lesson = self.request.query_params.get('lesson')
+        lesson: Optional[str] = self.request.query_params.get('lesson')
         if lesson:
             queryset = queryset.filter(lesson__slug=lesson)
 
         # Filter by difficulty
-        difficulty = self.request.query_params.get('difficulty')
+        difficulty: Optional[str] = self.request.query_params.get('difficulty')
         if difficulty:
             queryset = queryset.filter(difficulty_level=difficulty)
 
         # Filter by programming language
-        language = self.request.query_params.get('language')
+        language: Optional[str] = self.request.query_params.get('language')
         if language:
             queryset = queryset.filter(programming_language__slug=language)
 
@@ -95,21 +98,21 @@ class ExerciseViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         return queryset
-    
+
     @action(detail=True, methods=['get'])
-    def test_cases(self, request, pk=None):
+    def test_cases(self, request: Request, pk: Optional[int] = None) -> Response:
         """Get sample test cases for exercise."""
-        exercise = self.get_object()
-        test_cases = exercise.test_cases.filter(is_sample=True)
-        serializer = TestCaseSerializer(test_cases, many=True)
+        exercise: Exercise = self.get_object()
+        test_cases: QuerySet[TestCase] = exercise.test_cases.filter(is_sample=True)
+        serializer: TestCaseSerializer = TestCaseSerializer(test_cases, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
-    def hints(self, request, pk=None):
+    def hints(self, request: Request, pk: Optional[int] = None) -> Response:
         """Get available hints for exercise."""
-        exercise = self.get_object()
-        hints = exercise.hints.all().order_by('order')
-        serializer = ExerciseHintSerializer(hints, many=True, context={'request': request})
+        exercise: Exercise = self.get_object()
+        hints: QuerySet[ExerciseHint] = exercise.hints.all().order_by('order')
+        serializer: ExerciseHintSerializer = ExerciseHintSerializer(hints, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -117,16 +120,16 @@ class SubmissionViewSet(RateLimitMixin, viewsets.ModelViewSet):
     """ViewSet for Submission model."""
     serializer_class = SubmissionSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    
-    def get_queryset(self):
+
+    def get_queryset(self) -> QuerySet[Submission]:
         return Submission.objects.filter(user=self.request.user).select_related('exercise')
-    
-    def perform_create(self, serializer):
+
+    def perform_create(self, serializer: Serializer) -> Response:
         """Create submission and evaluate code."""
-        submission = serializer.save(user=self.request.user)
+        submission: Submission = serializer.save(user=self.request.user)
         
         # Evaluate the submission
-        exercise_data = {
+        exercise_data: Dict[str, Any] = {
             'test_cases': [
                 {
                     'name': tc.name,
@@ -138,9 +141,9 @@ class SubmissionViewSet(RateLimitMixin, viewsets.ModelViewSet):
             ],
             'language': submission.exercise.programming_language.slug
         }
-        
-        evaluation_result = exercise_evaluator.evaluate_submission(
-            submission.code, 
+
+        evaluation_result: Dict[str, Any] = exercise_evaluator.evaluate_submission(
+            submission.code,
             exercise_data
         )
         
@@ -172,11 +175,11 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
     """ViewSet for StudentProgress model."""
     serializer_class = StudentProgressSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    
-    def get_queryset(self):
+
+    def get_queryset(self) -> QuerySet[StudentProgress]:
         return StudentProgress.objects.filter(user=self.request.user).select_related('exercise')
-    
-    def perform_create(self, serializer):
+
+    def perform_create(self, serializer: Serializer) -> None:
         serializer.save(user=self.request.user)
 
 
