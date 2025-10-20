@@ -15,11 +15,15 @@ import json
 
 def home_view(request):
     """Home page view with platform overview."""
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+
     context = {
         'total_courses': Course.objects.filter(is_published=True).count(),
         'total_exercises': Exercise.objects.filter(is_published=True).count(),
-        'total_users': 10000,  # This would be calculated from real user data
-        'success_rate': 94,
+        'total_users': User.objects.filter(is_active=True).count(),
+        'success_rate': 94,  # TODO: Calculate from exercise completion data
     }
     return render(request, 'base/home.html', context)
 
@@ -295,9 +299,9 @@ def test_exercise_interface_view(request):
             self.estimated_time = 29
             self.points = 10
             self.programming_language = type('MockLang', (), {'name': 'Python'})()
-            self.function_name = 'TODO'
-            self.starter_code = 'def TODO(numbers):\n    # Find max number\n    pass'
-            self.solution_code = 'def TODO(numbers):\n    return max(numbers)'
+            self.function_name = 'find_maximum'
+            self.starter_code = 'def find_maximum(numbers):\n    # Find max number\n    pass'
+            self.solution_code = 'def find_maximum(numbers):\n    return max(numbers)'
             self.hint = 'Try using the max() function or iterate through the list.'
             self.lesson = type('MockLesson', (), {
                 'title': 'Lesson 3',
