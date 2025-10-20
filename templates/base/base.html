@@ -100,15 +100,18 @@
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
-    
+
+    <!-- Skip to main content link for keyboard users (WCAG 2.4.1) -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
     <!-- Real-time Connection Status -->
     <div class="connection-status disconnected" id="connection-status">Offline</div>
-    
+
     <!-- Navigation -->
     {% include 'base/navbar.html' %}
-    
+
     <!-- Main Content -->
-    <main class="{% block main_class %}{% endblock %}">
+    <main id="main-content" tabindex="-1" class="{% block main_class %}{% endblock %}">
         <!-- Breadcrumb -->
         {% block breadcrumb %}{% endblock %}
         

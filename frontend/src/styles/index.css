@@ -89,6 +89,14 @@
 }
 
 @layer components {
+  /* Skip to main content link (WCAG 2.4.1 - Bypass Blocks) */
+  .skip-link {
+    @apply absolute left-[-9999px] z-[999] px-6 py-4 bg-black text-white no-underline font-semibold rounded-br-md;
+    @apply focus:left-0 focus:top-0;
+    /* High contrast mode support */
+    @apply focus:outline-4 focus:outline-offset-2 focus:outline-blue-500;
+  }
+
   /* Utility classes for common patterns */
   .container-custom {
     @apply mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;

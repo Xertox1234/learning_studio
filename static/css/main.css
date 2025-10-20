@@ -9,7 +9,7 @@
     --danger-color: #dc3545;
     --light-color: #f8f9fa;
     --dark-color: #212529;
-    
+
     /* Custom colors for coding themes */
     --code-bg: #1e1e1e;
     --code-text: #d4d4d4;
@@ -17,12 +17,37 @@
     --syntax-string: #ce9178;
     --syntax-comment: #6a9955;
     --syntax-number: #b5cea8;
-    
+
     /* Progress colors */
     --progress-beginner: #28a745;
     --progress-intermediate: #ffc107;
     --progress-advanced: #dc3545;
     --progress-expert: #6f42c1;
+}
+
+/* Skip to main content link (WCAG 2.4.1 - Bypass Blocks) */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    z-index: 999;
+    padding: 1rem 1.5rem;
+    background: #000;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 0 0 4px 0;
+}
+
+.skip-link:focus {
+    left: 0;
+    top: 0;
+    outline: 3px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+/* Ensure no outline on main when focused programmatically */
+main:focus {
+    outline: none;
 }
 
 /* Global Styles */
