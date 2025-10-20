@@ -11,7 +11,8 @@ from wagtail.search import index
 from wagtail.images.blocks import ImageChooserBlock
 from machina.core.db.models import get_model
 from machina.apps.forum.models import Forum
-from machina.apps.forum_conversation.models import Topic, Post
+# Note: Import Topic and Post using string references to avoid circular imports
+# from machina.apps.forum_conversation.models import Topic, Post
 from apps.users.validators import (
     SecureBadgeImageUpload,
     validate_badge_image_file_size,
@@ -243,7 +244,7 @@ class ReadingProgress(models.Model):
     Track reading progress for individual topics to measure engagement
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reading_progress')
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='reading_progress')
+    topic = models.ForeignKey('forum_conversation.Topic', on_delete=models.CASCADE, related_name='reading_progress')
     
     # Reading metrics
     time_spent = models.DurationField(default=timedelta())
@@ -311,8 +312,8 @@ class ReviewQueue(models.Model):
     priority = models.IntegerField(choices=PRIORITY_CHOICES, default=3)
     
     # Content references (at least one must be set)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, null=True, blank=True)
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, null=True, blank=True)
+    post = models.ForeignKey('forum_conversation.Post', on_delete=models.CASCADE, null=True, blank=True)
+    topic = models.ForeignKey('forum_conversation.Topic', on_delete=models.CASCADE, null=True, blank=True)
     reported_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='forum_reported_reviews')
     
     # Reporting and moderation
@@ -444,8 +445,8 @@ class ModerationLog(models.Model):
     # Target references
     review_item = models.ForeignKey(ReviewQueue, on_delete=models.CASCADE, null=True, blank=True)
     target_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='moderation_targets')
-    target_post = models.ForeignKey(Post, on_delete=models.CASCADE, null=True, blank=True)
-    target_topic = models.ForeignKey(Topic, on_delete=models.CASCADE, null=True, blank=True)
+    target_post = models.ForeignKey('forum_conversation.Post', on_delete=models.CASCADE, null=True, blank=True)
+    target_topic = models.ForeignKey('forum_conversation.Topic', on_delete=models.CASCADE, null=True, blank=True)
     
     # Action details
     reason = models.TextField(help_text="Reason for the moderation action")
@@ -495,8 +496,8 @@ class FlaggedContent(models.Model):
     ]
     
     # Content reference
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, null=True, blank=True)
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, null=True, blank=True)
+    post = models.ForeignKey('forum_conversation.Post', on_delete=models.CASCADE, null=True, blank=True)
+    topic = models.ForeignKey('forum_conversation.Topic', on_delete=models.CASCADE, null=True, blank=True)
     
     # Flag details
     flagger = models.ForeignKey(User, on_delete=models.CASCADE, related_name='flagged_content')
@@ -797,8 +798,8 @@ class UserBadge(models.Model):
     notification_sent = models.BooleanField(default=False)
     
     # Optional context data
-    earned_for_post = models.ForeignKey(Post, on_delete=models.SET_NULL, null=True, blank=True)
-    earned_for_topic = models.ForeignKey(Topic, on_delete=models.SET_NULL, null=True, blank=True)
+    earned_for_post = models.ForeignKey('forum_conversation.Post', on_delete=models.SET_NULL, null=True, blank=True)
+    earned_for_topic = models.ForeignKey('forum_conversation.Topic', on_delete=models.SET_NULL, null=True, blank=True)
     context_data = models.JSONField(default=dict, blank=True)
     
     class Meta:
@@ -897,8 +898,8 @@ class PointHistory(models.Model):
     new_total = models.IntegerField()
     
     # Optional references
-    post = models.ForeignKey(Post, on_delete=models.SET_NULL, null=True, blank=True)
-    topic = models.ForeignKey(Topic, on_delete=models.SET_NULL, null=True, blank=True)
+    post = models.ForeignKey('forum_conversation.Post', on_delete=models.SET_NULL, null=True, blank=True)
+    topic = models.ForeignKey('forum_conversation.Topic', on_delete=models.SET_NULL, null=True, blank=True)
     badge = models.ForeignKey(Badge, on_delete=models.SET_NULL, null=True, blank=True)
     
     timestamp = models.DateTimeField(auto_now_add=True)

@@ -111,9 +111,11 @@ THIRD_PARTY_APPS = [
     'widget_tweaks',
     
     # Django-machina apps
+    # NOTE: 'machina.apps.forum_conversation' is replaced by 'apps.forum_conversation'
+    # to override CASCADE behavior (see LOCAL_APPS below)
     'machina',
     'machina.apps.forum',
-    'machina.apps.forum_conversation',
+    # 'machina.apps.forum_conversation',  # ❌ Removed - using custom version
     'machina.apps.forum_conversation.forum_attachments',
     'machina.apps.forum_conversation.forum_polls',
     'machina.apps.forum_feeds',
@@ -135,7 +137,13 @@ LOCAL_APPS = [
     'apps.frontend',
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+# Custom forum_conversation app - MUST come before THIRD_PARTY_APPS
+# Overrides django-machina's forum_conversation to change CASCADE to SET_NULL
+CUSTOM_MACHINA_APPS = [
+    'apps.forum_conversation',
+]
+
+INSTALLED_APPS = DJANGO_APPS + CUSTOM_MACHINA_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
