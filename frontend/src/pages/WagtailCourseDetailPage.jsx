@@ -66,6 +66,12 @@ export default function WagtailCourseDetailPage() {
       setLoading(true)
       const response = await api.get(`/learning/courses/${courseSlug}/`)
       setCourse(response.data)
+
+      // Set enrollment status if it's included in the course response
+      if (response.data.enrollment_status) {
+        setEnrollmentStatus(response.data.enrollment_status)
+      }
+
       setError(null)
     } catch (err) {
       console.error('Error fetching course:', err)

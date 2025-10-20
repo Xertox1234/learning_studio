@@ -2,27 +2,13 @@
 
 /**
  * Get auth headers for API requests
+ * Note: We use httpOnly cookies for JWT tokens (security best practice)
+ * No need to manually set Authorization headers - cookies are sent automatically
  */
 export const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken')
-  const headers = {
+  return {
     'Content-Type': 'application/json',
   }
-  
-  if (token) {
-    // Only log token info in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Using auth token:', token.substring(0, 10) + '...')
-    }
-    // Try both Bearer and JWT formats since Django JWT can use either
-    headers['Authorization'] = `Bearer ${token}`
-  } else {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('No auth token found in localStorage')
-    }
-  }
-  
-  return headers
 }
 
 /**
@@ -40,13 +26,15 @@ const getApiBaseUrl = () => {
 
 /**
  * Make authenticated API request with proper error handling
+ * Uses httpOnly cookies for authentication (sent automatically with credentials: 'include')
  */
 export const apiRequest = async (url, options = {}) => {
   // Ensure URL is absolute with correct base
   const baseUrl = getApiBaseUrl()
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`
-  
+
   const config = {
+    credentials: 'include', // Send httpOnly cookies with every request
     headers: getAuthHeaders(),
     ...options,
     headers: {
@@ -54,20 +42,18 @@ export const apiRequest = async (url, options = {}) => {
       ...options.headers
     }
   }
-  
+
   if (process.env.NODE_ENV === 'development') {
     console.log('Making API request to:', fullUrl)
   }
-  
+
   try {
     const response = await fetch(fullUrl, config)
-    
+
     if (response.status === 401) {
-      // Token expired or invalid, clear it
-      localStorage.removeItem('authToken')
-      console.warn('Authentication failed - token cleared')
+      console.warn('Authentication failed - user may need to log in')
     }
-    
+
     return response
   } catch (error) {
     console.error('API Request failed:', error)
@@ -164,67 +150,44 @@ export const submitExercise = async (exerciseId, data) => {
 
 /**
  * Check if user is authenticated
+ * Note: With httpOnly cookies, we can't check authentication from JavaScript
+ * This function is deprecated - use AuthContext.isAuthenticated instead
  */
 export const isAuthenticated = () => {
-  const token = localStorage.getItem('authToken')
-  return !!token
+  console.warn('isAuthenticated() is deprecated - authentication is handled via httpOnly cookies')
+  return false // Can't determine from JS - use server-side check
 }
 
 /**
  * Get current auth token
+ * Note: With httpOnly cookies, tokens are not accessible from JavaScript
+ * This function is deprecated - tokens are managed by the browser automatically
  */
 export const getAuthToken = () => {
-  return localStorage.getItem('authToken')
+  console.warn('getAuthToken() is deprecated - tokens are in httpOnly cookies and not accessible from JavaScript')
+  return null
 }
 
 /**
  * Try to get authentication from Django session
+ * Note: With httpOnly cookies, authentication is automatic
+ * This function is deprecated - cookies are sent automatically with credentials: 'include'
  */
 export const getSessionAuth = async () => {
-  try {
-    const baseUrl = getApiBaseUrl()
-    const response = await fetch(`${baseUrl}/api/v1/auth/status/`, {
-      credentials: 'include', // Include cookies for session auth
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
-    
-    if (response.ok) {
-      const data = await response.json()
-      if (data.is_authenticated && data.token) {
-        localStorage.setItem('authToken', data.token)
-        return data.token
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.warn('Could not get session auth:', error)
-    return null
-  }
+  console.warn('getSessionAuth() is deprecated - authentication is handled automatically via httpOnly cookies')
+  return null
 }
 
 /**
  * Initialize authentication - try to get token from session if none exists
+ * Note: With httpOnly cookies, authentication is automatic
+ * This function is deprecated - cookies are sent automatically with every request
  */
 export const initAuth = async () => {
-  let token = getAuthToken()
-  
-  if (!token) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('No auth token found, trying to get from Django session...')
-    }
-    token = await getSessionAuth()
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Authentication is handled automatically via httpOnly cookies')
   }
-  
-  if (!token) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('No authentication available - will use demo mode')
-    }
-  }
-  
-  return token
+  return null
 }
 
 /**

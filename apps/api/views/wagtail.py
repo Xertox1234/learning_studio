@@ -562,11 +562,12 @@ def course_detail(request: Request, course_slug: str) -> Response:
         from apps.blog.models import CoursePage
 
         # Get course with optimized prefetch
+        # Note: tags prefetch skipped - BlogPageTag through model is hardcoded to BlogPage
+        # and doesn't work correctly with CoursePage
         course = get_object_or_404(
             CoursePage.objects.live().public().prefetch_related(
                 'learning_objectives',
                 'categories',
-                'tags'
             ).select_related(
                 'instructor',
                 'skill_level'
@@ -583,6 +584,26 @@ def course_detail(request: Request, course_slug: str) -> Response:
                 'name': instructor_name,
                 'email': course.instructor.email,
             }
+
+        # Check enrollment status for authenticated users
+        enrollment_data = None
+        if request.user.is_authenticated:
+            from apps.blog.models import WagtailCourseEnrollment
+            enrollment = WagtailCourseEnrollment.objects.filter(
+                user=request.user,
+                course=course
+            ).first()
+
+            if enrollment:
+                enrollment_data = {
+                    'enrolled': True,
+                    'enrolled_at': enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
+                    'progress_percentage': enrollment.progress_percentage,
+                    'completed': enrollment.completed,
+                    'completed_at': enrollment.completed_at.isoformat() if enrollment.completed_at else None,
+                    'last_activity': enrollment.last_activity.isoformat() if enrollment.last_activity else None,
+                    'total_time_spent': enrollment.total_time_spent
+                }
 
         # Serialize course data
         course_data = {
@@ -618,6 +639,7 @@ def course_detail(request: Request, course_slug: str) -> Response:
             'syllabus': serialize_streamfield(course.syllabus, request) if course.syllabus else [],
             'features': serialize_streamfield(course.features, request) if course.features else [],
             'course_image': course.course_image.url if course.course_image else None,
+            'enrollment_status': enrollment_data,  # Add enrollment status directly to course response
         }
 
         return Response(course_data)
