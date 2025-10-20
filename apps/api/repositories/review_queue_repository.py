@@ -140,6 +140,7 @@ class ReviewQueueRepository(OptimizedRepository):
             Dict with analytics data
         """
         from apps.forum_integration.models import ReviewQueue
+        from django.db.models.functions import TruncDate
 
         threshold = timezone.now() - timedelta(days=days)
 
@@ -150,10 +151,10 @@ class ReviewQueueRepository(OptimizedRepository):
         rejected = queryset.filter(status='rejected').count()
         pending = queryset.filter(status='pending').count()
 
-        # Group by date
+        # Group by date (using safe TruncDate instead of .extra())
         by_date = dict(
             queryset
-            .extra(select={'date': 'date(created_at)'})
+            .annotate(date=TruncDate('created_at'))
             .values('date')
             .annotate(count=Count('id'))
             .values_list('date', 'count')

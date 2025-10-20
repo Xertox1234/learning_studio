@@ -9,7 +9,8 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, F, ExpressionWrapper, DurationField, IntegerField
+from django.db.models.functions import Cast, Extract
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -328,9 +329,19 @@ def moderation_stats(request):
         'resolution_times': ReviewQueue.objects.filter(
             status__in=['approved', 'rejected'],
             resolved_at__isnull=False
-        ).extra(select={
-            'resolution_hours': "ROUND((JULIANDAY(resolved_at) - JULIANDAY(created_at)) * 24)"
-        }).values('resolution_hours').annotate(count=Count('id')),
+        ).annotate(
+            # Safe ORM calculation instead of raw SQL
+            resolution_seconds=ExpressionWrapper(
+                F('resolved_at') - F('created_at'),
+                output_field=DurationField()
+            )
+        ).annotate(
+            # Convert to hours and round
+            resolution_hours=Cast(
+                Extract('resolution_seconds', 'epoch') / 3600,
+                IntegerField()
+            )
+        ).values('resolution_hours').annotate(count=Count('id')),
     }
     
     context = {'stats': stats}
