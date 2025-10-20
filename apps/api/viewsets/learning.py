@@ -2,10 +2,13 @@
 Learning management ViewSets for courses, lessons, and progress tracking.
 """
 
-from django.db.models import Q, Count, Exists, OuterRef
+from typing import Any, Optional
+from django.db.models import Q, Count, Exists, OuterRef, QuerySet
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import Serializer
 
 from apps.learning.models import (
     Category, Course, Lesson, CourseEnrollment,
@@ -25,13 +28,13 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    
+
     @action(detail=True, methods=['get'])
-    def courses(self, request, pk=None):
+    def courses(self, request: Request, pk: Optional[int] = None) -> Response:
         """Get courses in this category."""
-        category = self.get_object()
-        courses = Course.objects.filter(category=category, is_published=True)
-        serializer = CourseSerializer(courses, many=True, context={'request': request})
+        category: Category = self.get_object()
+        courses: QuerySet[Course] = Course.objects.filter(category=category, is_published=True)
+        serializer: CourseSerializer = CourseSerializer(courses, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -41,7 +44,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsInstructorOrReadOnly]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Course]:
         """
         Optimize queryset with annotations to avoid N+1 queries.
         """
@@ -69,17 +72,17 @@ class CourseViewSet(viewsets.ModelViewSet):
         )
 
         # Filter by category
-        category = self.request.query_params.get('category')
+        category: Optional[str] = self.request.query_params.get('category')
         if category:
             queryset = queryset.filter(category__slug=category)
 
         # Filter by difficulty
-        difficulty = self.request.query_params.get('difficulty')
+        difficulty: Optional[str] = self.request.query_params.get('difficulty')
         if difficulty:
             queryset = queryset.filter(difficulty_level=difficulty)
 
         # Search
-        search = self.request.query_params.get('search')
+        search: Optional[str] = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(
                 Q(title__icontains=search) |
@@ -88,14 +91,14 @@ class CourseViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
-    
-    def perform_create(self, serializer):
+
+    def perform_create(self, serializer: Serializer) -> None:
         serializer.save(instructor=self.request.user)
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-    def enroll(self, request, pk=None):
+    def enroll(self, request: Request, pk: Optional[int] = None) -> Response:
         """Enroll user in course."""
-        course = self.get_object()
+        course: Course = self.get_object()
         enrollment, created = CourseEnrollment.objects.get_or_create(
             user=request.user,
             course=course
@@ -103,32 +106,32 @@ class CourseViewSet(viewsets.ModelViewSet):
         if created:
             return Response({'message': 'Enrolled successfully'}, status=status.HTTP_201_CREATED)
         return Response({'message': 'Already enrolled'}, status=status.HTTP_200_OK)
-    
+
     @action(detail=True, methods=['delete'], permission_classes=[permissions.IsAuthenticated])
-    def unenroll(self, request, pk=None):
+    def unenroll(self, request: Request, pk: Optional[int] = None) -> Response:
         """Unenroll user from course."""
-        course = self.get_object()
+        course: Course = self.get_object()
         try:
-            enrollment = CourseEnrollment.objects.get(user=request.user, course=course)
+            enrollment: CourseEnrollment = CourseEnrollment.objects.get(user=request.user, course=course)
             enrollment.delete()
             return Response({'message': 'Unenrolled successfully'}, status=status.HTTP_204_NO_CONTENT)
         except CourseEnrollment.DoesNotExist:
             return Response({'message': 'Not enrolled'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     @action(detail=True, methods=['get'])
-    def lessons(self, request, pk=None):
+    def lessons(self, request: Request, pk: Optional[int] = None) -> Response:
         """Get lessons for this course."""
-        course = self.get_object()
-        lessons = course.lessons.filter(is_published=True).order_by('order')
-        serializer = LessonSerializer(lessons, many=True, context={'request': request})
+        course: Course = self.get_object()
+        lessons: QuerySet[Lesson] = course.lessons.filter(is_published=True).order_by('order')
+        serializer: LessonSerializer = LessonSerializer(lessons, many=True, context={'request': request})
         return Response(serializer.data)
-    
+
     @action(detail=True, methods=['get'])
-    def reviews(self, request, pk=None):
+    def reviews(self, request: Request, pk: Optional[int] = None) -> Response:
         """Get reviews for this course."""
-        course = self.get_object()
-        reviews = course.reviews.all().order_by('-created_at')
-        serializer = CourseReviewSerializer(reviews, many=True, context={'request': request})
+        course: Course = self.get_object()
+        reviews: QuerySet[CourseReview] = course.reviews.all().order_by('-created_at')
+        serializer: CourseReviewSerializer = CourseReviewSerializer(reviews, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -138,12 +141,12 @@ class LessonViewSet(viewsets.ModelViewSet):
     serializer_class = LessonSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsInstructorOrReadOnly]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Lesson]:
         queryset = super().get_queryset()
         user = self.request.user
 
         # Filter by course
-        course = self.request.query_params.get('course')
+        course: Optional[str] = self.request.query_params.get('course')
         if course:
             queryset = queryset.filter(course__slug=course)
 
@@ -167,35 +170,35 @@ class LessonViewSet(viewsets.ModelViewSet):
         )
 
         return queryset
-    
+
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-    def start(self, request, pk=None):
+    def start(self, request: Request, pk: Optional[int] = None) -> Response:
         """Mark lesson as started."""
-        lesson = self.get_object()
+        lesson: Lesson = self.get_object()
         progress, created = UserProgress.objects.get_or_create(
             user=request.user,
             lesson=lesson
         )
         progress.mark_started()
         return Response({'message': 'Lesson started'}, status=status.HTTP_200_OK)
-    
+
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-    def complete(self, request, pk=None):
+    def complete(self, request: Request, pk: Optional[int] = None) -> Response:
         """Mark lesson as completed."""
-        lesson = self.get_object()
+        lesson: Lesson = self.get_object()
         progress, created = UserProgress.objects.get_or_create(
             user=request.user,
             lesson=lesson
         )
         progress.mark_completed()
         return Response({'message': 'Lesson completed'}, status=status.HTTP_200_OK)
-    
+
     @action(detail=True, methods=['get'])
-    def exercises(self, request, pk=None):
+    def exercises(self, request: Request, pk: Optional[int] = None) -> Response:
         """Get exercises for this lesson."""
-        lesson = self.get_object()
+        lesson: Lesson = self.get_object()
         exercises = lesson.exercises.filter(is_published=True).order_by('order')
-        serializer = ExerciseSerializer(exercises, many=True, context={'request': request})
+        serializer: ExerciseSerializer = ExerciseSerializer(exercises, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -203,8 +206,8 @@ class CourseEnrollmentViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for CourseEnrollment model."""
     serializer_class = CourseEnrollmentSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
+
+    def get_queryset(self) -> QuerySet[CourseEnrollment]:
         return CourseEnrollment.objects.filter(
             user=self.request.user
         ).select_related('course', 'course__instructor')
@@ -214,13 +217,13 @@ class UserProgressViewSet(viewsets.ModelViewSet):
     """ViewSet for UserProgress model."""
     serializer_class = UserProgressSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    
-    def get_queryset(self):
+
+    def get_queryset(self) -> QuerySet[UserProgress]:
         return UserProgress.objects.filter(
             user=self.request.user
         ).select_related('lesson', 'lesson__course')
-    
-    def perform_create(self, serializer):
+
+    def perform_create(self, serializer: Serializer) -> None:
         serializer.save(user=self.request.user)
 
 
@@ -248,7 +251,7 @@ class CourseReviewViewSet(viewsets.ModelViewSet):
     serializer_class = CourseReviewSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[CourseReview]:
         """
         Filter queryset to only user's own reviews.
         Staff can see all reviews.
@@ -264,7 +267,7 @@ class CourseReviewViewSet(viewsets.ModelViewSet):
         # Regular users can only see their own reviews
         return CourseReview.objects.filter(user=user)
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Serializer) -> None:
         """
         Force ownership to authenticated user.
 
