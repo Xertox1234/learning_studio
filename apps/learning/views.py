@@ -14,17 +14,18 @@ import json
 
 
 def home_view(request):
-    """Home page view with platform overview."""
-    from django.contrib.auth import get_user_model
+    """
+    Home page view with platform overview.
 
-    User = get_user_model()
+    Uses ForumStatisticsService for cached platform statistics.
+    Cache TTL: 60 seconds for reasonably fresh data.
+    """
+    from apps.api.services.container import container
 
-    context = {
-        'total_courses': Course.objects.filter(is_published=True).count(),
-        'total_exercises': Exercise.objects.filter(is_published=True).count(),
-        'total_users': User.objects.filter(is_active=True).count(),
-        'success_rate': 94,  # TODO: Calculate from exercise completion data
-    }
+    # Get statistics service with caching
+    stats_service = container.get_statistics_service()
+    context = stats_service.get_platform_statistics()
+
     return render(request, 'base/home.html', context)
 
 
@@ -246,44 +247,82 @@ def my_courses_view(request):
 
 @login_required
 def enroll_course(request, course_id):
-    """Enroll user in course."""
+    """
+    Enroll user in course with atomic transaction safety.
+
+    Prevents race conditions using:
+    - @transaction.atomic for rollback safety
+    - select_for_update() to lock course row
+    - get_or_create() for atomic enrollment creation
+    - F() expressions for safe counter updates
+
+    Related: Todo #022 - Fix Enrollment Race Condition
+    """
+    from django.db import transaction
+    from django.db.models import F
+
     if request.method == 'POST':
-        course = get_object_or_404(Course, id=course_id, is_published=True)
-        
-        # Check if user is already enrolled
-        if course.is_user_enrolled(request.user):
-            return JsonResponse({
-                'success': False,
-                'error': 'You are already enrolled in this course'
-            })
-        
-        # Create enrollment
         try:
-            enrollment = CourseEnrollment.objects.create(
-                user=request.user,
-                course=course
-            )
-            
-            # Update course statistics
-            course.update_statistics()
-            
-            return JsonResponse({
-                'success': True,
-                'message': f'Successfully enrolled in {course.title}',
-                'enrollment_id': enrollment.id,
-                'redirect_url': course.get_absolute_url()
-            })
-            
-        except Exception as e:
+            with transaction.atomic():
+                # ✅ Lock course row to prevent concurrent enrollment race conditions
+                # This ensures only one request can check/modify enrollment at a time
+                course = Course.objects.select_for_update().get(
+                    id=course_id,
+                    is_published=True
+                )
+
+                # ✅ Atomic get_or_create prevents duplicate enrollments
+                # Database unique_together constraint provides defense in depth
+                enrollment, created = CourseEnrollment.objects.get_or_create(
+                    user=request.user,
+                    course=course,
+                    defaults={
+                        'progress_percentage': 0,
+                    }
+                )
+
+                if not created:
+                    # User was already enrolled
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'You are already enrolled in this course',
+                        'enrollment_id': enrollment.id
+                    })
+
+                # ✅ Update course counter atomically using F() expression
+                # Prevents race conditions in counter updates
+                Course.objects.filter(id=course.id).update(
+                    total_enrollments=F('total_enrollments') + 1
+                )
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Successfully enrolled in {course.title}',
+                    'enrollment_id': enrollment.id,
+                    'redirect_url': course.get_absolute_url()
+                })
+
+        except Course.DoesNotExist:
             return JsonResponse({
                 'success': False,
-                'error': f'Enrollment failed: {str(e)}'
-            })
-    
+                'error': 'Course not found or not published'
+            }, status=404)
+
+        except Exception as e:
+            # Log the error but don't expose internal details
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Enrollment failed for user {request.user.id}, course {course_id}")
+
+            return JsonResponse({
+                'success': False,
+                'error': 'Enrollment failed. Please try again.'
+            }, status=500)
+
     return JsonResponse({
         'success': False,
         'error': 'Only POST requests allowed'
-    })
+    }, status=405)
 
 
 def test_exercise_interface_view(request):
