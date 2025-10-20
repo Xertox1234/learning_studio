@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}Python Learning Studio - AI-Powered Programming Education{% endblock %}
 
@@ -76,19 +77,19 @@
     <div class="container">
         <div class="row text-center">
             <div class="col-md-3 mb-4">
-                <div class="h2 text-primary fw-bold">10,000+</div>
+                <div class="h2 text-primary fw-bold">{{ total_users|default:"0"|intcomma }}{% if total_users > 999 %}+{% endif %}</div>
                 <div class="text-muted">Active Learners</div>
             </div>
             <div class="col-md-3 mb-4">
-                <div class="h2 text-success fw-bold">500+</div>
+                <div class="h2 text-success fw-bold">{{ total_exercises|default:"0"|intcomma }}{% if total_exercises > 99 %}+{% endif %}</div>
                 <div class="text-muted">Coding Exercises</div>
             </div>
             <div class="col-md-3 mb-4">
-                <div class="h2 text-info fw-bold">50+</div>
+                <div class="h2 text-info fw-bold">{{ total_courses|default:"0"|intcomma }}{% if total_courses > 9 %}+{% endif %}</div>
                 <div class="text-muted">Interactive Courses</div>
             </div>
             <div class="col-md-3 mb-4">
-                <div class="h2 text-warning fw-bold">94%</div>
+                <div class="h2 text-warning fw-bold">{{ success_rate|default:"0" }}%</div>
                 <div class="text-muted">Success Rate</div>
             </div>
         </div>
@@ -343,7 +344,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // This would typically load real course data from the API
     // For now, the static content above serves as a demo
-    console.log('Home page loaded successfully');
 });
 </script>
 {% endblock %}

@@ -450,3 +450,64 @@ class ForumStatisticsService:
         self.cache.set(cache_key, summary, timeout=self.CACHE_TIMEOUT_MEDIUM)
 
         return summary
+
+    # ========================================
+    # Platform-wide Statistics (for homepage)
+    # ========================================
+
+    def get_platform_statistics(self) -> Dict[str, Any]:
+        """
+        Get overall platform statistics for home page.
+
+        Returns cached stats if available, otherwise calculates and caches.
+        Cache TTL: CACHE_TIMEOUT_SHORT (60s) for reasonably fresh data
+
+        Returns:
+            Dict with keys: total_courses, total_exercises, total_users, success_rate
+        """
+        cache_key = f'{self.CACHE_VERSION}:platform:stats:all'
+
+        # Try cache first
+        stats = self.cache.get(cache_key)
+        if stats is not None:
+            logger.debug(f"Cache HIT: {cache_key}")
+            return stats
+
+        logger.debug(f"Cache MISS: {cache_key}")
+
+        # Import models (lazy import to avoid circular dependencies)
+        from apps.learning.models import Course, Exercise
+        from apps.learning.exercise_models import Submission
+        from django.db.models import Q
+
+        # Calculate total users
+        total_users = self.user_repo.count(is_active=True)
+
+        # Calculate total published courses
+        total_courses = Course.objects.filter(is_published=True).count()
+
+        # Calculate total published exercises
+        total_exercises = Exercise.objects.filter(is_published=True).count()
+
+        # Calculate platform-wide success rate from exercise submissions
+        total_submissions = Submission.objects.count()
+        if total_submissions > 0:
+            # Success criteria: status='passed' AND score >= 80
+            successful_submissions = Submission.objects.filter(
+                Q(status='passed') & Q(score__gte=80)
+            ).count()
+            success_rate = int((successful_submissions / total_submissions) * 100)
+        else:
+            success_rate = 0  # No submissions yet
+
+        stats = {
+            'total_users': total_users,
+            'total_courses': total_courses,
+            'total_exercises': total_exercises,
+            'success_rate': success_rate,
+        }
+
+        # Cache for short duration (60 seconds)
+        self.cache.set(cache_key, stats, timeout=self.CACHE_TIMEOUT_SHORT)
+
+        return stats
