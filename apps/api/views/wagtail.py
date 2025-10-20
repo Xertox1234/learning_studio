@@ -214,10 +214,11 @@ def blog_categories(request: Request) -> Response:
         from django.db.models import Count, Q
 
         # Use annotation to count related blog posts (prevents N+1)
+        # Note: Filter matches .live().public() criteria used in blog_index
         categories = BlogCategory.objects.all().annotate(
             post_count=Count(
                 'blogpage',
-                filter=Q(blogpage__live=True) & Q(blogpage__show_in_menus=True),
+                filter=Q(blogpage__live=True),
                 distinct=True
             )
         ).order_by('name')
@@ -453,6 +454,17 @@ def courses_list(request: Request) -> Response:
         page_size = int(request.GET.get('page_size', 12))
         
         # Start with base queryset with optimized prefetch
+        from django.db.models import Count, Q, OuterRef, Subquery
+        from wagtail.models import Page
+
+        # Use subquery to count child pages (lessons) efficiently
+        # Wagtail pages use path and depth to determine parent-child relationships
+        lesson_count_subquery = Page.objects.filter(
+            path__startswith=OuterRef('path'),
+            depth=OuterRef('depth') + 1,
+            live=True
+        ).values('path').annotate(count=Count('id')).values('count')
+
         courses = CoursePage.objects.live().public().prefetch_related(
             'categories',          # M2M for categories
             # Note: tags prefetch skipped - BlogPageTag through model is hardcoded to BlogPage
@@ -460,6 +472,9 @@ def courses_list(request: Request) -> Response:
         ).select_related(
             'instructor',          # FK for instructor
             'skill_level'          # FK for skill level
+        ).annotate(
+            # Annotate with subquery result (prevents N+1)
+            lesson_count=Subquery(lesson_count_subquery)
         ).order_by('-first_published_at')
         
         # Apply filters
@@ -488,9 +503,8 @@ def courses_list(request: Request) -> Response:
         # Serialize courses
         courses_data = []
         for course in paginated_courses:
-            # Get lesson count (NOTE: Wagtail tree models don't support efficient count annotations)
-            # This causes 1 query per course - a known limitation of django-treebeard
-            lesson_count = course.get_children().live().count()
+            # Use annotated lesson_count (from annotation above - no query)
+            lesson_count = course.lesson_count
             
             # Build instructor data safely
             instructor_data = None
@@ -967,11 +981,18 @@ def exercise_detail(request: Request, exercise_slug: str) -> Response:
                         'hint_text': str(block.value.get('hint_text', '')),
                         'reveal_after_attempts': block.value.get('reveal_after_attempts', 3)
                     })
-        
+
         # Get context (lesson and course info)
-        lesson = exercise.get_parent().specific if exercise.get_parent() else None
-        course = lesson.get_parent().specific if lesson and lesson.get_parent() else None
-        
+        # Cache parent lookups to avoid N+1 queries (prevents calling get_parent() multiple times)
+        parent_page = exercise.get_parent()
+        lesson = parent_page.specific if parent_page else None
+
+        if lesson:
+            grandparent_page = lesson.get_parent()
+            course = grandparent_page.specific if grandparent_page else None
+        else:
+            course = None
+
         return Response({
             'id': exercise.id,
             'title': exercise.title,
@@ -1078,9 +1099,16 @@ def step_exercise_detail(request: Request, exercise_slug: str) -> Response:
                     })
         
         # Get context (lesson and course info)
-        lesson = exercise.get_parent().specific if exercise.get_parent() else None
-        course = lesson.get_parent().specific if lesson and lesson.get_parent() else None
-        
+        # Cache parent lookups to avoid N+1 queries (prevents calling get_parent() multiple times)
+        parent_page = exercise.get_parent()
+        lesson = parent_page.specific if parent_page else None
+
+        if lesson:
+            grandparent_page = lesson.get_parent()
+            course = grandparent_page.specific if grandparent_page else None
+        else:
+            course = None
+
         return Response({
             'id': exercise.id,
             'title': exercise.title,
