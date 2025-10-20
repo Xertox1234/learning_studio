@@ -2,11 +2,15 @@
 User-related ViewSets for managing user profiles and authentication.
 """
 
+from typing import Any, Dict
 from django.contrib.auth import get_user_model
+from django.db.models import QuerySet
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.serializers import Serializer
 
 from apps.users.models import UserProfile
 from ..serializers import UserSerializer, UserProfileSerializer
@@ -31,7 +35,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @action(detail=False, methods=['get', 'patch'], permission_classes=[permissions.IsAuthenticated])
-    def me(self, request):
+    def me(self, request: Request) -> Response:
         """
         Get or update current user profile.
 
@@ -45,10 +49,10 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         - Old avatars deleted automatically on update
         """
         if request.method == 'GET':
-            serializer = self.get_serializer(request.user)
+            serializer: UserSerializer = self.get_serializer(request.user)
             return Response(serializer.data)
         elif request.method == 'PATCH':
-            serializer = self.get_serializer(request.user, data=request.data, partial=True)
+            serializer: UserSerializer = self.get_serializer(request.user, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data)
@@ -61,7 +65,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         parser_classes=[MultiPartParser, FormParser],
         throttle_classes=[FileUploadThrottle]
     )
-    def upload_avatar(self, request):
+    def upload_avatar(self, request: Request) -> Response:
         """
         Dedicated endpoint for avatar uploads.
 
@@ -82,7 +86,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             400: {avatar: ["Error message"]}
             429: {"detail": "Request was throttled. Expected available in X seconds."}
         """
-        user = request.user
+        user: User = request.user
 
         if 'avatar' not in request.data:
             return Response(
@@ -90,14 +94,15 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        serializer = self.get_serializer(user, data={'avatar': request.data['avatar']}, partial=True)
+        serializer: UserSerializer = self.get_serializer(user, data={'avatar': request.data['avatar']}, partial=True)
 
         if serializer.is_valid():
             serializer.save()
-            return Response({
+            avatar_response: Dict[str, Any] = {
                 'avatar_url': serializer.data.get('avatar_url'),
                 'message': 'Avatar uploaded successfully'
-            })
+            }
+            return Response(avatar_response)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -119,7 +124,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[UserProfile]:
         """
         Filter queryset to only user's own profile.
         Staff can see all profiles.
@@ -136,7 +141,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         # Regular users can only see their own profile
         return UserProfile.objects.filter(user=user)
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Serializer) -> None:
         """
         Force ownership to authenticated user.
 
